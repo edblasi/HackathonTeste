@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+
+/*Todo*/
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #F7FAF8;
+  color: #112471;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif { font-family: 'DM Serif Display', serif; }
+
+select option { background-color: white; }

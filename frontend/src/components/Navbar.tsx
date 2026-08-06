@@ -1,0 +1,174 @@
+import { useState } from "react";
+import { Search, Bell, X, ChevronDown, User, Settings, LogOut } from "lucide-react";
+import { useLang } from "../i18n/LanguageContext";
+import { Avatar } from "./Avatar";
+import { LanguageToggle } from "./LanguageToggle";
+
+interface NavbarNotification {
+  title: string;
+  description: string;
+}
+
+interface NavbarProps {
+  brandName?: string;
+  brandSubtitle?: string;
+  userName: string;
+  userInitials: string;
+  userRoleLabel?: string;
+  notification?: NavbarNotification | null;
+  onSignOut?: () => void;
+}
+
+export function Navbar({
+  brandName = "SUS Digital",
+  brandSubtitle,
+  userName,
+  userInitials,
+  userRoleLabel,
+  notification = null,
+  onSignOut,
+}: NavbarProps) {
+  const { t } = useLang();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
+  const shortName = userName.split(" ").slice(0, 2).join(" ");
+  const subtitle = brandSubtitle ?? t("shell.navbar.brandSubtitle");
+  const roleLabel = userRoleLabel ?? t("shell.navbar.userRoleLabel");
+
+  return (
+    <header
+      className="bg-white border-b border-border sticky top-0 z-50"
+      style={{ boxShadow: "0 1px 8px rgba(0,86,172,0.07)" }}
+    >
+      <div className="max-w-[1440px] mx-auto px-8 h-16 flex items-center justify-between gap-6">
+        {/* Logo */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white fill-white" aria-hidden="true">
+              <path
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
+                opacity="0.3"
+              />
+              <path d="M11 8H9v8h2V8zm4 0h-2v8h2V8zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-sm font-bold text-primary leading-none tracking-tight">{brandName}</div>
+            <div className="text-[10px] text-muted-foreground leading-none mt-0.5 tracking-wide uppercase">
+              {subtitle}
+            </div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="flex-1 max-w-sm">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              placeholder={t("shell.navbar.searchPlaceholder")}
+              className="w-full h-9 pl-9 pr-4 text-sm rounded-lg bg-input-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all"
+              aria-label={t("shell.navbar.searchPlaceholder")}
+            />
+          </div>
+        </div>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+
+          {/* Notification bell */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowNotif(!showNotif);
+                setShowDropdown(false);
+              }}
+              className="relative w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30"
+              aria-label={t("shell.navbar.notifications")}
+              aria-expanded={showNotif}
+            >
+              <Bell className="w-4.5 h-4.5" />
+              {notification && (
+                <span
+                  className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full"
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+            {showNotif && notification && (
+              <div
+                className="absolute right-0 top-11 w-80 bg-white rounded-xl border border-border shadow-lg z-50 overflow-hidden"
+                style={{ boxShadow: "0 8px 32px rgba(0,86,172,0.12)" }}
+              >
+                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">{t("shell.navbar.notifications")}</span>
+                  <button
+                    onClick={() => setShowNotif(false)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="px-4 py-3">
+                  <div className="flex gap-3">
+                    <div className="w-2 h-2 mt-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-foreground font-medium">{notification.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{notification.description}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Profile dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowDropdown(!showDropdown);
+                setShowNotif(false);
+              }}
+              className="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-lg hover:bg-secondary transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30"
+              aria-label={t("shell.navbar.myProfile")}
+              aria-expanded={showDropdown}
+            >
+              <Avatar initials={userInitials} size="sm" />
+              <div className="text-left hidden sm:block">
+                <div className="text-sm font-medium text-foreground leading-none">{shortName}</div>
+                <div className="text-[11px] text-muted-foreground leading-none mt-0.5">{roleLabel}</div>
+              </div>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${showDropdown ? "rotate-180" : ""}`}
+              />
+            </button>
+            {showDropdown && (
+              <div
+                className="absolute right-0 top-11 w-52 bg-white rounded-xl border border-border shadow-lg z-50 overflow-hidden py-1"
+                style={{ boxShadow: "0 8px 32px rgba(0,86,172,0.12)" }}
+              >
+                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors">
+                  <User className="w-4 h-4 text-muted-foreground" /> {t("shell.navbar.myProfile")}
+                </button>
+                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary transition-colors">
+                  <Settings className="w-4 h-4 text-muted-foreground" /> {t("shell.navbar.settings")}
+                </button>
+                <div className="my-1 border-t border-border" />
+                <button
+                  onClick={onSignOut}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" /> {t("shell.navbar.signOut")}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

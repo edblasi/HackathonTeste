@@ -1,0 +1,649 @@
+{
+  "nav": {
+    "home": "Home",
+    "patients": "Patients",
+    "logistics": "Reverse Logistics",
+    "triage": "Triage",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Log out",
+    "system": "National System"
+  },
+  "page": {
+    "inicio": {
+      "title": "Control Panel",
+      "sub": "System Overview — RE-VITA National"
+    },
+    "pacientes": {
+      "title": "Awaiting Patients",
+      "sub": "Care Management and Reverse Logistics — #CRE-SP-04"
+    },
+    "logistica": {
+      "title": "Reverse Logistics",
+      "sub": "Tracking and Dispatch of Collected Devices"
+    },
+    "triagens": {
+      "title": "Triage",
+      "sub": "Registration and Follow-up of Clinical Triages"
+    },
+    "relatorios": {
+      "title": "Reports",
+      "sub": "Indicators and Exports — RE-VITA System"
+    }
+  },
+  "topbar": {
+    "date": "Sun, Jun 22 2025"
+  },
+  "profile": {
+    "role": "CRE Administrator",
+    "email": "Email",
+    "phone": "Extension",
+    "unit": "Unit",
+    "profile": "Profile",
+    "lastLogin": "Last login",
+    "unitValue": "CRE Santo André — SP",
+    "roleValue": "Regional Administrator",
+    "lastValue": "Today, 08:42",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "kpi": {
+    "queue": "Active Queue",
+    "stock": "Prosthetics Stock",
+    "logistics": "In Reverse Logistics",
+    "matchings": "Matchings This Month",
+    "sub": {
+      "today": "+8 today",
+      "week": "−12 this week",
+      "yesterday": "+3 yesterday",
+      "vs": "↑12% vs. May"
+    }
+  },
+  "chart": {
+    "flow": {
+      "title": "Device Flow",
+      "sub": "Inflows vs Outflows — 2025",
+      "entries": "Inflows",
+      "exits": "Outflows"
+    }
+  },
+  "alerts": {
+    "1": "Critical stock: Transtibial Carbon < 20 units in SP",
+    "2": "3 patients without matching for over 30 days — NE Region",
+    "3": "SUS integration failure: last sync 3h ago",
+    "title": "Critical Alerts",
+    "viewAll": "View all alerts",
+    "time": {
+      "1": "14 min ago",
+      "2": "1h ago",
+      "3": "3h ago"
+    }
+  },
+  "recalls": {
+    "title": "Pending Recalls",
+    "active": "active",
+    "manage": "Manage recalls",
+    "deadline": "Deadline",
+    "units": "units"
+  },
+  "lots": {
+    "title": "Latest Registered Batches",
+    "sub": "Recent system updates",
+    "viewAll": "View all batches",
+    "showing": "Showing",
+    "recent": "most recent batches",
+    "col": {
+      "id": "Batch ID",
+      "date": "Registration Date",
+      "type": "Prosthetic Type",
+      "maker": "Workshop",
+      "qty": "Qty.",
+      "status": "Status"
+    },
+    "status": {
+      "ok": "Regular",
+      "low": "Low Stock",
+      "expired": "Expired"
+    }
+  },
+  "patients": {
+    "title": "Awaiting Patients",
+    "sub": "6 active referrals",
+    "all": "All",
+    "waiting": "Waiting",
+    "inProgress": "In Progress",
+    "showing": "Showing",
+    "of": "of",
+    "viewAll": "View all records",
+    "col": {
+      "patient": "PATIENT (LGPD)",
+      "device": "DEVICE",
+      "type": "TYPE",
+      "date": "REFERRED ON",
+      "status": "STATUS",
+      "action": "ACTION"
+    },
+    "triage": "Start Triage",
+    "priority": "High Priority",
+    "badge": {
+      "waiting": "Awaiting Arrival",
+      "inProgress": "In Progress"
+    }
+  },
+  "cre": {
+    "waiting": "Awaiting Arrival",
+    "attending": "In Progress",
+    "dispatch": "Prosthetics for Dispatch",
+    "monthly": "Consultations This Month"
+  },
+  "logistics": {
+    "panel": {
+      "title": "Reverse Logistics Panel",
+      "sub": "Dispatch of Collected Devices"
+    },
+    "pending": "pending batch",
+    "scanInstructions": "Scan the QR Code of a returned prosthesis to identify the correct destination and generate the dispatch guide.",
+    "position": "Position the prosthesis QR Code",
+    "reading": "Reading...",
+    "scanBtn": "Scan Returned Prosthesis",
+    "scanning": "Waiting for scan...",
+    "scanned": {
+      "label": "Active Scan",
+      "tag": "Replaced"
+    },
+    "dest": {
+      "title": "Mandatory Destination",
+      "sendTo": "Send to",
+      "factory": "OrthoTech Brasil Factory — São Paulo Unit",
+      "address": "Av. Industrial, 1200 — Mogi das Cruzes / SP",
+      "batchLabel": "Batch Status",
+      "waiting": "Awaiting Collection",
+      "generated": "Label Generated"
+    },
+    "genLabel": "Generate Shipping Guide / Label",
+    "reprint": "Reprint Guide",
+    "success": "Label generated — tracking:",
+    "scanAnother": "← Scan another prosthesis",
+    "alert": "prostheses awaiting processing in batch",
+    "kpi": {
+      "waiting": "Awaiting Collection",
+      "transit": "In Transit",
+      "delivered": "Delivered This Month",
+      "total": "Total Devices"
+    },
+    "table": {
+      "title": "Reverse Logistics Shipments",
+      "sub": "Devices being returned to manufacturer"
+    },
+    "col": {
+      "lot": "Batch",
+      "origin": "Origin",
+      "dest": "Destination / Manufacturer",
+      "type": "Device Type",
+      "qty": "Qty.",
+      "date": "Date",
+      "tracking": "Tracking",
+      "status": "Status"
+    },
+    "export": "Export",
+    "search": "Search batch or type...",
+    "scanNew": "Scan New Return",
+    "showing": "Showing",
+    "of": "of",
+    "remessas": "shipments",
+    "status": {
+      "delivered": "Delivered"
+    }
+  },
+  "triage": {
+    "kpi": {
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "done": "Completed Today",
+      "week": "This Week"
+    },
+    "table": {
+      "title": "Triage List",
+      "sub": "Click a row to see details"
+    },
+    "filter": {
+      "all": "All"
+    },
+    "col": {
+      "patient": "Patient",
+      "professional": "Professional",
+      "device": "Device",
+      "datetime": "Date / Time",
+      "status": "Status"
+    },
+    "new": "New Triage",
+    "showing": "Showing",
+    "of": "of",
+    "triagens": "triages",
+    "detail": {
+      "title": "Triage Details",
+      "empty": "Select a triage",
+      "emptySub": "Click a table row to see details",
+      "professional": "Professional",
+      "device": "Device",
+      "date": "Date",
+      "obs": "Clinical Notes",
+      "edit": "Edit Triage",
+      "print": "Print"
+    },
+    "status": {
+      "pending": "Pending",
+      "progress": "In Progress",
+      "done": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "reports": {
+    "kpi": {
+      "semester": "Triages This Semester",
+      "matchings": "Matchings Performed",
+      "returns": "Returns Processed",
+      "rate": "Matching Rate",
+      "goal": "Goal: 80%"
+    },
+    "bar": {
+      "title": "Monthly Operations Volume",
+      "sub": "Triages, Matchings and Returns — Jan–Jun 2025",
+      "triagens": "Triages",
+      "matchings": "Matchings",
+      "returns": "Returns"
+    },
+    "pie": {
+      "title": "Device Types",
+      "sub": "Distribution this semester"
+    },
+    "export": {
+      "title": "Available Reports",
+      "sub": "Generate and export custom reports"
+    },
+    "rep": {
+      "patients": "Patient Report",
+      "patientsSub": "All consultations for the period",
+      "matchings": "Matching Report",
+      "matchingsSub": "Combinations and success rate",
+      "logistics": "Reverse Logistics",
+      "logisticsSub": "Returns and batch status",
+      "stock": "Stock Report",
+      "stockSub": "Inflows, outflows and current balance",
+      "kpi": "Performance Indicators",
+      "kpiSub": "Monthly KPIs and achieved goals",
+      "audit": "Audits & Compliance",
+      "auditSub": "LGPD and regulatory compliance"
+    }
+  },
+  "shell": {
+    "navbar": {
+      "brandSubtitle": "Ministry of Health",
+      "searchPlaceholder": "Search information, documents...",
+      "notifications": "Notifications",
+      "myProfile": "My Profile",
+      "settings": "Settings",
+      "signOut": "Sign Out",
+      "userRoleLabel": "SUS Patient"
+    },
+    "footer": {
+      "copyright": "© 2026 Ministry of Health — Unified Health System (SUS)",
+      "compliance": "Secure platform certified by INCA/ANVISA"
+    },
+    "topnav": {
+      "back": "Back",
+      "brandFull": "Unified Medical Device Registry",
+      "secureSession": "Secure session"
+    }
+  },
+  "home": {
+    "welcome": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening",
+      "subtitle": "Your prosthesis monitoring dashboard is up to date.",
+      "susCard": "SUS Card"
+    },
+    "status": {
+      "monitoredImplant": "Monitored Implant",
+      "regularSafe": "Regular & Safe",
+      "rightKnee": "Right Knee",
+      "model": "Model",
+      "manufacturer": "Manufacturer",
+      "manufactureDate": "Manufacture Date",
+      "serialNumber": "Serial Number",
+      "verified": "Prosthesis verified and certified by the Ministry of Health"
+    },
+    "timeline": {
+      "title": "Maintenance Timeline",
+      "updated": "Updated automatically",
+      "implantDate": "Implant Date",
+      "lastReview": "Last Review",
+      "nextMaintenance": "Next Preventive Maintenance",
+      "completed": "Completed",
+      "scheduled": "Scheduled",
+      "daysRemaining": "days remaining",
+      "desc": {
+        "implant": "Surgery successfully performed at Hospital das Clínicas de São Paulo.",
+        "lastReview": "Routine check-up completed. No irregularities detected.",
+        "next": "Follow-up appointment scheduled for functional and imaging evaluation."
+      },
+      "created": "Request created",
+      "statusChangedTo": "Status changed to",
+      "noHistory": "No history recorded yet for this request."
+    },
+    "id": {
+      "title": "Prosthesis Digital Identity",
+      "subtitle": "Present this QR Code at any healthcare facility to access your implant records.",
+      "copied": "Copied!",
+      "viewHistory": "View Full History",
+      "exportPdf": "Export PDF (ID Card)",
+      "idLabel": "ID",
+      "copyAria": "Copy request ID"
+    },
+    "support": {
+      "title": "Support & Help",
+      "subtitle": "Official SUS channels",
+      "report": {
+        "label": "Report Discomfort or Pain",
+        "desc": "Report symptoms related to the implant"
+      },
+      "contact": {
+        "label": "Contact Ministry of Health",
+        "desc": "Health Line — 136 (free, 24h)"
+      },
+      "faq": {
+        "label": "Frequently Asked Questions",
+        "desc": "Get answers about prostheses and care"
+      },
+      "privacyNote": "Your data is protected by the LGPD and the Ministry of Health security protocol."
+    },
+    "notif": {
+      "title": "Next maintenance in {days} days",
+      "desc": "Schedule your preventive check-up"
+    },
+    "pedido": {
+      "title": "Orthosis Request",
+      "noPedido": "No active request at the moment.",
+      "procedureLabel": "Procedure",
+      "productLabel": "Product",
+      "productPending": "Product not yet defined",
+      "workshopLabel": "Responsible Workshop",
+      "workshopPending": "Not yet assigned",
+      "expectedDelivery": "Expected Delivery",
+      "deliveredOn": "Delivered on",
+      "requestedOn": "Requested on",
+      "status": {
+        "AGUARDANDO_AUTORIZACAO": "Awaiting Authorization",
+        "AUTORIZADA": "Authorized",
+        "NEGADA": "Denied",
+        "EM_FILA": "In Queue",
+        "EM_PRODUCAO": "In Production",
+        "ENTREGUE": "Delivered",
+        "CANCELADA": "Cancelled",
+        "AGUARDANDO_MEDIDAS": "Awaiting Measurements",
+        "CONTROLE_QUALIDADE": "Quality Control",
+        "PRONTA_PARA_ENTREGA": "Ready for Delivery"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "slide1": {
+        "tag": "Device Tracking",
+        "headline": "Your orthosis,\nfrom bench\nto body.",
+        "sub": "Every step of your care — from UBS referral to fitting — tracked in one place."
+      },
+      "slide2": {
+        "tag": "SUS Integration",
+        "headline": "Trusted care\nwithin Brazil's\npublic system.",
+        "sub": "Seamlessly connected to SISREG, UBS, and rehabilitation centers across Brazil."
+      },
+      "slide3": {
+        "tag": "Device Identity",
+        "headline": "A digital ID\nfor every\nmedical device.",
+        "sub": "UMDR assigns a unique identifier to each orthosis — keeping your record complete."
+      },
+      "portalTitle": "Patient Access Portal",
+      "portalSubtitle": "Enter your credentials to access your care records.",
+      "emailLabel": "Email address",
+      "passwordLabel": "Password",
+      "submit": "Log in",
+      "submitting": "Signing in...",
+      "orSignInWith": "or sign in with",
+      "badge": {
+        "lgpd": "LGPD protected",
+        "tracking": "SUS journey tracking",
+        "deviceId": "Device identity enabled"
+      },
+      "securityNote1": "Secure access for SUS patients and authorized health teams.",
+      "securityNote2": "Ministry of Health · DATASUS infrastructure.",
+      "error": "Invalid email or password. Please try again.",
+      "emailPlaceholder": "your.email@example.com",
+      "slideAria": "Show highlight {number}"
+    },
+    "verify": {
+      "authenticatedPatient": "Authenticated patient",
+      "welcome": "Welcome",
+      "confirmInfo": "Confirm your patient information before continuing to your device journey.",
+      "age": "Age",
+      "yearsUnit": "years",
+      "cpf": "CPF",
+      "phone": "Phone",
+      "patientId": "Patient ID",
+      "susCard": "SUS Card",
+      "location": "Location",
+      "referralUnit": "Referral Unit",
+      "rehabCenter": "Rehabilitation Center",
+      "currentRequest": "Current Device Request",
+      "deviceValue": "Left ankle-foot orthosis",
+      "continue": "Continue to device journey",
+      "wrongInfoNote": "If this is not your information, please contact UBS Vila Esperança or your health team immediately."
+    },
+    "stepper": {
+      "login": "Log in",
+      "verify": "Verify identity"
+    }
+  },
+  "manager": {
+    "nav": {
+      "executive": "Executive view",
+      "governance": "Governance",
+      "lifecycle": "Lifecycle",
+      "logistics": "Logistics",
+      "finance": "Finance",
+      "equity": "Equity",
+      "reports": "Reports",
+      "registrations": "Registrations"
+    },
+    "page": {
+      "executive": {
+        "title": "National Management Dashboard",
+        "subtitle": "Consolidated indicators from the UMDR network"
+      },
+      "governance": {
+        "title": "Governance and compliance",
+        "subtitle": "Security, audits and institutional reports"
+      },
+      "lifecycle": {
+        "title": "Device lifecycle",
+        "subtitle": "Recalls and device monitoring"
+      },
+      "logistics": {
+        "title": "National logistics",
+        "subtitle": "Inventory, queues and reverse shipments"
+      },
+      "finance": {
+        "title": "Providers and contracts",
+        "subtitle": "Financial and service-level monitoring"
+      },
+      "equity": {
+        "title": "Regional equity",
+        "subtitle": "Average waiting time by region"
+      },
+      "reports": {
+        "title": "Reports",
+        "subtitle": "Generated files and audit records"
+      },
+      "registrations": {
+        "title": "Registration center",
+        "subtitle": "Register patients, staff, providers and requests"
+      }
+    },
+    "security": {
+      "level": "Manager access",
+      "note": "Data in this area is loaded through the backend and requires the MANAGER role."
+    },
+    "kpi": {
+      "units": "Active units",
+      "patients": "Registered patients",
+      "recalls": "Active recalls",
+      "logistics": "Logistics alerts",
+      "devices": "Devices in flow",
+      "deliveries": "Completed deliveries"
+    },
+    "chart": {
+      "monthly": "Requests and deliveries by month",
+      "requests": "Requests",
+      "deliveries": "Deliveries",
+      "cancelled": "Cancelled",
+      "regional": "Inventory and queue by region",
+      "stock": "Inventory",
+      "queue": "Queue"
+    },
+    "recalls": {
+      "title": "Active recalls",
+      "lot": "Lot",
+      "deadline": "Deadline",
+      "affected": "Affected"
+    },
+    "providers": {
+      "title": "Providers and contracts",
+      "contract": "Contract",
+      "value": "Value",
+      "sla": "SLA",
+      "end": "Expiration"
+    },
+    "equity": {
+      "title": "Average waiting time",
+      "days": "days"
+    },
+    "reports": {
+      "title": "Available reports",
+      "name": "Name",
+      "format": "Format",
+      "generatedAt": "Generated at"
+    },
+    "common": {
+      "logout": "Sign out",
+      "refresh": "Refresh",
+      "notifications": "Notifications",
+      "loading": "Loading data...",
+      "error": "Could not load the data.",
+      "retry": "Try again",
+      "status": "Status",
+      "date": "Date",
+      "device": "Device",
+      "devices": "devices",
+      "provider": "Provider",
+      "type": "Type",
+      "action": "Action",
+      "view": "View",
+      "select": "Select"
+    },
+    "empty": {
+      "recalls": "No recalls registered.",
+      "shipments": "No shipments registered.",
+      "providers": "No providers registered.",
+      "equity": "There is not enough data yet.",
+      "reports": "No reports registered."
+    },
+    "registration": {
+      "tabs": {
+        "patient": "Patient",
+        "staff": "Staff",
+        "provider": "Provider",
+        "request": "Request"
+      },
+      "patient": {
+        "title": "Register patient",
+        "subtitle": "Creates the clinical record and patient login."
+      },
+      "staff": {
+        "title": "Register staff member",
+        "subtitle": "Creates the professional, login and access profile."
+      },
+      "provider": {
+        "title": "Register provider",
+        "subtitle": "Registers the provider and, optionally, its contract."
+      },
+      "request": {
+        "title": "Register request",
+        "subtitle": "Creates a new request and places it in the service queue."
+      },
+      "fields": {
+        "name": "Full name",
+        "email": "Email",
+        "password": "Initial password",
+        "cns": "CNS",
+        "cpf": "CPF",
+        "birthDate": "Date of birth",
+        "sex": "Sex",
+        "municipality": "Municipality",
+        "phone": "Phone",
+        "language": "Language",
+        "role": "Access role",
+        "cbo": "CBO",
+        "unit": "CNES unit",
+        "councilNumber": "Council number",
+        "councilType": "Council type",
+        "providerName": "Provider name",
+        "cnpj": "CNPJ",
+        "address": "Address",
+        "contractNumber": "Contract number",
+        "contractValue": "Contract value",
+        "sla": "SLA (%)",
+        "startDate": "Start",
+        "endDate": "End",
+        "status": "Status",
+        "patient": "Patient",
+        "procedure": "SIGTAP procedure",
+        "diagnosis": "ICD-10 diagnosis",
+        "priority": "Priority",
+        "side": "Affected side",
+        "justification": "Clinical justification"
+      },
+      "values": {
+        "female": "Female",
+        "male": "Male",
+        "cre": "CRE auditor",
+        "manager": "Manager",
+        "routine": "Routine",
+        "priority": "Priority",
+        "urgent": "Urgent"
+      },
+      "save": "Save registration",
+      "saving": "Saving...",
+      "success": "Registration completed successfully.",
+      "error": "Could not complete the registration."
+    }
+  },
+  "status": {
+    "ATIVO": "Active",
+    "INATIVO": "Inactive",
+    "VIGENTE": "Current",
+    "FINAL": "Final",
+    "ENCERRADO": "Closed",
+    "ENTREGUE": "Delivered",
+    "CONCLUIDA": "Completed",
+    "EM_TRANSITO": "In transit",
+    "EM_ANALISE": "Under review",
+    "EM_ANDAMENTO": "In progress",
+    "ABERTO": "Open",
+    "PENDENTE": "Pending",
+    "EM_RENOVACAO": "Under renewal",
+    "AGUARDANDO_COLETA": "Awaiting pickup",
+    "CANCELADO": "Cancelled",
+    "CANCELADA": "Cancelled"
+  }
+}

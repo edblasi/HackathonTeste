@@ -1,0 +1,649 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "patients": "Pacientes",
+    "logistics": "Logística Inversa",
+    "triage": "Triajes",
+    "reports": "Informes",
+    "settings": "Configuración",
+    "logout": "Cerrar sesión",
+    "system": "Sistema Nacional"
+  },
+  "page": {
+    "inicio": {
+      "title": "Panel de Control",
+      "sub": "Visión General del Sistema — RE-VITA Nacional"
+    },
+    "pacientes": {
+      "title": "Pacientes en Espera",
+      "sub": "Gestión de Atención y Logística Inversa — #CRE-SP-04"
+    },
+    "logistica": {
+      "title": "Logística Inversa",
+      "sub": "Rastreo y Despacho de Dispositivos Recolectados"
+    },
+    "triagens": {
+      "title": "Triajes",
+      "sub": "Registro y Seguimiento de Triajes Clínicos"
+    },
+    "relatorios": {
+      "title": "Informes",
+      "sub": "Indicadores y Exportaciones del Sistema RE-VITA"
+    }
+  },
+  "topbar": {
+    "date": "Dom, 22 jun 2025"
+  },
+  "profile": {
+    "role": "Administrador del CRE",
+    "email": "Correo electrónico",
+    "phone": "Extensión",
+    "unit": "Unidad",
+    "profile": "Perfil",
+    "lastLogin": "Último acceso",
+    "unitValue": "CRE Santo André — SP",
+    "roleValue": "Administrador Regional",
+    "lastValue": "Hoy, 08:42",
+    "settings": "Configuración",
+    "logout": "Cerrar sesión"
+  },
+  "kpi": {
+    "queue": "Cola Activa",
+    "stock": "Existencias de Prótesis",
+    "logistics": "En Logística Inversa",
+    "matchings": "Emparejamientos del Mes",
+    "sub": {
+      "today": "+8 hoy",
+      "week": "−12 esta semana",
+      "yesterday": "+3 ayer",
+      "vs": "↑12% vs. may"
+    }
+  },
+  "chart": {
+    "flow": {
+      "title": "Flujo de Dispositivos",
+      "sub": "Entradas vs Salidas — 2025",
+      "entries": "Entradas",
+      "exits": "Salidas"
+    }
+  },
+  "alerts": {
+    "1": "Stock crítico: Transtibial Carbono < 20 unidades en SP",
+    "2": "3 pacientes sin emparejamiento hace más de 30 días — Región NE",
+    "3": "Fallo en la integración con el SUS: última sincronización hace 3h",
+    "title": "Alertas Críticas",
+    "viewAll": "Ver todas las alertas",
+    "time": {
+      "1": "Hace 14 min",
+      "2": "Hace 1h",
+      "3": "Hace 3h"
+    }
+  },
+  "recalls": {
+    "title": "Retiros Pendientes",
+    "active": "activos",
+    "manage": "Gestionar retiros",
+    "deadline": "Plazo",
+    "units": "unid."
+  },
+  "lots": {
+    "title": "Últimos Lotes Registrados",
+    "sub": "Actualizaciones recientes del sistema",
+    "viewAll": "Ver todos los lotes",
+    "showing": "Mostrando",
+    "recent": "lotes más recientes",
+    "col": {
+      "id": "ID del Lote",
+      "date": "Fecha de Registro",
+      "type": "Tipo de Prótesis",
+      "maker": "Taller",
+      "qty": "Cant.",
+      "status": "Estado"
+    },
+    "status": {
+      "ok": "Regular",
+      "low": "Stock Bajo",
+      "expired": "Vencido"
+    }
+  },
+  "patients": {
+    "title": "Pacientes en Espera",
+    "sub": "6 derivaciones activas",
+    "all": "Todos",
+    "waiting": "En espera",
+    "inProgress": "En Atención",
+    "showing": "Mostrando",
+    "of": "de",
+    "viewAll": "Ver todos los registros",
+    "col": {
+      "patient": "PACIENTE (LGPD)",
+      "device": "DISPOSITIVO",
+      "type": "TIPO",
+      "date": "DERIVADO EL",
+      "status": "ESTADO",
+      "action": "ACCIÓN"
+    },
+    "triage": "Iniciar Triaje",
+    "priority": "Prioridad Alta",
+    "badge": {
+      "waiting": "Esperando Llegada",
+      "inProgress": "En Atención"
+    }
+  },
+  "cre": {
+    "waiting": "Esperando Llegada",
+    "attending": "En Atención",
+    "dispatch": "Prótesis para Despacho",
+    "monthly": "Atenciones del Mes"
+  },
+  "logistics": {
+    "panel": {
+      "title": "Panel de Logística Inversa",
+      "sub": "Despacho de Dispositivos Recolectados"
+    },
+    "pending": "lote pendiente",
+    "scanInstructions": "Escanee el código QR de una prótesis devuelta para identificar el destino correcto y generar la guía de despacho.",
+    "position": "Posicione el código QR de la prótesis",
+    "reading": "Leyendo...",
+    "scanBtn": "Escanear Prótesis Devuelta",
+    "scanning": "Esperando lectura...",
+    "scanned": {
+      "label": "Escaneo Activo",
+      "tag": "Reemplazada"
+    },
+    "dest": {
+      "title": "Destino Obligatorio",
+      "sendTo": "Enviar a",
+      "factory": "Fábrica OrthoTech Brasil — Unidad São Paulo",
+      "address": "Av. Industrial, 1200 — Mogi das Cruzes / SP",
+      "batchLabel": "Estado del Lote",
+      "waiting": "Esperando Recolección",
+      "generated": "Etiqueta Generada"
+    },
+    "genLabel": "Generar Guía de Envío / Etiqueta",
+    "reprint": "Reimprimir Guía",
+    "success": "Etiqueta generada — seguimiento:",
+    "scanAnother": "← Escanear otra prótesis",
+    "alert": "prótesis esperando procesamiento en el lote",
+    "kpi": {
+      "waiting": "Esperando Recolección",
+      "transit": "En Tránsito",
+      "delivered": "Entregadas este Mes",
+      "total": "Total de Dispositivos"
+    },
+    "table": {
+      "title": "Envíos de Logística Inversa",
+      "sub": "Dispositivos en proceso de devolución al fabricante"
+    },
+    "col": {
+      "lot": "Lote",
+      "origin": "Origen",
+      "dest": "Destino / Fabricante",
+      "type": "Tipo de Dispositivo",
+      "qty": "Cant.",
+      "date": "Fecha",
+      "tracking": "Seguimiento",
+      "status": "Estado"
+    },
+    "export": "Exportar",
+    "search": "Buscar lote o tipo...",
+    "scanNew": "Escanear Nueva Devolución",
+    "showing": "Mostrando",
+    "of": "de",
+    "remessas": "envíos",
+    "status": {
+      "delivered": "Entregada"
+    }
+  },
+  "triage": {
+    "kpi": {
+      "pending": "Pendientes",
+      "inProgress": "En Curso",
+      "done": "Completadas Hoy",
+      "week": "Esta Semana"
+    },
+    "table": {
+      "title": "Lista de Triajes",
+      "sub": "Haga clic en una fila para ver detalles"
+    },
+    "filter": {
+      "all": "Todas"
+    },
+    "col": {
+      "patient": "Paciente",
+      "professional": "Profesional",
+      "device": "Dispositivo",
+      "datetime": "Fecha / Hora",
+      "status": "Estado"
+    },
+    "new": "Nuevo Triaje",
+    "showing": "Mostrando",
+    "of": "de",
+    "triagens": "triajes",
+    "detail": {
+      "title": "Detalles del Triaje",
+      "empty": "Seleccione un triaje",
+      "emptySub": "Haga clic en una fila de la tabla para ver los detalles",
+      "professional": "Profesional",
+      "device": "Dispositivo",
+      "date": "Fecha",
+      "obs": "Observación Clínica",
+      "edit": "Editar Triaje",
+      "print": "Imprimir"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "progress": "En Curso",
+      "done": "Completada",
+      "cancelled": "Cancelada"
+    }
+  },
+  "reports": {
+    "kpi": {
+      "semester": "Triajes en el Semestre",
+      "matchings": "Emparejamientos Realizados",
+      "returns": "Devoluciones Procesadas",
+      "rate": "Tasa de Emparejamiento",
+      "goal": "Meta: 80%"
+    },
+    "bar": {
+      "title": "Volumen Mensual de Operaciones",
+      "sub": "Triajes, Emparejamientos y Devoluciones — Ene–Jun 2025",
+      "triagens": "Triajes",
+      "matchings": "Emparejamientos",
+      "returns": "Devoluciones"
+    },
+    "pie": {
+      "title": "Tipos de Dispositivo",
+      "sub": "Distribución en el semestre"
+    },
+    "export": {
+      "title": "Informes Disponibles",
+      "sub": "Genere y exporte informes personalizados"
+    },
+    "rep": {
+      "patients": "Informe de Pacientes",
+      "patientsSub": "Todas las atenciones del período",
+      "matchings": "Informe de Emparejamientos",
+      "matchingsSub": "Combinaciones y tasa de éxito",
+      "logistics": "Logística Inversa",
+      "logisticsSub": "Devoluciones y estado de lotes",
+      "stock": "Informe de Existencias",
+      "stockSub": "Entradas, salidas y saldo actual",
+      "kpi": "Indicadores de Desempeño",
+      "kpiSub": "KPIs mensuales y metas alcanzadas",
+      "audit": "Auditorías y Cumplimiento",
+      "auditSub": "Cumplimiento con la LGPD y normativa"
+    }
+  },
+  "shell": {
+    "navbar": {
+      "brandSubtitle": "Ministerio de Salud",
+      "searchPlaceholder": "Buscar información, documentos...",
+      "notifications": "Notificaciones",
+      "myProfile": "Mi Perfil",
+      "settings": "Configuración",
+      "signOut": "Cerrar sesión",
+      "userRoleLabel": "Paciente del SUS"
+    },
+    "footer": {
+      "copyright": "© 2026 Ministerio de Salud — Sistema Único de Salud (SUS)",
+      "compliance": "Plataforma segura certificada por INCA/ANVISA"
+    },
+    "topnav": {
+      "back": "Atrás",
+      "brandFull": "Registro Unificado de Dispositivos Médicos",
+      "secureSession": "Sesión segura"
+    }
+  },
+  "home": {
+    "welcome": {
+      "morning": "Buenos días",
+      "afternoon": "Buenas tardes",
+      "evening": "Buenas noches",
+      "subtitle": "Su panel de monitoreo de prótesis está actualizado.",
+      "susCard": "Tarjeta SUS"
+    },
+    "status": {
+      "monitoredImplant": "Implante Monitoreado",
+      "regularSafe": "Regular y Segura",
+      "rightKnee": "Rodilla Derecha",
+      "model": "Modelo",
+      "manufacturer": "Fabricante",
+      "manufactureDate": "Fecha de Fabricación",
+      "serialNumber": "Número de Serie",
+      "verified": "Prótesis verificada y certificada por el Ministerio de Salud"
+    },
+    "timeline": {
+      "title": "Cronograma de Mantenimiento",
+      "updated": "Actualizado automáticamente",
+      "implantDate": "Fecha del Implante",
+      "lastReview": "Última Revisión",
+      "nextMaintenance": "Próximo Mantenimiento Preventivo",
+      "completed": "Completado",
+      "scheduled": "Programado",
+      "daysRemaining": "días restantes",
+      "desc": {
+        "implant": "Cirugía realizada con éxito en el Hospital das Clínicas de São Paulo.",
+        "lastReview": "Chequeo de rutina completado. No se detectaron irregularidades.",
+        "next": "Cita de seguimiento programada para evaluación funcional y de imagen."
+      },
+      "created": "Solicitud creada",
+      "statusChangedTo": "Estado cambiado a",
+      "noHistory": "Aún no hay historial registrado para esta solicitud."
+    },
+    "id": {
+      "title": "Identidad Digital de la Prótesis",
+      "subtitle": "Presente este código QR en cualquier centro de salud para acceder a su historial de implante.",
+      "copied": "¡Copiado!",
+      "viewHistory": "Ver Historial Completo",
+      "exportPdf": "Exportar PDF (Carné)",
+      "idLabel": "ID",
+      "copyAria": "Copiar ID de la solicitud"
+    },
+    "support": {
+      "title": "Soporte y Ayuda",
+      "subtitle": "Canales oficiales del SUS",
+      "report": {
+        "label": "Informar Molestia o Dolor",
+        "desc": "Informe síntomas relacionados con el implante"
+      },
+      "contact": {
+        "label": "Contactar al Ministerio de Salud",
+        "desc": "Línea de Salud — 136 (gratuita, 24h)"
+      },
+      "faq": {
+        "label": "Preguntas Frecuentes",
+        "desc": "Resuelva dudas sobre prótesis y cuidados"
+      },
+      "privacyNote": "Sus datos están protegidos por la LGPD y el protocolo de seguridad del Ministerio de Salud."
+    },
+    "notif": {
+      "title": "Próximo mantenimiento en {days} días",
+      "desc": "Programe su revisión preventiva"
+    },
+    "pedido": {
+      "title": "Solicitud de Órtesis",
+      "noPedido": "No hay ninguna solicitud activa en este momento.",
+      "procedureLabel": "Procedimiento",
+      "productLabel": "Producto",
+      "productPending": "Producto aún no definido",
+      "workshopLabel": "Taller Responsable",
+      "workshopPending": "Aún no asignado",
+      "expectedDelivery": "Entrega Prevista",
+      "deliveredOn": "Entregado el",
+      "requestedOn": "Solicitado el",
+      "status": {
+        "AGUARDANDO_AUTORIZACAO": "Esperando Autorización",
+        "AUTORIZADA": "Autorizada",
+        "NEGADA": "Denegada",
+        "EM_FILA": "En Cola",
+        "EM_PRODUCAO": "En Producción",
+        "ENTREGUE": "Entregada",
+        "CANCELADA": "Cancelada",
+        "AGUARDANDO_MEDIDAS": "Esperando Medidas",
+        "CONTROLE_QUALIDADE": "Control de Calidad",
+        "PRONTA_PARA_ENTREGA": "Lista para Entrega"
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "slide1": {
+        "tag": "Rastreo de Dispositivo",
+        "headline": "Su órtesis,\ndel banco\nal cuerpo.",
+        "sub": "Cada etapa de su cuidado — desde la derivación en la UBS hasta la adaptación — rastreada en un solo lugar."
+      },
+      "slide2": {
+        "tag": "Integración con el SUS",
+        "headline": "Atención confiable\ndentro del sistema\npúblico de Brasil.",
+        "sub": "Conectado de forma integrada al SISREG, a las UBS y a los centros de rehabilitación en todo Brasil."
+      },
+      "slide3": {
+        "tag": "Identidad del Dispositivo",
+        "headline": "Una identidad digital\npara cada\ndispositivo médico.",
+        "sub": "El UMDR asigna un identificador único a cada órtesis — manteniendo su registro completo."
+      },
+      "portalTitle": "Portal de Acceso del Paciente",
+      "portalSubtitle": "Ingrese sus credenciales para acceder a sus registros de atención.",
+      "emailLabel": "Correo electrónico",
+      "passwordLabel": "Contraseña",
+      "submit": "Ingresar",
+      "submitting": "Ingresando...",
+      "orSignInWith": "o inicia sesión con",
+      "badge": {
+        "lgpd": "Protegido por la LGPD",
+        "tracking": "Rastreo de la trayectoria en el SUS",
+        "deviceId": "Identidad de dispositivo habilitada"
+      },
+      "securityNote1": "Acceso seguro para pacientes del SUS y equipos de salud autorizados.",
+      "securityNote2": "Ministerio de Salud · Infraestructura DATASUS.",
+      "error": "Correo electrónico o contraseña inválidos. Inténtelo de nuevo.",
+      "emailPlaceholder": "tu.correo@ejemplo.com",
+      "slideAria": "Mostrar destaque {number}"
+    },
+    "verify": {
+      "authenticatedPatient": "Paciente autenticado",
+      "welcome": "Bienvenido(a)",
+      "confirmInfo": "Confirme su información de paciente antes de continuar con la trayectoria de su dispositivo.",
+      "age": "Edad",
+      "yearsUnit": "años",
+      "cpf": "CPF",
+      "phone": "Teléfono",
+      "patientId": "ID del Paciente",
+      "susCard": "Tarjeta SUS",
+      "location": "Ubicación",
+      "referralUnit": "Unidad de Derivación",
+      "rehabCenter": "Centro de Rehabilitación",
+      "currentRequest": "Solicitud de Dispositivo Actual",
+      "deviceValue": "Órtesis tobillo-pie izquierda",
+      "continue": "Continuar con la trayectoria del dispositivo",
+      "wrongInfoNote": "Si esta no es su información, comuníquese de inmediato con la UBS Vila Esperança o su equipo de salud."
+    },
+    "stepper": {
+      "login": "Ingresar",
+      "verify": "Verificar identidad"
+    }
+  },
+  "manager": {
+    "nav": {
+      "executive": "Vista ejecutiva",
+      "governance": "Gobernanza",
+      "lifecycle": "Ciclo de vida",
+      "logistics": "Logística",
+      "finance": "Finanzas",
+      "equity": "Equidad",
+      "reports": "Informes",
+      "registrations": "Registros"
+    },
+    "page": {
+      "executive": {
+        "title": "Panel Nacional de Gestión",
+        "subtitle": "Indicadores consolidados de la red UMDR"
+      },
+      "governance": {
+        "title": "Gobernanza y cumplimiento",
+        "subtitle": "Seguridad, auditorías e informes institucionales"
+      },
+      "lifecycle": {
+        "title": "Ciclo de vida de dispositivos",
+        "subtitle": "Retiros y seguimiento de equipos"
+      },
+      "logistics": {
+        "title": "Logística nacional",
+        "subtitle": "Inventario, colas y envíos inversos"
+      },
+      "finance": {
+        "title": "Proveedores y contratos",
+        "subtitle": "Seguimiento financiero y niveles de servicio"
+      },
+      "equity": {
+        "title": "Equidad regional",
+        "subtitle": "Tiempo promedio de espera por región"
+      },
+      "reports": {
+        "title": "Informes",
+        "subtitle": "Archivos generados y registros de auditoría"
+      },
+      "registrations": {
+        "title": "Centro de registros",
+        "subtitle": "Registre pacientes, profesionales, proveedores y solicitudes"
+      }
+    },
+    "security": {
+      "level": "Acceso de gestor",
+      "note": "Los datos de esta área se cargan mediante el backend y requieren el rol GESTOR."
+    },
+    "kpi": {
+      "units": "Unidades activas",
+      "patients": "Pacientes registrados",
+      "recalls": "Retiros activos",
+      "logistics": "Alertas logísticas",
+      "devices": "Dispositivos en flujo",
+      "deliveries": "Entregas completadas"
+    },
+    "chart": {
+      "monthly": "Solicitudes y entregas por mes",
+      "requests": "Solicitudes",
+      "deliveries": "Entregas",
+      "cancelled": "Canceladas",
+      "regional": "Inventario y cola por región",
+      "stock": "Inventario",
+      "queue": "Cola"
+    },
+    "recalls": {
+      "title": "Retiros activos",
+      "lot": "Lote",
+      "deadline": "Plazo",
+      "affected": "Afectados"
+    },
+    "providers": {
+      "title": "Proveedores y contratos",
+      "contract": "Contrato",
+      "value": "Valor",
+      "sla": "SLA",
+      "end": "Vencimiento"
+    },
+    "equity": {
+      "title": "Tiempo promedio de espera",
+      "days": "días"
+    },
+    "reports": {
+      "title": "Informes disponibles",
+      "name": "Nombre",
+      "format": "Formato",
+      "generatedAt": "Generado el"
+    },
+    "common": {
+      "logout": "Salir",
+      "refresh": "Actualizar",
+      "notifications": "Notificaciones",
+      "loading": "Cargando datos...",
+      "error": "No se pudieron cargar los datos.",
+      "retry": "Intentar de nuevo",
+      "status": "Estado",
+      "date": "Fecha",
+      "device": "Dispositivo",
+      "devices": "dispositivos",
+      "provider": "Proveedor",
+      "type": "Tipo",
+      "action": "Acción",
+      "view": "Ver",
+      "select": "Seleccione"
+    },
+    "empty": {
+      "recalls": "No hay retiros registrados.",
+      "shipments": "No hay envíos registrados.",
+      "providers": "No hay proveedores registrados.",
+      "equity": "Todavía no hay suficientes datos.",
+      "reports": "No hay informes registrados."
+    },
+    "registration": {
+      "tabs": {
+        "patient": "Paciente",
+        "staff": "Profesional",
+        "provider": "Proveedor",
+        "request": "Solicitud"
+      },
+      "patient": {
+        "title": "Registrar paciente",
+        "subtitle": "Crea el registro clínico y el acceso del paciente."
+      },
+      "staff": {
+        "title": "Registrar profesional",
+        "subtitle": "Crea el profesional, el acceso y el perfil."
+      },
+      "provider": {
+        "title": "Registrar proveedor",
+        "subtitle": "Registra el proveedor y, opcionalmente, su contrato."
+      },
+      "request": {
+        "title": "Registrar solicitud",
+        "subtitle": "Crea una nueva solicitud y la coloca en la cola de atención."
+      },
+      "fields": {
+        "name": "Nombre completo",
+        "email": "Correo electrónico",
+        "password": "Contraseña inicial",
+        "cns": "CNS",
+        "cpf": "CPF",
+        "birthDate": "Fecha de nacimiento",
+        "sex": "Sexo",
+        "municipality": "Municipio",
+        "phone": "Teléfono",
+        "language": "Idioma",
+        "role": "Perfil de acceso",
+        "cbo": "CBO",
+        "unit": "Unidad CNES",
+        "councilNumber": "Número del consejo",
+        "councilType": "Tipo de consejo",
+        "providerName": "Nombre del proveedor",
+        "cnpj": "CNPJ",
+        "address": "Dirección",
+        "contractNumber": "Número de contrato",
+        "contractValue": "Valor del contrato",
+        "sla": "SLA (%)",
+        "startDate": "Inicio",
+        "endDate": "Fin",
+        "status": "Estado",
+        "patient": "Paciente",
+        "procedure": "Procedimiento SIGTAP",
+        "diagnosis": "Diagnóstico CIE-10",
+        "priority": "Prioridad",
+        "side": "Lado afectado",
+        "justification": "Justificación clínica"
+      },
+      "values": {
+        "female": "Femenino",
+        "male": "Masculino",
+        "cre": "Fiscal CRE",
+        "manager": "Gestor",
+        "routine": "Rutina",
+        "priority": "Prioritario",
+        "urgent": "Urgente"
+      },
+      "save": "Guardar registro",
+      "saving": "Guardando...",
+      "success": "Registro completado correctamente.",
+      "error": "No se pudo completar el registro."
+    }
+  },
+  "status": {
+    "ATIVO": "Activo",
+    "INATIVO": "Inactivo",
+    "VIGENTE": "Vigente",
+    "FINAL": "Final",
+    "ENCERRADO": "Cerrado",
+    "ENTREGUE": "Entregado",
+    "CONCLUIDA": "Concluida",
+    "EM_TRANSITO": "En tránsito",
+    "EM_ANALISE": "En análisis",
+    "EM_ANDAMENTO": "En curso",
+    "ABERTO": "Abierto",
+    "PENDENTE": "Pendiente",
+    "EM_RENOVACAO": "En renovación",
+    "AGUARDANDO_COLETA": "Esperando recogida",
+    "CANCELADO": "Cancelado",
+    "CANCELADA": "Cancelada"
+  }
+}
