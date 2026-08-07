@@ -7,7 +7,8 @@
     "reports": "Informes",
     "settings": "Configuración",
     "logout": "Cerrar sesión",
-    "system": "Sistema Nacional"
+    "system": "Sistema Nacional",
+    "communications": "Alertas y recalls"
   },
   "page": {
     "inicio": {
@@ -29,6 +30,10 @@
     "relatorios": {
       "title": "Informes",
       "sub": "Indicadores y Exportaciones del Sistema RE-VITA"
+    },
+    "comunicacoes": {
+      "title": "Alertas y recalls",
+      "sub": "Comunicados, recalls y avisos de la unidad"
     }
   },
   "topbar": {
@@ -104,7 +109,8 @@
       "ok": "Regular",
       "low": "Stock Bajo",
       "expired": "Vencido"
-    }
+    },
+    "showRecent": "Ver recientes"
   },
   "patients": {
     "title": "Pacientes en Espera",
@@ -134,7 +140,33 @@
     "waiting": "Esperando Llegada",
     "attending": "En Atención",
     "dispatch": "Prótesis para Despacho",
-    "monthly": "Atenciones del Mes"
+    "monthly": "Atenciones del Mes",
+    "actions": {
+      "genericError": "No fue posible completar la operación.",
+      "triageUpdated": "Triaje actualizado correctamente.",
+      "triageCreated": "Nuevo triaje creado correctamente.",
+      "editTriage": "Editar triaje",
+      "newTriage": "Nuevo triaje",
+      "triageHint": "Registra o actualiza la evaluación clínica del paciente.",
+      "patient": "Paciente",
+      "select": "Seleccionar",
+      "procedure": "Procedimiento SIGTAP",
+      "status": "Estado",
+      "notes": "Observación clínica",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveTriage": "Guardar triaje",
+      "returnCreated": "Devolución registrada correctamente.",
+      "newReturn": "Nueva devolución",
+      "returnHint": "Registra un envío de logística inversa.",
+      "deviceType": "Tipo de dispositivo",
+      "quantity": "Cantidad",
+      "shipmentStatus": "Estado del envío",
+      "destinationManufacturer": "Fabricante de destino",
+      "destinationAddress": "Dirección de destino",
+      "trackingCode": "Código de seguimiento",
+      "saveReturn": "Registrar devolución"
+    }
   },
   "logistics": {
     "panel": {
@@ -324,7 +356,20 @@
       "languageHint": "El cambio se aplica de inmediato y queda guardado en este navegador.",
       "dashboard": "Panel principal",
       "dashboardHint": "Las tarjetas del panel siguen siendo personalizables mediante el botón “Personalizar tarjetas” de la página principal.",
-      "done": "Listo"
+      "done": "Listo",
+      "account": "Cuenta y perfil",
+      "name": "Nombre para mostrar",
+      "email": "Correo electrónico",
+      "password": "Seguridad de la cuenta",
+      "passwordHint": "Deja los campos de contraseña vacíos si no quieres cambiarla.",
+      "newPassword": "Nueva contraseña",
+      "confirmPassword": "Confirmar nueva contraseña",
+      "passwordMismatch": "Las contraseñas no coinciden.",
+      "loadError": "No fue posible cargar la configuración.",
+      "saveError": "No fue posible guardar la configuración.",
+      "saved": "Configuración actualizada correctamente.",
+      "saving": "Guardando...",
+      "save": "Guardar cambios"
     }
   },
   "home": {
@@ -686,7 +731,8 @@
         "equity": "Análisis de equidad",
         "reports": "Informes",
         "registrations": "Registros",
-        "creCenters": "CREs y red asistencial"
+        "creCenters": "CREs y red asistencial",
+        "communications": "Alertas y recalls"
       },
       "actions": {
         "refresh": "Actualizar",
@@ -1050,7 +1096,8 @@
           "UNIT_MANAGE": "Lectura y operación vinculadas a la unidad CRE",
           "NATIONAL_READ": "Lectura nacional consolidada",
           "NATIONAL_MANAGE": "Gestión nacional completa"
-        }
+        },
+        "empty": "La matriz de acceso aún no está disponible."
       },
       "creCenters": {
         "active": "CREs activos",
@@ -1102,5 +1149,70 @@
     "AGUARDANDO_COLETA": "Esperando recogida",
     "CANCELADO": "Cancelado",
     "CANCELADA": "Cancelada"
+  },
+  "communications": {
+    "title": "Alertas y recalls",
+    "subtitle": "Emite avisos dirigidos y gestiona recalls de la red.",
+    "tabs": {
+      "alert": "Emitir alerta",
+      "recall": "Emitir recall"
+    },
+    "audience": {
+      "all": "Todos los usuarios",
+      "patients": "Todos los pacientes",
+      "cre": "Todos los CRE",
+      "managers": "Gestores",
+      "unitPatients": "Pacientes de mi unidad",
+      "unitStaff": "Equipo de mi unidad"
+    },
+    "targets": {
+      "communications": "Centro de alertas",
+      "lifecycle": "Ciclo de vida / recalls",
+      "logistics": "Logística",
+      "reports": "Informes",
+      "centers": "Red de CRE",
+      "finance": "Finanzas",
+      "equity": "Equidad",
+      "patients": "Pacientes",
+      "triages": "Triajes",
+      "registrations": "Registros y usuarios",
+      "patientOrders": "Pedido del paciente",
+      "patientSupport": "Soporte al paciente"
+    },
+    "success": {
+      "alert": "Alerta enviada a {count} usuario(s).",
+      "recall": "Recall emitido correctamente."
+    },
+    "error": {
+      "generic": "No fue posible completar la operación."
+    },
+    "alertForm": {
+      "title": "Nueva alerta",
+      "subtitle": "El destino elegido acompaña la alerta y determina adónde irá el usuario al hacer clic."
+    },
+    "recallForm": {
+      "title": "Nuevo recall",
+      "subtitle": "Registra un recall para seguimiento por los perfiles autorizados."
+    },
+    "fields": {
+      "title": "Título",
+      "type": "Severidad",
+      "audience": "Público",
+      "target": "Área relacionada",
+      "message": "Mensaje",
+      "batch": "Código de lote",
+      "product": "Producto",
+      "deadline": "Plazo",
+      "affected": "Dispositivos afectados",
+      "issuer": "Organismo / unidad emisora",
+      "reason": "Motivo"
+    },
+    "sending": "Enviando...",
+    "sendAlert": "Emitir alerta",
+    "issueRecall": "Emitir recall",
+    "recentRecalls": "Recalls recientes",
+    "recentRecallsHint": "Registros más recientes de la red",
+    "noRecalls": "No hay recalls registrados.",
+    "devices": "dispositivo(s)"
   }
 }

@@ -37,6 +37,7 @@ export interface ManagerAlertRow {
   count?: number | null;
   devices?: number | null;
   name?: string | null;
+  target?: string | null;
 }
 
 export interface ManagerComplianceRow {
@@ -157,6 +158,7 @@ export interface ManagerDashboardData {
   equity_points: ManagerEquityPointRow[];
   recalls: ManagerRecallRow[];
   reports: ManagerReportRow[];
+  access_matrix?: AccessMatrixRow[];
   generated_at: string;
 }
 

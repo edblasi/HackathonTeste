@@ -5,7 +5,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { StatusBadge } from "../components/StatusBadge";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { SettingsModal } from "../components/SettingsModal";
+import { CommunicationsCenter } from "../components/CommunicationsCenter";
+import { ShipmentModal, TriageModal } from "../components/CreActionModals";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
+import { crePageForAlert } from "../lib/alertRouting";
 import {
   useKpiDashboard,
   useAlertasCriticos,
@@ -17,6 +20,7 @@ import {
   useTriagens,
   useRemessasLogistica,
   useRelatorioMensal,
+  useNotificacoes,
   type Triagem,
 } from "../hooks/FetchData";
 import {
@@ -80,7 +84,7 @@ import {
 // TYPES & DATA
 // ═══════════════════════════════════════════════════════════════
 
-type Page = "inicio" | "pacientes" | "logistica" | "triagens" | "relatorios";
+type Page = "inicio" | "pacientes" | "logistica" | "triagens" | "relatorios" | "comunicacoes";
 
 const CRE_HOME_CARD_IDS = ["queue", "stock", "logistics", "matchings"] as const;
 type CreHomeCardId = (typeof CRE_HOME_CARD_IDS)[number];
@@ -192,6 +196,7 @@ function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps)
     { icon: RefreshCw,     label: t("nav.logistics"), page: "logistica" },
     { icon: ClipboardList, label: t("nav.triage"),    page: "triagens"  },
     { icon: Activity,      label: t("nav.reports"),   page: "relatorios"},
+    { icon: Bell,          label: t("nav.communications"), page: "comunicacoes"},
   ];
 
   const handleLogout = async () => {
@@ -359,10 +364,12 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
   const { data: usuario } = useUsuarioAtual();
   const { data: criticalAlerts } = useAlertasCriticos();
   const { data: recalls } = useRecalls();
+  const { data: notifications, marcarComoLida } = useNotificacoes();
   const recentAlerts = [
-    ...(criticalAlerts ?? []).map((item, index) => ({ id: `critical-${index}`, title: t("alerts.title"), description: item.mensagem, time: new Date(item.gerado_em).toLocaleString(locale), target: "logistica" as Page })),
-    ...(recalls ?? []).filter((item) => !["ENCERRADO", "CANCELADO"].includes(item.status)).map((item) => ({ id: `recall-${item.id}`, title: t("recalls.title"), description: `${item.codigo_lote} — ${item.nome_produto}`, time: item.data_abertura ? new Date(`${item.data_abertura}T00:00:00`).toLocaleDateString(locale) : "", target: "logistica" as Page })),
-  ].slice(0, 5);
+    ...(notifications ?? []).map((item) => ({ id: `notification-${item.id}`, title: item.titulo, description: item.mensagem ?? "", time: new Date(item.criado_em).toLocaleString(locale), target: crePageForAlert(item.destino_ui, "notification") as Page, notificationId: item.id })),
+    ...(criticalAlerts ?? []).map((item, index) => ({ id: `critical-${index}`, title: t("alerts.title"), description: item.mensagem, time: new Date(item.gerado_em).toLocaleString(locale), target: crePageForAlert(item.target, item.tipo) as Page, notificationId: null as number | null })),
+    ...(recalls ?? []).filter((item) => !["ENCERRADO", "CANCELADO"].includes(item.status)).map((item) => ({ id: `recall-${item.id}`, title: t("recalls.title"), description: `${item.codigo_lote} — ${item.nome_produto}`, time: item.data_abertura ? new Date(`${item.data_abertura}T00:00:00`).toLocaleDateString(locale) : "", target: "comunicacoes" as Page, notificationId: null as number | null })),
+  ].slice(0, 7);
 
   const iniciais =
     (usuario?.nome_exibicao ?? "")
@@ -379,6 +386,7 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
     logistica:  { title: t("page.logistica.title"),  sub: t("page.logistica.sub")  },
     triagens:   { title: t("page.triagens.title"),   sub: t("page.triagens.sub")   },
     relatorios: { title: t("page.relatorios.title"), sub: t("page.relatorios.sub") },
+    comunicacoes: { title: t("page.comunicacoes.title"), sub: t("page.comunicacoes.sub") },
   };
   const { title, sub } = pageTitleMap[page];
 
@@ -398,7 +406,7 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
           </button>
           {alertsOpen && <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-bold text-slate-800">{t("shell.navbar.recentAlerts")}</p><p className="text-[11px] text-slate-400">{t("shell.navbar.recentAlertsHint")}</p></div><button type="button" onClick={() => setAlertsOpen(false)} className="text-slate-400 hover:text-slate-700"><X className="w-4 h-4" /></button></div>
-            {recentAlerts.length ? <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{recentAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { setAlertsOpen(false); onNavigate(alert.target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" /><span className="min-w-0"><span className="block text-xs font-bold text-slate-800">{alert.title}</span><span className="mt-0.5 block text-[11px] text-slate-500 line-clamp-2">{alert.description}</span><span className="mt-1 block text-[10px] text-slate-400">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-400">{t("shell.navbar.noRecentAlerts")}</p>}
+            {recentAlerts.length ? <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{recentAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { if (alert.notificationId) void marcarComoLida(alert.notificationId); setAlertsOpen(false); onNavigate(alert.target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" /><span className="min-w-0"><span className="block text-xs font-bold text-slate-800">{alert.title}</span><span className="mt-0.5 block text-[11px] text-slate-500 line-clamp-2">{alert.description}</span><span className="mt-1 block text-[10px] text-slate-400">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-400">{t("shell.navbar.noRecentAlerts")}</p>}
           </div>}
         </div>
         <div className="relative">
@@ -579,6 +587,7 @@ function AlertsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
     id: i,
     msg: a.mensagem,
     level: a.tipo === "ESTOQUE" ? "high" : "medium",
+    target: crePageForAlert(a.target, a.tipo) as Page,
   }));
   return (
     <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
@@ -596,16 +605,16 @@ function AlertsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
           <p className="px-4 py-4 text-xs text-slate-400">—</p>
         )}
         {items.map((a) => (
-          <div key={a.id} className="px-4 py-3 flex gap-3 hover:bg-red-50/40 transition-colors">
+          <button type="button" key={a.id} onClick={() => onNavigate(a.target)} className="w-full px-4 py-3 flex gap-3 hover:bg-red-50/40 transition-colors text-left focus:outline-none focus:bg-red-50/60">
             <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${a.level === "high" ? "bg-red-500" : "bg-amber-400"}`} />
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-700 leading-snug">{a.msg}</p>
             </div>
-          </div>
+          </button>
         ))}
       </div>
       <div className="px-4 py-2.5 border-t border-slate-100">
-        <button type="button" onClick={() => onNavigate("logistica")} className="text-xs text-red-600 font-semibold hover:underline flex items-center gap-1">
+        <button type="button" onClick={() => onNavigate("comunicacoes")} className="text-xs text-red-600 font-semibold hover:underline flex items-center gap-1">
           {t("alerts.viewAll")} <ChevronRight className="w-3 h-3" />
         </button>
       </div>
@@ -633,7 +642,7 @@ function RecallsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
       <div className="divide-y divide-slate-100">
         {recalls.length === 0 && <p className="px-4 py-4 text-xs text-slate-400">—</p>}
         {recalls.map((r) => (
-          <div key={r.id} className="px-4 py-3 hover:bg-amber-50/40 transition-colors">
+          <button type="button" key={r.id} onClick={() => onNavigate("comunicacoes")} className="w-full px-4 py-3 hover:bg-amber-50/40 transition-colors text-left focus:outline-none focus:bg-amber-50/60">
             <div className="flex items-start justify-between gap-2 mb-1">
               <p className="text-xs font-bold text-slate-800 font-mono">{r.codigo_lote}</p>
               <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 shrink-0">{r.affected_devices} {t("recalls.units")}</span>
@@ -643,11 +652,11 @@ function RecallsCard({ onNavigate }: { onNavigate: (page: Page) => void }) {
             <p className="text-[11px] text-slate-400">
               {t("recalls.deadline")}: <span className="font-semibold text-red-600">{r.data_limite ? new Intl.DateTimeFormat(locale).format(new Date(`${r.data_limite}T00:00:00`)) : "—"}</span>
             </p>
-          </div>
+          </button>
         ))}
       </div>
       <div className="px-4 py-2.5 border-t border-slate-100">
-        <button type="button" onClick={() => onNavigate("logistica")} className="text-xs text-amber-600 font-semibold hover:underline flex items-center gap-1">
+        <button type="button" onClick={() => onNavigate("comunicacoes")} className="text-xs text-amber-600 font-semibold hover:underline flex items-center gap-1">
           {t("recalls.manage")} <ChevronRight className="w-3 h-3" />
         </button>
       </div>
@@ -661,6 +670,7 @@ function LotsTable() {
   const lotes = lotesReais ?? [];
   const [sortCol, setSortCol] = useState<"lote_id" | "data_cadastro" | "tipo_item" | "oficina" | "quantidade" | "status">("data_cadastro");
   const [sortAsc, setSortAsc] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   function toggle(col: typeof sortCol) {
     sortCol === col
@@ -673,6 +683,7 @@ function LotsTable() {
       ? String(a[sortCol]).localeCompare(String(b[sortCol]))
       : String(b[sortCol]).localeCompare(String(a[sortCol])),
   );
+  const displayed = showAll ? sorted : sorted.slice(0, 5);
 
   function Th({ col, label }: { col: typeof sortCol; label: string }) {
     const active = sortCol === col;
@@ -706,8 +717,8 @@ function LotsTable() {
             <p className="text-xs text-slate-400">{t("lots.sub")}</p>
           </div>
         </div>
-        <button className="text-xs text-blue-700 font-semibold bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors border border-blue-200">
-          {t("lots.viewAll")}
+        <button type="button" onClick={() => setShowAll((value) => !value)} className="text-xs text-blue-700 font-semibold bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors border border-blue-200">
+          {showAll ? t("lots.showRecent") : t("lots.viewAll")}
         </button>
       </div>
       <div className="overflow-x-auto">
@@ -728,7 +739,7 @@ function LotsTable() {
                 <td colSpan={6} className="px-5 py-6 text-center text-xs text-slate-400">—</td>
               </tr>
             )}
-            {sorted.map((l) => (
+            {displayed.map((l) => (
               <tr
                 key={l.lote_id}
                 className={`hover:bg-slate-50/80 transition-colors ${l.status === "VENCIDO" ? "bg-red-50/30" : ""}`}
@@ -801,7 +812,7 @@ function Dashboard({ onNavigate }: { onNavigate: (page: Page) => void }) {
 // PAGE: PACIENTES AGUARDADOS
 // ═══════════════════════════════════════════════════════════════
 
-function PatientsTable() {
+function PatientsTable({ onStartTriage }: { onStartTriage: (patientId: number) => void }) {
   const { t, locale } = useLang();
   const [filter, setFilter] = useState<FilterTab>("all");
   const { data: pacientesReais, loading } = usePacientesAguardando();
@@ -904,7 +915,7 @@ function PatientsTable() {
                   <AttendanceBadge status={attendanceOf(p.status)} />
                 </td>
                 <td className="px-5 py-4">
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-700 hover:text-white rounded-lg transition-colors border border-blue-200 hover:border-blue-700">
+                  <button type="button" onClick={() => onStartTriage(p.paciente_id)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-700 hover:text-white rounded-lg transition-colors border border-blue-200 hover:border-blue-700">
                     {t("patients.triage")} <ChevronRight className="w-3 h-3" />
                   </button>
                 </td>
@@ -921,7 +932,7 @@ function PatientsTable() {
             {t("patients.showing")} {filtered.length} {t("patients.of")} {allPatients.length}
           </p>
         </div>
-        <button className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+        <button type="button" onClick={() => setFilter("all")} className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
           {t("patients.viewAll")} <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -1116,7 +1127,7 @@ function LogisticsPanel() {
   );
 }
 
-function PacientesAguardados() {
+function PacientesAguardados({ onStartTriage }: { onStartTriage: (patientId: number) => void }) {
   const { t } = useLang();
   const { data: pacientesReais } = usePacientesAguardando();
   const { data: remessasReais } = useRemessasLogistica();
@@ -1162,7 +1173,7 @@ function PacientesAguardados() {
 
       {/* two-column */}
       <div className="grid grid-cols-[3fr_2fr] gap-5 items-start">
-        <PatientsTable />
+        <PatientsTable onStartTriage={onStartTriage} />
         <LogisticsPanel />
       </div>
     </main>
@@ -1202,10 +1213,10 @@ function RemessaBadge({ status }: { status: "AGUARDANDO_COLETA" | "EM_TRANSITO" 
   );
 }
 
-function LogisticaReversa() {
+function LogisticaReversa({ onNewReturn, refreshKey }: { onNewReturn: () => void; refreshKey: number }) {
   const { t, locale } = useLang();
   const [search, setSearch] = useState("");
-  const { data: remessasReais, loading } = useRemessasLogistica();
+  const { data: remessasReais, loading } = useRemessasLogistica(refreshKey);
   const remessas = remessasReais ?? [];
   const filtered = remessas.filter(
     (r) => r.tipo_dispositivo.toLowerCase().includes(search.toLowerCase()) || String(r.remessa_id).includes(search)
@@ -1257,7 +1268,7 @@ function LogisticaReversa() {
                 className="text-xs bg-transparent outline-none text-slate-700 placeholder-slate-400 w-40"
               />
             </div>
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+            <button type="button" onClick={() => downloadCreCsv("umdr-cre-remessas.csv", filtered.map((item) => ({ id: item.remessa_id, origem: item.origem, destino: item.fabricante_destino, dispositivo: item.tipo_dispositivo, quantidade: item.quantidade, rastreio: item.codigo_rastreio ?? "", status: item.status, data: item.data_criacao })))} className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
               <Download className="w-3.5 h-3.5" /> {t("logistics.export")}
             </button>
           </div>
@@ -1308,7 +1319,7 @@ function LogisticaReversa() {
         </div>
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <p className="text-xs text-slate-400">{t("logistics.showing")} {filtered.length} {t("logistics.of")} {remessas.length} {t("logistics.remessas")}</p>
-          <button className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+          <button type="button" onClick={onNewReturn} className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
             <QrCode className="w-3.5 h-3.5" /> {t("logistics.scanNew")}
           </button>
         </div>
@@ -1346,9 +1357,9 @@ function TriagemBadge({ status }: { status: "PENDENTE" | "EM_ANDAMENTO" | "CONCL
   );
 }
 
-function Triagens() {
+function Triagens({ onNewTriage, onEditTriage, refreshKey }: { onNewTriage: () => void; onEditTriage: (triage: Triagem) => void; refreshKey: number }) {
   const { t, locale } = useLang();
-  const { data: triagensReais, loading } = useTriagens();
+  const { data: triagensReais, loading } = useTriagens(refreshKey);
   const triagens = triagensReais ?? [];
   const [selected, setSelected] = useState<Triagem | null>(null);
   const [filterStatus, setFilterStatus] = useState<Triagem["status"] | "TODAS">("TODAS");
@@ -1454,7 +1465,7 @@ function Triagens() {
           </div>
           <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
             <p className="text-xs text-slate-400">{t("triage.showing")} {filtered.length} {t("triage.of")} {triagens.length} {t("triage.triagens")}</p>
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+            <button type="button" onClick={onNewTriage} className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
               {t("triage.new")} <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -1500,8 +1511,8 @@ function Triagens() {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <button className="flex-1 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors">{t("triage.detail.edit")}</button>
-                  <button className="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">{t("triage.detail.print")}</button>
+                  <button type="button" onClick={() => onEditTriage(selected)} className="flex-1 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors">{t("triage.detail.edit")}</button>
+                  <button type="button" onClick={() => window.print()} className="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">{t("triage.detail.print")}</button>
                 </div>
               </div>
             </>
@@ -1544,6 +1555,12 @@ function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const [exportType, setExportType] = useState<"PDF" | "CSV">("PDF");
   const { data: relatorioReal } = useRelatorioMensal();
   const { data: lotesReais } = useLotesRecentes();
+  const { data: pacientesRelatorio } = usePacientesAguardando();
+  const { data: triagensRelatorio } = useTriagens();
+  const { data: remessasRelatorio } = useRemessasLogistica();
+  const { data: kpiRelatorio } = useKpiDashboard();
+  const { data: recallsRelatorio } = useRecalls();
+  const { data: alertasRelatorio } = useAlertasCriticos();
 
   const barData = (relatorioReal ?? []).map((r) => ({
     mes: new Date(r.mes).toLocaleDateString(locale, { month: "short" }).replace(".", ""),
@@ -1690,14 +1707,21 @@ function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
         </div>
         <div className="grid grid-cols-3 gap-4 p-5">
           {[
-            { target: "pacientes" as const, icon: Users, title: t("reports.rep.patients"), sub: t("reports.rep.patientsSub"), color: "text-blue-600", bg: "bg-blue-50" },
-            { target: "triagens" as const, icon: Zap, title: t("reports.rep.matchings"), sub: t("reports.rep.matchingsSub"), color: "text-emerald-600", bg: "bg-emerald-50" },
-            { target: "logistica" as const, icon: RefreshCw, title: t("reports.rep.logistics"), sub: t("reports.rep.logisticsSub"), color: "text-amber-600", bg: "bg-amber-50" },
-            { target: "logistica" as const, icon: Package, title: t("reports.rep.stock"), sub: t("reports.rep.stockSub"), color: "text-violet-600", bg: "bg-violet-50" },
-            { target: "inicio" as const, icon: Activity, title: t("reports.rep.kpi"), sub: t("reports.rep.kpiSub"), color: "text-rose-600", bg: "bg-rose-50" },
-            { target: "inicio" as const, icon: Shield, title: t("reports.rep.audit"), sub: t("reports.rep.auditSub"), color: "text-slate-600", bg: "bg-slate-100" },
-          ].map(({ target, icon: Icon, title, sub, color, bg }) => (
-            <button type="button" onClick={() => onNavigate(target)} key={title} className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer group text-left focus:outline-none focus:ring-2 focus:ring-blue-200">
+            { kind: "patients", icon: Users, title: t("reports.rep.patients"), sub: t("reports.rep.patientsSub"), color: "text-blue-600", bg: "bg-blue-50" },
+            { kind: "triages", icon: Zap, title: t("reports.rep.matchings"), sub: t("reports.rep.matchingsSub"), color: "text-emerald-600", bg: "bg-emerald-50" },
+            { kind: "logistics", icon: RefreshCw, title: t("reports.rep.logistics"), sub: t("reports.rep.logisticsSub"), color: "text-amber-600", bg: "bg-amber-50" },
+            { kind: "stock", icon: Package, title: t("reports.rep.stock"), sub: t("reports.rep.stockSub"), color: "text-violet-600", bg: "bg-violet-50" },
+            { kind: "kpi", icon: Activity, title: t("reports.rep.kpi"), sub: t("reports.rep.kpiSub"), color: "text-rose-600", bg: "bg-rose-50" },
+            { kind: "audit", icon: Shield, title: t("reports.rep.audit"), sub: t("reports.rep.auditSub"), color: "text-slate-600", bg: "bg-slate-100" },
+          ].map(({ kind, icon: Icon, title, sub, color, bg }) => (
+            <button type="button" onClick={() => {
+              if (kind === "patients") downloadCreCsv("umdr-cre-pacientes.csv", (pacientesRelatorio ?? []).map((item) => ({ paciente: item.nome_completo, dispositivo: item.dispositivo, prioridade: item.prioridade_clinica, status: item.status, dias_espera: item.dias_espera_efetivos })));
+              else if (kind === "triages") downloadCreCsv("umdr-cre-triagens.csv", (triagensRelatorio ?? []).map((item) => ({ paciente: item.paciente, profissional: item.profissional, dispositivo: item.dispositivo ?? "", data: item.data_hora, status: item.status, observacao: item.observacao_clinica ?? "" })));
+              else if (kind === "logistics") downloadCreCsv("umdr-cre-logistica.csv", (remessasRelatorio ?? []).map((item) => ({ id: item.remessa_id, origem: item.origem, destino: item.fabricante_destino, dispositivo: item.tipo_dispositivo, quantidade: item.quantidade, status: item.status, rastreio: item.codigo_rastreio ?? "" })));
+              else if (kind === "stock") downloadCreCsv("umdr-cre-estoque.csv", (lotesReais ?? []).map((item) => ({ lote: item.lote_fabricante ?? item.lote_id, item: item.tipo_item, oficina: item.oficina, quantidade: item.quantidade, validade: item.data_validade ?? "", status: item.status })));
+              else if (kind === "kpi") downloadCreCsv("umdr-cre-kpis.csv", [{ fila_ativa: kpiRelatorio?.fila_ativa ?? 0, estoque_proteses: kpiRelatorio?.estoque_proteses ?? 0, logistica_reversa: kpiRelatorio?.em_logistica_reversa ?? 0, matchings_mes: kpiRelatorio?.matchings_mes ?? 0 }]);
+              else downloadCreCsv("umdr-cre-auditoria-alertas.csv", [...(recallsRelatorio ?? []).map((item) => ({ tipo: "RECALL", referencia: item.codigo_lote, descricao: item.motivo, status: item.status, data: item.data_abertura })), ...(alertasRelatorio ?? []).map((item) => ({ tipo: "ALERTA", referencia: item.tipo, descricao: item.mensagem, status: "ATIVO", data: item.gerado_em }))]);
+            }} key={title} className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/30 transition-all cursor-pointer group text-left focus:outline-none focus:ring-2 focus:ring-blue-200">
               <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
                 <Icon className={`w-4 h-4 ${color}`} strokeWidth={2.5} />
               </div>
@@ -1721,18 +1745,29 @@ function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
 function AppInner() {
   const [page, setPage] = useState<Page>("inicio");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [triageOpen, setTriageOpen] = useState(false);
+  const [triagePatientId, setTriagePatientId] = useState<number | null>(null);
+  const [editingTriage, setEditingTriage] = useState<Triagem | null>(null);
+  const [shipmentOpen, setShipmentOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const openNewTriage = (patientId: number | null = null) => { setEditingTriage(null); setTriagePatientId(patientId); setTriageOpen(true); };
+  const openEditTriage = (triage: Triagem) => { setEditingTriage(triage); setTriagePatientId(triage.paciente_id); setTriageOpen(true); };
+  const refreshData = () => setRefreshKey((value) => value + 1);
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]" style={{ fontFamily: "Inter, sans-serif" }}>
       <Sidebar current={page} onNavigate={setPage} onOpenSettings={() => setSettingsOpen(true)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar page={page} onNavigate={setPage} onOpenSettings={() => setSettingsOpen(true)} />
         {page === "inicio"     && <Dashboard onNavigate={setPage} />}
-        {page === "pacientes"  && <PacientesAguardados />}
-        {page === "logistica"  && <LogisticaReversa />}
-        {page === "triagens"   && <Triagens />}
+        {page === "pacientes"  && <PacientesAguardados onStartTriage={(patientId) => openNewTriage(patientId)} />}
+        {page === "logistica"  && <LogisticaReversa onNewReturn={() => setShipmentOpen(true)} refreshKey={refreshKey} />}
+        {page === "triagens"   && <Triagens onNewTriage={() => openNewTriage()} onEditTriage={openEditTriage} refreshKey={refreshKey} />}
         {page === "relatorios" && <Relatorios onNavigate={setPage} />}
+        {page === "comunicacoes" && <CommunicationsCenter role="FISCAL_CRE" />}
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <TriageModal open={triageOpen} onClose={() => setTriageOpen(false)} onSaved={refreshData} initialPatientId={triagePatientId} triage={editingTriage} />
+      <ShipmentModal open={shipmentOpen} onClose={() => setShipmentOpen(false)} onSaved={refreshData} />
     </div>
   );
 }

@@ -32,6 +32,7 @@ import {
   type HistoricoStatus,
 } from "../hooks/FetchData";
 import type { TranslationKey } from "../i18n/translations";
+import { patientSectionForAlert } from "../lib/alertRouting";
 
 const USER_HOME_CARD_IDS = ["request", "timeline", "digitalId", "support"] as const;
 type UserHomeCardId = (typeof USER_HOME_CARD_IDS)[number];
@@ -348,7 +349,7 @@ export function UserHomePage() {
   const { data: pedidos, loading: loadingPedidos, error: erroPedidos } = usePedidos();
   const pedidoAtivo = pedidos?.[0] ?? null;
   const { data: historico } = useHistoricoSolicitacao(pedidoAtivo?.solicitacao_id ?? null);
-  const { data: notificacoes } = useNotificacoes();
+  const { data: notificacoes, marcarComoLida } = useNotificacoes();
 
   const handleSignOut = async () => {
     await signOut();
@@ -371,6 +372,12 @@ export function UserHomePage() {
     description: n.mensagem ?? "",
     time: new Date(n.criado_em).toLocaleString(locale),
     unread: !n.lida,
+    onClick: () => {
+      if (!n.lida) void marcarComoLida(n.id);
+      const target = patientSectionForAlert(n.destino_ui);
+      if (target === "patient-notifications") window.scrollTo({ top: 0, behavior: "smooth" });
+      else document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
   }));
 
   const loading = loadingUsuario || loadingPedidos;

@@ -60,12 +60,15 @@ import { Card } from "../components/Card";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { SettingsModal } from "../components/SettingsModal";
+import { CommunicationsCenter } from "../components/CommunicationsCenter";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
 import type { TranslationKey } from "../i18n/translations";
 import { apiPost } from "../lib/api";
+import { managerPageForAlert } from "../lib/alertRouting";
 import { useApiData } from "../lib/useApiData";
+import { useNotificacoes } from "../hooks/FetchData";
 import type {
   AccessMatrixResponse,
   AdminCatalogs,
@@ -85,6 +88,7 @@ type Page =
   | "financas"
   | "equidade"
   | "relatorios"
+  | "comunicacoes"
   | "cadastros";
 
 type RegistrationTab = "patient" | "staff" | "provider" | "request";
@@ -327,6 +331,7 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
   const { t, locale } = useLang();
   const [alertsOpen, setAlertsOpen] = useState(false);
   const { user } = useAuth();
+  const { data: personalNotifications, marcarComoLida } = useNotificacoes();
   const healthData = data.health.map((row) => ({ ...row, mes: monthLabel(row.month, locale) }));
   const inventoryData = data.regional.map((row) => ({ ...row, regiao: regionLabel(row.region, t) }));
   const accessData = data.access_distribution.map((row, index) => ({
@@ -335,6 +340,29 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
     color: PIE_COLORS[index % PIE_COLORS.length],
   }));
   const alerts = data.alerts.slice(0, 4);
+  const bellAlerts = [
+    ...(personalNotifications ?? []).slice(0, 5).map((item) => ({
+      id: `notification-${item.id}`,
+      label: item.titulo,
+      message: item.mensagem ?? "",
+      time: formatDateTime(item.criado_em, locale),
+      target: managerPageForAlert(item.destino_ui, "notification") as Page,
+      severity: item.tipo === "URGENTE" || item.tipo === "ALERTA" ? "critical" : "info",
+      notificationId: item.id,
+    })),
+    ...alerts.map((alert, index) => {
+      const described = describeAlert(alert, t, locale);
+      return {
+        id: `system-${alert.kind}-${index}`,
+        label: described.label,
+        message: described.message,
+        time: described.time,
+        target: managerPageForAlert(alert.target, alert.kind) as Page,
+        severity: alert.severity,
+        notificationId: null as number | null,
+      };
+    }),
+  ].slice(0, 7);
   const kpiCards: KpiCardData[] = [
     {
       id: "conformity",
@@ -435,11 +463,11 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
         </button>
         <div className="relative">
           <button type="button" onClick={() => setAlertsOpen((value) => !value)} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors" aria-expanded={alertsOpen}>
-            <Bell size={13} />{t("manager.standard.actions.alertCount", { count: alerts.length })}
+            <Bell size={13} />{t("manager.standard.actions.alertCount", { count: bellAlerts.length })}
           </button>
           {alertsOpen && <div className="absolute right-0 top-11 z-[90] w-96 overflow-hidden rounded-xl border border-border bg-white shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3"><div><p className="text-sm font-semibold text-foreground">{t("shell.navbar.recentAlerts")}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{t("shell.navbar.recentAlertsHint")}</p></div><button type="button" onClick={() => setAlertsOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={15} /></button></div>
-            {alerts.length ? <div className="max-h-80 divide-y divide-border overflow-y-auto">{alerts.map((alert, index) => { const described = describeAlert(alert, t, locale); const target: Page = alert.kind === "recall" ? "ciclovida" : alert.kind === "report" ? "relatorios" : "logistica"; return <button key={`${alert.kind}-${index}`} type="button" onClick={() => { setAlertsOpen(false); onNavigate(target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-muted/50"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} /><span className="min-w-0"><span className="block text-xs font-semibold text-foreground">{described.label}</span><span className="mt-0.5 block text-[11px] text-muted-foreground line-clamp-2">{described.message}</span><span className="mt-1 block text-[10px] text-muted-foreground/80">{described.time}</span></span></button>; })}</div> : <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("shell.navbar.noRecentAlerts")}</p>}
+            {bellAlerts.length ? <div className="max-h-80 divide-y divide-border overflow-y-auto">{bellAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { if (alert.notificationId) void marcarComoLida(alert.notificationId); setAlertsOpen(false); onNavigate(alert.target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-muted/50"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} /><span className="min-w-0"><span className="block text-xs font-semibold text-foreground">{alert.label}</span><span className="mt-0.5 block text-[11px] text-muted-foreground line-clamp-2">{alert.message}</span><span className="mt-1 block text-[10px] text-muted-foreground/80">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("shell.navbar.noRecentAlerts")}</p>}
           </div>}
         </div>
         <button onClick={exportDashboard} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors">
@@ -554,7 +582,7 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
                   <button
                     type="button"
                     key={`${alert.kind}-${index}`}
-                    onClick={() => onNavigate(alert.kind === "recall" ? "ciclovida" : alert.kind === "report" ? "relatorios" : "logistica")}
+                    onClick={() => onNavigate(managerPageForAlert(alert.target, alert.kind) as Page)}
                     className="w-full flex gap-3 p-3 rounded-lg bg-muted/50 text-left hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-[#1565C0]/20"
                   >
                     <StatusDot type={alert.severity} />
@@ -892,6 +920,7 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
   const [filters, setFilters] = useState({ dataInicio: "", dataFim: "", regiao: "ALL", categoria: "ALL", indicador: "ALL", tipoRelatorio: "ALL" });
   const [preview, setPreview] = useState<ManagerReportRow | null>(null);
   const accessMatrix = useApiData<AccessMatrixResponse>("/api/manager/access-matrix");
+  const matrixRows = accessMatrix.data?.rows ?? data.access_matrix ?? [];
   const reportTypeMatches = (report: ManagerReportRow) => {
     const type = `${report.tipo} ${report.nome}`.toUpperCase();
     if (filters.tipoRelatorio === "ALL" || filters.tipoRelatorio === "GENERAL") return true;
@@ -910,7 +939,7 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
   const permissionLabel = (permission: string) => t(`manager.standard.accessMatrix.permissions.${permission}` as TranslationKey);
   const categoryLabel = (key: string) => t(`manager.standard.accessMatrix.categories.${key}` as TranslationKey);
   const exportAccessMatrix = () => {
-    const rows = accessMatrix.data?.rows ?? [];
+    const rows = matrixRows;
     downloadCsv("umdr-matriz-de-acesso.csv", rows.map((row) => ({
       data_category: categoryLabel(row.key),
       patient: permissionLabel(row.PACIENTE),
@@ -968,14 +997,14 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{t("manager.standard.accessMatrix.subtitle")}</p>
           </div>
-          <button type="button" onClick={exportAccessMatrix} disabled={!accessMatrix.data?.rows.length} className="flex items-center justify-center gap-2 rounded-lg bg-[#1565C0] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1976D2] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={exportAccessMatrix} disabled={!matrixRows.length} className="flex items-center justify-center gap-2 rounded-lg bg-[#1565C0] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1976D2] disabled:cursor-not-allowed disabled:opacity-50">
             <Download size={13} />{t("manager.standard.accessMatrix.export")}
           </button>
         </div>
-        {accessMatrix.loading && !accessMatrix.data ? (
+        {accessMatrix.loading && !matrixRows.length ? (
           <div className="p-5"><LoadingState message={t("manager.common.loading")} /></div>
-        ) : accessMatrix.error || !accessMatrix.data ? (
-          <div className="p-5"><ErrorState message={accessMatrix.error ?? t("manager.common.error")} retryLabel={t("manager.common.retry")} onRetry={accessMatrix.reload} /></div>
+        ) : !matrixRows.length ? (
+          <div className="p-5"><EmptyState message={t("manager.standard.accessMatrix.empty")} /></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -988,7 +1017,7 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
                 </tr>
               </thead>
               <tbody>
-                {accessMatrix.data.rows.map((row) => (
+                {matrixRows.map((row) => (
                   <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3 font-medium text-foreground">{categoryLabel(row.key)}</td>
                     {[row.PACIENTE, row.FISCAL_CRE, row.GESTOR].map((permission, index) => (
@@ -1092,7 +1121,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <FormField label={t("manager.registration.fields.zone")}><select className={inputClass} name="zona_residencia" defaultValue="URBANA"><option value="URBANA">{t("manager.standard.zones.URBANA")}</option><option value="RURAL">{t("manager.standard.zones.RURAL")}</option><option value="RIBEIRINHA">{t("manager.standard.zones.RIBEIRINHA")}</option><option value="REMOTA">{t("manager.standard.zones.REMOTA")}</option></select></FormField>
           <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone_contato" /></FormField>
           <FormField label={t("manager.registration.fields.language")}><select className={inputClass} name="idioma_preferido" defaultValue="pt-BR"><option value="pt-BR">Português</option><option value="en-US">English</option><option value="es-419">Español</option></select></FormField>
-          <div className="md:col-span-2"><button disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
+          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
         </form>}
 
         {tab === "staff" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/staff")}>
@@ -1105,7 +1134,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <FormField label={t("manager.registration.fields.unit")}><select className={inputClass} name="cnes_vinculo" required><option value="">{t("manager.common.select")}</option>{catalogs.units.map((unit) => <option key={unit.codigo_cnes} value={unit.codigo_cnes}>{unit.nome_fantasia || unit.razao_social}</option>)}</select></FormField>
           <FormField label={t("manager.registration.fields.councilNumber")}><input className={inputClass} name="numero_conselho" /></FormField>
           <FormField label={t("manager.registration.fields.councilType")}><input className={inputClass} name="tipo_conselho" /></FormField>
-          <div className="md:col-span-2"><button disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
+          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
         </form>}
 
         {tab === "provider" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/providers")}>
@@ -1120,7 +1149,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <FormField label={t("manager.registration.fields.startDate")}><input className={inputClass} name="data_inicio" type="date" /></FormField>
           <FormField label={t("manager.registration.fields.endDate")}><input className={inputClass} name="data_fim" type="date" /></FormField>
           <FormField label={t("manager.registration.fields.status")}><select className={inputClass} name="status" defaultValue="VIGENTE"><option value="VIGENTE">{translatedStatus(t, "VIGENTE")}</option><option value="EM_RENOVACAO">{translatedStatus(t, "EM_RENOVACAO")}</option><option value="ENCERRADO">{translatedStatus(t, "ENCERRADO")}</option><option value="CANCELADO">{translatedStatus(t, "CANCELADO")}</option></select></FormField>
-          <div className="md:col-span-2"><button disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
+          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
         </form>}
 
         {tab === "request" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/cre/requests")}>
@@ -1131,7 +1160,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <FormField label={t("manager.registration.fields.distance")}><input className={inputClass} name="distancia_estimada_cre_km" type="number" min="0" step="0.1" /></FormField>
           <FormField label={t("manager.registration.fields.side")}><select className={inputClass} name="lado_acometido"><option value="">{t("manager.common.select")}</option><option value="DIREITO">{t("manager.registration.values.right")}</option><option value="ESQUERDO">{t("manager.registration.values.left")}</option><option value="BILATERAL">{t("manager.registration.values.bilateral")}</option><option value="NAO_APLICAVEL">{t("manager.registration.values.notApplicable")}</option></select></FormField>
           <FormField label={t("manager.registration.fields.justification")}><textarea className={`${inputClass} min-h-24 py-2`} name="justificativa_clinica" required /></FormField>
-          <div className="md:col-span-2"><button disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
+          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
         </form>}
 
       </Card>
@@ -1156,6 +1185,7 @@ export function ManagerHomePage() {
     { id: "financas" as const, label: t("manager.standard.nav.finance"), icon: Banknote },
     { id: "equidade" as const, label: t("manager.standard.nav.equity"), icon: Scale },
     { id: "relatorios" as const, label: t("manager.standard.nav.reports"), icon: BarChart3 },
+    { id: "comunicacoes" as const, label: t("manager.standard.nav.communications"), icon: Bell },
     { id: "cadastros" as const, label: t("manager.standard.nav.registrations"), icon: UserPlus },
   ], [t]);
 
@@ -1223,6 +1253,7 @@ export function ManagerHomePage() {
           {activePage === "financas" && <PaginaFinancas data={data} />}
           {activePage === "equidade" && <PaginaEquidade data={data} />}
           {activePage === "relatorios" && <PaginaRelatorios data={data} />}
+          {activePage === "comunicacoes" && <CommunicationsCenter role="GESTOR" />}
           {activePage === "cadastros" && <RegistrationCenter onSaved={dashboard.reload} />}
         </div>
       </main>

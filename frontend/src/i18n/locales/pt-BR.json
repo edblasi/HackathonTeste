@@ -7,7 +7,8 @@
     "reports": "Relatórios",
     "settings": "Configurações",
     "logout": "Sair",
-    "system": "Sistema Nacional"
+    "system": "Sistema Nacional",
+    "communications": "Alertas e recalls"
   },
   "page": {
     "inicio": {
@@ -29,6 +30,10 @@
     "relatorios": {
       "title": "Relatórios",
       "sub": "Indicadores e Exportações do Sistema RE-VITA"
+    },
+    "comunicacoes": {
+      "title": "Alertas e recalls",
+      "sub": "Comunicados, recalls e avisos da unidade"
     }
   },
   "topbar": {
@@ -104,7 +109,8 @@
       "ok": "Regular",
       "low": "Estoque Baixo",
       "expired": "Vencido"
-    }
+    },
+    "showRecent": "Ver recentes"
   },
   "patients": {
     "title": "Pacientes Aguardados",
@@ -134,7 +140,33 @@
     "waiting": "Aguardando Chegada",
     "attending": "Em Atendimento",
     "dispatch": "Próteses para Despacho",
-    "monthly": "Atendimentos no Mês"
+    "monthly": "Atendimentos no Mês",
+    "actions": {
+      "genericError": "Não foi possível concluir a operação.",
+      "triageUpdated": "Triagem atualizada com sucesso.",
+      "triageCreated": "Nova triagem criada com sucesso.",
+      "editTriage": "Editar triagem",
+      "newTriage": "Nova triagem",
+      "triageHint": "Registre ou atualize a avaliação clínica do paciente.",
+      "patient": "Paciente",
+      "select": "Selecione",
+      "procedure": "Procedimento SIGTAP",
+      "status": "Status",
+      "notes": "Observação clínica",
+      "cancel": "Cancelar",
+      "saving": "Salvando...",
+      "saveTriage": "Salvar triagem",
+      "returnCreated": "Devolução registrada com sucesso.",
+      "newReturn": "Nova devolução",
+      "returnHint": "Registre a remessa de logística reversa.",
+      "deviceType": "Tipo de dispositivo",
+      "quantity": "Quantidade",
+      "shipmentStatus": "Status da remessa",
+      "destinationManufacturer": "Fabricante de destino",
+      "destinationAddress": "Endereço de destino",
+      "trackingCode": "Código de rastreio",
+      "saveReturn": "Registrar devolução"
+    }
   },
   "logistics": {
     "panel": {
@@ -324,7 +356,20 @@
       "languageHint": "A alteração é aplicada imediatamente e fica salva neste navegador.",
       "dashboard": "Painel principal",
       "dashboardHint": "Os cards do painel continuam personalizáveis pelo botão “Personalizar cards” da página principal.",
-      "done": "Concluir"
+      "done": "Concluir",
+      "account": "Conta e perfil",
+      "name": "Nome de exibição",
+      "email": "E-mail",
+      "password": "Segurança da conta",
+      "passwordHint": "Deixe os campos de senha vazios se não quiser alterá-la.",
+      "newPassword": "Nova senha",
+      "confirmPassword": "Confirmar nova senha",
+      "passwordMismatch": "As senhas informadas não coincidem.",
+      "loadError": "Não foi possível carregar suas configurações.",
+      "saveError": "Não foi possível salvar as configurações.",
+      "saved": "Configurações atualizadas com sucesso.",
+      "saving": "Salvando...",
+      "save": "Salvar alterações"
     }
   },
   "home": {
@@ -686,7 +731,8 @@
         "equity": "Análise de equidade",
         "reports": "Relatórios",
         "registrations": "Cadastros",
-        "creCenters": "CREs e rede assistencial"
+        "creCenters": "CREs e rede assistencial",
+        "communications": "Alertas e recalls"
       },
       "actions": {
         "refresh": "Atualizar",
@@ -1050,7 +1096,8 @@
           "UNIT_MANAGE": "Leitura e operação vinculadas à unidade CRE",
           "NATIONAL_READ": "Leitura nacional consolidada",
           "NATIONAL_MANAGE": "Gestão nacional completa"
-        }
+        },
+        "empty": "A matriz de acesso ainda não está disponível."
       },
       "creCenters": {
         "active": "CREs ativos",
@@ -1102,5 +1149,70 @@
     "AGUARDANDO_COLETA": "Aguardando coleta",
     "CANCELADO": "Cancelado",
     "CANCELADA": "Cancelada"
+  },
+  "communications": {
+    "title": "Alertas e recalls",
+    "subtitle": "Emita comunicados direcionados e gerencie recalls da rede.",
+    "tabs": {
+      "alert": "Emitir alerta",
+      "recall": "Emitir recall"
+    },
+    "audience": {
+      "all": "Todos os usuários",
+      "patients": "Todos os pacientes",
+      "cre": "Todos os CREs",
+      "managers": "Gestores",
+      "unitPatients": "Pacientes da minha unidade",
+      "unitStaff": "Equipe da minha unidade"
+    },
+    "targets": {
+      "communications": "Central de alertas",
+      "lifecycle": "Ciclo de vida / recalls",
+      "logistics": "Logística",
+      "reports": "Relatórios",
+      "centers": "Rede de CREs",
+      "finance": "Financeiro",
+      "equity": "Equidade",
+      "patients": "Pacientes",
+      "triages": "Triagens",
+      "registrations": "Cadastros e usuários",
+      "patientOrders": "Pedido do paciente",
+      "patientSupport": "Suporte ao paciente"
+    },
+    "success": {
+      "alert": "Alerta enviado para {count} usuário(s).",
+      "recall": "Recall emitido com sucesso."
+    },
+    "error": {
+      "generic": "Não foi possível concluir a operação."
+    },
+    "alertForm": {
+      "title": "Novo alerta",
+      "subtitle": "O destino escolhido acompanha o alerta e determina para onde o usuário será levado ao clicar."
+    },
+    "recallForm": {
+      "title": "Novo recall",
+      "subtitle": "Registre um recall para acompanhamento pelos perfis autorizados."
+    },
+    "fields": {
+      "title": "Título",
+      "type": "Severidade",
+      "audience": "Público",
+      "target": "Área relacionada",
+      "message": "Mensagem",
+      "batch": "Código do lote",
+      "product": "Produto",
+      "deadline": "Prazo",
+      "affected": "Dispositivos afetados",
+      "issuer": "Órgão / unidade emissora",
+      "reason": "Motivo"
+    },
+    "sending": "Enviando...",
+    "sendAlert": "Emitir alerta",
+    "issueRecall": "Emitir recall",
+    "recentRecalls": "Recalls recentes",
+    "recentRecallsHint": "Registros mais recentes da rede",
+    "noRecalls": "Nenhum recall cadastrado.",
+    "devices": "dispositivo(s)"
   }
 }

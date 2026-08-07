@@ -7,7 +7,8 @@
     "reports": "Reports",
     "settings": "Settings",
     "logout": "Log out",
-    "system": "National System"
+    "system": "National System",
+    "communications": "Alerts and recalls"
   },
   "page": {
     "inicio": {
@@ -29,6 +30,10 @@
     "relatorios": {
       "title": "Reports",
       "sub": "Indicators and Exports — RE-VITA System"
+    },
+    "comunicacoes": {
+      "title": "Alerts and recalls",
+      "sub": "Notices, recalls and unit alerts"
     }
   },
   "topbar": {
@@ -104,7 +109,8 @@
       "ok": "Regular",
       "low": "Low Stock",
       "expired": "Expired"
-    }
+    },
+    "showRecent": "Show recent"
   },
   "patients": {
     "title": "Awaiting Patients",
@@ -134,7 +140,33 @@
     "waiting": "Awaiting Arrival",
     "attending": "In Progress",
     "dispatch": "Prosthetics for Dispatch",
-    "monthly": "Consultations This Month"
+    "monthly": "Consultations This Month",
+    "actions": {
+      "genericError": "Could not complete the operation.",
+      "triageUpdated": "Triage updated successfully.",
+      "triageCreated": "New triage created successfully.",
+      "editTriage": "Edit triage",
+      "newTriage": "New triage",
+      "triageHint": "Register or update the patient clinical assessment.",
+      "patient": "Patient",
+      "select": "Select",
+      "procedure": "SIGTAP procedure",
+      "status": "Status",
+      "notes": "Clinical notes",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveTriage": "Save triage",
+      "returnCreated": "Return shipment registered successfully.",
+      "newReturn": "New return",
+      "returnHint": "Register a reverse-logistics shipment.",
+      "deviceType": "Device type",
+      "quantity": "Quantity",
+      "shipmentStatus": "Shipment status",
+      "destinationManufacturer": "Destination manufacturer",
+      "destinationAddress": "Destination address",
+      "trackingCode": "Tracking code",
+      "saveReturn": "Register return"
+    }
   },
   "logistics": {
     "panel": {
@@ -324,7 +356,20 @@
       "languageHint": "The change is applied immediately and saved in this browser.",
       "dashboard": "Main dashboard",
       "dashboardHint": "Dashboard cards remain customizable through the “Customize cards” button on the home page.",
-      "done": "Done"
+      "done": "Done",
+      "account": "Account and profile",
+      "name": "Display name",
+      "email": "Email",
+      "password": "Account security",
+      "passwordHint": "Leave the password fields blank if you do not want to change it.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordMismatch": "The passwords do not match.",
+      "loadError": "Could not load your settings.",
+      "saveError": "Could not save the settings.",
+      "saved": "Settings updated successfully.",
+      "saving": "Saving...",
+      "save": "Save changes"
     }
   },
   "home": {
@@ -686,7 +731,8 @@
         "equity": "Equity analysis",
         "reports": "Reports",
         "registrations": "Registrations",
-        "creCenters": "CREs and care network"
+        "creCenters": "CREs and care network",
+        "communications": "Alerts and recalls"
       },
       "actions": {
         "refresh": "Refresh",
@@ -1050,7 +1096,8 @@
           "UNIT_MANAGE": "Read and operate data linked to the CRE unit",
           "NATIONAL_READ": "National consolidated read access",
           "NATIONAL_MANAGE": "Full national management"
-        }
+        },
+        "empty": "The access matrix is not available yet."
       },
       "creCenters": {
         "active": "Active CREs",
@@ -1102,5 +1149,70 @@
     "AGUARDANDO_COLETA": "Awaiting pickup",
     "CANCELADO": "Cancelled",
     "CANCELADA": "Cancelled"
+  },
+  "communications": {
+    "title": "Alerts and recalls",
+    "subtitle": "Issue targeted notices and manage recalls across the network.",
+    "tabs": {
+      "alert": "Issue alert",
+      "recall": "Issue recall"
+    },
+    "audience": {
+      "all": "All users",
+      "patients": "All patients",
+      "cre": "All CREs",
+      "managers": "Managers",
+      "unitPatients": "Patients from my unit",
+      "unitStaff": "Staff from my unit"
+    },
+    "targets": {
+      "communications": "Alert center",
+      "lifecycle": "Lifecycle / recalls",
+      "logistics": "Logistics",
+      "reports": "Reports",
+      "centers": "CRE network",
+      "finance": "Finance",
+      "equity": "Equity",
+      "patients": "Patients",
+      "triages": "Triages",
+      "registrations": "Registrations and users",
+      "patientOrders": "Patient order",
+      "patientSupport": "Patient support"
+    },
+    "success": {
+      "alert": "Alert sent to {count} user(s).",
+      "recall": "Recall issued successfully."
+    },
+    "error": {
+      "generic": "Could not complete the operation."
+    },
+    "alertForm": {
+      "title": "New alert",
+      "subtitle": "The selected destination travels with the alert and determines where the user is taken when clicking it."
+    },
+    "recallForm": {
+      "title": "New recall",
+      "subtitle": "Register a recall for authorized profiles to track."
+    },
+    "fields": {
+      "title": "Title",
+      "type": "Severity",
+      "audience": "Audience",
+      "target": "Related area",
+      "message": "Message",
+      "batch": "Batch code",
+      "product": "Product",
+      "deadline": "Deadline",
+      "affected": "Affected devices",
+      "issuer": "Issuing agency / unit",
+      "reason": "Reason"
+    },
+    "sending": "Sending...",
+    "sendAlert": "Issue alert",
+    "issueRecall": "Issue recall",
+    "recentRecalls": "Recent recalls",
+    "recentRecallsHint": "Latest network records",
+    "noRecalls": "No recalls registered.",
+    "devices": "device(s)"
   }
 }

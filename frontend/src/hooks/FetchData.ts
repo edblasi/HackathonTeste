@@ -108,6 +108,9 @@ export interface Notificacao {
   mensagem: string | null;
   lida: boolean;
   criado_em: string;
+  destino_ui?: string | null;
+  referencia_tabela?: string | null;
+  referencia_id?: number | null;
 }
 
 export interface KpiDashboard {
@@ -117,7 +120,7 @@ export interface KpiDashboard {
   matchings_mes: number;
 }
 
-export interface AlertaCritico { tipo: string; mensagem: string; gerado_em: string; }
+export interface AlertaCritico { tipo: string; mensagem: string; gerado_em: string; target?: string | null; }
 export interface Recall {
   id: number;
   codigo_lote: string;
@@ -142,6 +145,7 @@ export interface PacienteAguardando {
   prioridade_clinica: string;
   status: string;
   dias_espera_efetivos: number;
+  paciente_id: number;
 }
 
 export interface LoteRecente {
@@ -163,6 +167,8 @@ export interface Triagem {
   data_hora: string;
   status: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
   observacao_clinica: string | null;
+  paciente_id: number;
+  procedimento_sigtap_proposto: string | null;
 }
 
 export interface RemessaLogistica {
@@ -179,9 +185,25 @@ export interface RemessaLogistica {
 
 export interface RelatorioMensal { mes: string; triagens: number; matchings: number; devolucoes: number; }
 
-export function useUsuarioAtual() { return useApiQuery<UsuarioSistema>("/api/me"); }
+export function useUsuarioAtual() {
+  const result = useApiQuery<UsuarioSistema>("/api/me");
+  useEffect(() => {
+    const refresh = () => result.refetch();
+    window.addEventListener("umdr-profile-updated", refresh);
+    return () => window.removeEventListener("umdr-profile-updated", refresh);
+  }, [result.refetch]);
+  return result;
+}
 export function useUsuarios() { return useApiQuery<UsuarioSistema[]>("/api/admin/users"); }
-export function usePacientePerfil() { return useApiQuery<PacientePerfil>("/api/patient/profile"); }
+export function usePacientePerfil() {
+  const result = useApiQuery<PacientePerfil>("/api/patient/profile");
+  useEffect(() => {
+    const refresh = () => result.refetch();
+    window.addEventListener("umdr-profile-updated", refresh);
+    return () => window.removeEventListener("umdr-profile-updated", refresh);
+  }, [result.refetch]);
+  return result;
+}
 export function usePedidos() { return useApiQuery<PedidoAtual[]>("/api/patient/orders"); }
 export function useHistoricoSolicitacao(id: number | null) {
   return useApiQuery<HistoricoStatus[]>(id ? `/api/patient/orders/${id}/history` : null, [id]);
@@ -203,6 +225,6 @@ export function useRecalls() { return useApiQuery<Recall[]>("/api/cre/recalls");
 export function useFluxoDispositivosMensal() { return useApiQuery<FluxoMensal[]>("/api/cre/flow"); }
 export function usePacientesAguardando() { return useApiQuery<PacienteAguardando[]>("/api/cre/patients"); }
 export function useLotesRecentes() { return useApiQuery<LoteRecente[]>("/api/cre/lots"); }
-export function useTriagens() { return useApiQuery<Triagem[]>("/api/cre/triages"); }
-export function useRemessasLogistica() { return useApiQuery<RemessaLogistica[]>("/api/cre/shipments"); }
+export function useTriagens(refreshKey = 0) { return useApiQuery<Triagem[]>("/api/cre/triages", [refreshKey]); }
+export function useRemessasLogistica(refreshKey = 0) { return useApiQuery<RemessaLogistica[]>("/api/cre/shipments", [refreshKey]); }
 export function useRelatorioMensal() { return useApiQuery<RelatorioMensal[]>("/api/cre/reports"); }
