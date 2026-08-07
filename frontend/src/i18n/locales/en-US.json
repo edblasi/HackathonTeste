@@ -661,7 +661,8 @@
         "finance": "Finance and procurement",
         "equity": "Equity analysis",
         "reports": "Reports",
-        "registrations": "Registrations"
+        "registrations": "Registrations",
+        "creCenters": "CREs and care network"
       },
       "actions": {
         "refresh": "Refresh",
@@ -725,6 +726,11 @@
           "breadcrumb": "Administration",
           "title": "Registration Center",
           "subtitle": "Register patients, staff, suppliers, and requests while preserving the dashboard identity"
+        },
+        "creCenters": {
+          "breadcrumb": "CREs and care network",
+          "title": "Regional Specialized Centers (CREs)",
+          "subtitle": "Count, location, capacity, and operating status of registered CREs"
         }
       },
       "kpi": {
@@ -1010,6 +1016,37 @@
           "NATIONAL_READ": "National consolidated read access",
           "NATIONAL_MANAGE": "Full national management"
         }
+      },
+      "creCenters": {
+        "active": "Active CREs",
+        "registeredNetwork": "Network registered in the database",
+        "regionsCovered": "Regions covered",
+        "nationalCoverage": "Regional coverage",
+        "queue": "CRE queue",
+        "waitingPatients": "Patients waiting",
+        "capacity": "Monthly capacity",
+        "monthlyCapacity": "Registered production capacity",
+        "sourceNote": "Consolidated CNES and OPM network data",
+        "regionalDistribution": "Regional distribution",
+        "regionalSubtitle": "Active CREs by Brazilian region",
+        "directory": "CRE directory",
+        "directorySubtitle": "Units enabled for OPM or linked to an orthopedic workshop",
+        "searchPlaceholder": "Search by name, CNES, or municipality",
+        "name": "CRE / Unit",
+        "location": "Location",
+        "operations": "Operations",
+        "status": "Status",
+        "actions": "Actions",
+        "addressUnavailable": "Address not provided",
+        "queueShort": "Queue: {{count}}",
+        "capacityShort": "Capacity/month: {{count}}",
+        "shipmentsShort": "Active shipments: {{count}}",
+        "partnersShort": "Partner NGOs: {{count}}",
+        "activeStatus": "Active",
+        "inactiveStatus": "Inactive",
+        "opmEnabled": "OPM enabled",
+        "viewMap": "View on map",
+        "noCenters": "No CRE found."
       }
     }
   },

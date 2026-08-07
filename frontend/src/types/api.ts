@@ -67,10 +67,16 @@ export interface ManagerLogisticsRow {
 }
 
 export interface ManagerCenterRow {
-  id: number;
+  id: number | null;
   name: string;
   cnes: string;
   region: string;
+  municipality: string;
+  uf: string;
+  address: string | null;
+  phone: string | null;
+  unit_type: string | null;
+  opm_enabled: boolean;
   capacity: number;
   capacity_used: number;
   queue: number;

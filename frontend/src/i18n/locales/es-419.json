@@ -661,7 +661,8 @@
         "finance": "Finanzas y licitaciones",
         "equity": "Análisis de equidad",
         "reports": "Informes",
-        "registrations": "Registros"
+        "registrations": "Registros",
+        "creCenters": "CREs y red asistencial"
       },
       "actions": {
         "refresh": "Actualizar",
@@ -725,6 +726,11 @@
           "breadcrumb": "Administración",
           "title": "Centro de Registros",
           "subtitle": "Registre pacientes, profesionales, proveedores y solicitudes preservando la identidad del panel"
+        },
+        "creCenters": {
+          "breadcrumb": "CREs y red asistencial",
+          "title": "Centros Regionales Especializados (CREs)",
+          "subtitle": "Cantidad, ubicación, capacidad y situación operativa de los CREs registrados"
         }
       },
       "kpi": {
@@ -1010,6 +1016,37 @@
           "NATIONAL_READ": "Lectura nacional consolidada",
           "NATIONAL_MANAGE": "Gestión nacional completa"
         }
+      },
+      "creCenters": {
+        "active": "CREs activos",
+        "registeredNetwork": "Red registrada en la base de datos",
+        "regionsCovered": "Regiones cubiertas",
+        "nationalCoverage": "Cobertura regional",
+        "queue": "Cola en los CREs",
+        "waitingPatients": "Pacientes en espera",
+        "capacity": "Capacidad mensual",
+        "monthlyCapacity": "Capacidad de producción registrada",
+        "sourceNote": "Datos consolidados de CNES y de la red OPM",
+        "regionalDistribution": "Distribución regional",
+        "regionalSubtitle": "CREs activos por región de Brasil",
+        "directory": "Directorio de CREs",
+        "directorySubtitle": "Unidades habilitadas para OPM o vinculadas a un taller ortopédico",
+        "searchPlaceholder": "Buscar por nombre, CNES o municipio",
+        "name": "CRE / Unidad",
+        "location": "Ubicación",
+        "operations": "Operación",
+        "status": "Estado",
+        "actions": "Acciones",
+        "addressUnavailable": "Dirección no informada",
+        "queueShort": "Cola: {{count}}",
+        "capacityShort": "Capacidad/mes: {{count}}",
+        "shipmentsShort": "Envíos activos: {{count}}",
+        "partnersShort": "ONG asociadas: {{count}}",
+        "activeStatus": "Activo",
+        "inactiveStatus": "Inactivo",
+        "opmEnabled": "Habilitado para OPM",
+        "viewMap": "Ver en el mapa",
+        "noCenters": "No se encontraron CREs."
       }
     }
   },

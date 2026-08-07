@@ -661,7 +661,8 @@
         "finance": "Finanças e licitações",
         "equity": "Análise de equidade",
         "reports": "Relatórios",
-        "registrations": "Cadastros"
+        "registrations": "Cadastros",
+        "creCenters": "CREs e rede assistencial"
       },
       "actions": {
         "refresh": "Atualizar",
@@ -725,6 +726,11 @@
           "breadcrumb": "Administração",
           "title": "Centro de Cadastros",
           "subtitle": "Cadastre pacientes, profissionais, fornecedores e solicitações sem alterar a identidade visual do painel"
+        },
+        "creCenters": {
+          "breadcrumb": "CREs e rede assistencial",
+          "title": "Centros Regionais Especializados (CREs)",
+          "subtitle": "Quantidade, localização, capacidade e situação operacional dos CREs cadastrados"
         }
       },
       "kpi": {
@@ -1010,6 +1016,37 @@
           "NATIONAL_READ": "Leitura nacional consolidada",
           "NATIONAL_MANAGE": "Gestão nacional completa"
         }
+      },
+      "creCenters": {
+        "active": "CREs ativos",
+        "registeredNetwork": "Rede cadastrada no banco",
+        "regionsCovered": "Regiões cobertas",
+        "nationalCoverage": "Cobertura regional",
+        "queue": "Fila nos CREs",
+        "waitingPatients": "Pacientes aguardando",
+        "capacity": "Capacidade mensal",
+        "monthlyCapacity": "Capacidade de produção cadastrada",
+        "sourceNote": "Dados consolidados do CNES e da rede OPM",
+        "regionalDistribution": "Distribuição regional",
+        "regionalSubtitle": "CREs ativos por região do Brasil",
+        "directory": "Diretório de CREs",
+        "directorySubtitle": "Unidades habilitadas para OPM ou vinculadas a oficina ortopédica",
+        "searchPlaceholder": "Buscar por nome, CNES ou município",
+        "name": "CRE / Unidade",
+        "location": "Localização",
+        "operations": "Operação",
+        "status": "Status",
+        "actions": "Ações",
+        "addressUnavailable": "Endereço não informado",
+        "queueShort": "Fila: {{count}}",
+        "capacityShort": "Capacidade/mês: {{count}}",
+        "shipmentsShort": "Remessas ativas: {{count}}",
+        "partnersShort": "ONGs parceiras: {{count}}",
+        "activeStatus": "Ativo",
+        "inactiveStatus": "Inativo",
+        "opmEnabled": "Habilitado para OPM",
+        "viewMap": "Ver no mapa",
+        "noCenters": "Nenhum CRE encontrado."
       }
     }
   },

@@ -75,7 +75,7 @@ import type {
 
 type Page =
   | "inicio"
-  | "politicas"
+  | "cres"
   | "ciclovida"
   | "logistica"
   | "financas"
@@ -333,7 +333,7 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
   const kpiCards: KpiCardData[] = [
     {
       id: "conformity",
-      target: "politicas",
+      target: "relatorios",
       label: t("manager.standard.kpi.conformity"),
       value: percent(data.summary.conformity_rate, locale),
       delta: t("manager.standard.kpi.liveDatabase"),
@@ -377,9 +377,9 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
     },
     {
       id: "units",
-      target: "logistica",
+      target: "cres",
       label: t("manager.standard.kpi.units"),
-      value: integer(data.summary.active_units, locale),
+      value: integer(data.summary.cre_centers ?? data.centers.length, locale),
       delta: t("manager.standard.kpi.activeNetwork"),
       positive: true,
       icon: Activity,
@@ -565,151 +565,145 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
   );
 }
 
-function reportIcon(report: ManagerReportRow) {
-  const kind = report.tipo.toUpperCase();
-  if (kind.includes("EQUID")) return { icon: Scale, color: "text-[#6A1B9A]" };
-  if (kind.includes("CONFORM") || kind.includes("GOV")) return { icon: ShieldCheck, color: "text-[#1565C0]" };
-  return { icon: FileBarChart, color: "text-[#E65100]" };
-}
-
 function downloadReportMetadata(report: ManagerReportRow) {
   downloadText(`relatorio-${report.id}.json`, JSON.stringify(report, null, 2), "application/json;charset=utf-8");
 }
 
-function PaginaPoliticas({ data }: { data: ManagerDashboardData }) {
+function PaginaCREs({ data }: { data: ManagerDashboardData }) {
   const { t, locale } = useLang();
-  const [selectedReport, setSelectedReport] = useState<ManagerReportRow | null>(data.reports[0] ?? null);
-  const [previewOpen, setPreviewOpen] = useState(Boolean(data.reports.length));
-  const reports = data.reports.slice(0, 3);
+  const [search, setSearch] = useState("");
+  const centers = data.centers;
+  const activeCenters = centers.filter((center) => center.active);
+  const regionsCovered = new Set(activeCenters.map((center) => center.region).filter((region) => region && region !== "—")).size;
+  const totalQueue = activeCenters.reduce((sum, center) => sum + numeric(center.queue), 0);
+  const totalCapacity = activeCenters.reduce((sum, center) => sum + numeric(center.capacity), 0);
+  const normalizedSearch = search.trim().toLocaleLowerCase(locale);
+  const visibleCenters = centers.filter((center) => {
+    if (!normalizedSearch) return true;
+    return [center.name, center.cnes, center.municipality, center.uf, center.address, center.unit_type]
+      .filter(Boolean)
+      .some((value) => String(value).toLocaleLowerCase(locale).includes(normalizedSearch));
+  });
+  const regionCounts = Array.from(
+    activeCenters.reduce((map, center) => {
+      const label = regionLabel(center.region, t);
+      map.set(label, (map.get(label) ?? 0) + 1);
+      return map;
+    }, new Map<string, number>()),
+  ).map(([region, count]) => ({ region, count }));
+  const kpis: KpiCardData[] = [
+    { label: t("manager.standard.creCenters.active"), value: integer(activeCenters.length, locale), delta: t("manager.standard.creCenters.registeredNetwork"), positive: true, icon: Building2, color: "text-[#1565C0]", bg: "bg-blue-50" },
+    { label: t("manager.standard.creCenters.regionsCovered"), value: integer(regionsCovered, locale), delta: t("manager.standard.creCenters.nationalCoverage"), positive: regionsCovered >= 5, icon: MapPin, color: "text-[#6A1B9A]", bg: "bg-purple-50" },
+    { label: t("manager.standard.creCenters.queue"), value: integer(totalQueue, locale), delta: t("manager.standard.creCenters.waitingPatients"), positive: totalQueue === 0, icon: Users, color: "text-[#E65100]", bg: "bg-orange-50" },
+    { label: t("manager.standard.creCenters.capacity"), value: integer(totalCapacity, locale), delta: t("manager.standard.creCenters.monthlyCapacity"), positive: true, icon: Activity, color: "text-[#2E7D32]", bg: "bg-green-50" },
+  ];
+
+  const openMap = (center: (typeof centers)[number]) => {
+    const query = [center.address, center.municipality, center.uf, center.name].filter(Boolean).join(", ");
+    if (!query) return;
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="p-8">
       <PageHeader
-        breadcrumb={t("manager.standard.pages.governance.breadcrumb")}
-        title={t("manager.standard.pages.governance.title")}
-        subtitle={t("manager.standard.pages.governance.subtitle")}
+        breadcrumb={t("manager.standard.pages.creCenters.breadcrumb")}
+        title={t("manager.standard.pages.creCenters.title")}
+        subtitle={t("manager.standard.pages.creCenters.subtitle")}
       >
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-lg px-3 py-2">
-          <ShieldCheck size={13} className="text-[#2E7D32]" />
-          <span>{t("manager.standard.security.managerLevel")}</span>
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          <Building2 size={13} className="text-[#1565C0]" />
+          <span>{t("manager.standard.creCenters.sourceNote")}</span>
         </div>
       </PageHeader>
 
-      {reports.length ? (
-        <div className="space-y-4 mb-8">
-          {reports.map((report) => {
-            const iconInfo = reportIcon(report);
-            const Icon = iconInfo.icon;
-            return (
-              <Card key={report.id} className="p-5 hover:shadow-md hover:border-[#1565C0]/30 transition-all group">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-5">
-                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-muted shrink-0">
-                    <Icon size={22} className={iconInfo.color} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3 mb-0.5">
-                      <h3 className="text-base font-semibold text-foreground">{report.nome}</h3>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusTone("FINAL")}`}>{report.formato}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{report.tipo}</p>
-                    <div className="flex flex-wrap items-center gap-4 mt-2">
-                      <span className="text-xs text-muted-foreground font-mono">{formatBytes(report.tamanho_bytes, locale)}</span>
-                      <span className="text-xs text-muted-foreground">{t("manager.standard.reports.updated", { date: formatDate(report.gerado_em, locale) })}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => { setSelectedReport(report); setPreviewOpen(true); }} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-muted border border-border rounded-lg px-3 py-2 hover:text-foreground transition-colors">
-                      <Eye size={13} />{t("manager.standard.actions.view")}
-                    </button>
-                    <button onClick={() => downloadReportMetadata(report)} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors shadow-sm">
-                      <Download size={13} />{t("manager.standard.actions.downloadPdf")}
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      ) : <Card className="mb-8"><EmptyState message={t("manager.standard.empty.reports")} /></Card>}
+      <div className="grid grid-cols-2 gap-4 mb-8 sm:grid-cols-4">
+        {kpis.map((item) => <KPICard key={item.label} {...item} />)}
+      </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.governance.previewTitle")}</h2>
-          <button onClick={() => setPreviewOpen((value) => !value)} disabled={!selectedReport} className="text-xs text-[#1565C0] hover:underline flex items-center gap-1 disabled:opacity-50">
-            {previewOpen ? t("manager.standard.actions.collapse") : t("manager.standard.actions.expandPreview")}
-            <ChevronRight size={12} className={`transition-transform ${previewOpen ? "rotate-90" : ""}`} />
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3 mb-6">
+        <Card className="p-5 xl:col-span-1">
+          <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.creCenters.regionalDistribution")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("manager.standard.creCenters.regionalSubtitle")}</p>
+          {regionCounts.length ? (
+            <ResponsiveContainer width="100%" height={230}>
+              <BarChart data={regionCounts} layout="vertical" margin={{ top: 16, right: 12, bottom: 0, left: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                <YAxis dataKey="region" type="category" width={90} tick={{ fontSize: 11, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="count" fill="#1565C0" radius={[0, 4, 4, 0]} name={t("manager.standard.creCenters.active")} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <EmptyState message={t("manager.standard.creCenters.noCenters")} />}
+        </Card>
 
-        <Card className="overflow-hidden">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-3 bg-[#0A1929] text-white">
-            <div className="flex items-center gap-3 min-w-0">
-              <FileText size={14} className="text-blue-300 shrink-0" />
-              <span className="text-xs font-medium text-blue-100 truncate">{selectedReport?.nome ?? t("manager.standard.governance.noSelectedReport")}</span>
+        <Card className="overflow-hidden xl:col-span-2">
+          <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.creCenters.directory")}</h2>
+              <p className="text-xs text-muted-foreground">{t("manager.standard.creCenters.directorySubtitle")}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-blue-300 font-mono">{selectedReport ? `${selectedReport.formato} · ${formatBytes(selectedReport.tamanho_bytes, locale)}` : "—"}</span>
-              {selectedReport && <button onClick={() => downloadReportMetadata(selectedReport)} className="flex items-center gap-1.5 text-xs font-medium text-white bg-[#1565C0] rounded px-3 py-1.5 hover:bg-[#1976D2] transition-colors"><Download size={11} />{t("manager.standard.actions.save")}</button>}
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
+              <Search size={13} className="text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("manager.standard.creCenters.searchPlaceholder")}
+                className="w-56 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              />
             </div>
           </div>
-
-          {selectedReport ? (
-            <div className="px-10 py-8" style={{ fontFamily: "DM Sans, sans-serif" }}>
-              <div className="border-b border-border pb-6 mb-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="text-xs font-medium tracking-widest text-muted-foreground uppercase mb-2">{t("manager.standard.governance.ministry")}</p>
-                    <h1 className="text-xl font-semibold text-foreground leading-tight max-w-lg">{selectedReport.nome}</h1>
-                    <p className="text-sm text-muted-foreground mt-1">{selectedReport.tipo}</p>
-                  </div>
-                  <div className="text-left lg:text-right text-xs text-muted-foreground space-y-0.5">
-                    <p>{t("manager.standard.governance.classification")}</p>
-                    <p>{t("manager.standard.governance.reportId", { id: selectedReport.id })}</p>
-                    <p>{t("manager.standard.governance.issued", { date: formatDate(selectedReport.gerado_em, locale) })}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <h2 className="text-sm font-semibold text-foreground mb-3">{t("manager.standard.governance.executiveSummary")}</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                  {t("manager.standard.governance.summaryParagraphOne", {
-                    conformity: percent(data.summary.conformity_rate, locale),
-                    units: integer(data.summary.active_units, locale),
-                    efficiency: percent(data.summary.efficiency_rate, locale),
-                  })}
-                </p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t("manager.standard.governance.summaryParagraphTwo", {
-                    recalls: integer(data.summary.active_recalls, locale),
-                    alerts: integer(data.summary.logistics_alerts, locale),
-                    patients: integer(data.summary.patients, locale),
-                  })}
-                </p>
-              </div>
-
-              <div className="mb-6">
-                <h2 className="text-sm font-semibold text-foreground mb-3">{t("manager.standard.governance.complianceSummary")}</h2>
-                <div className="border border-border rounded-lg overflow-hidden">
-                  <div className="bg-muted/50 px-4 py-2 grid grid-cols-3 gap-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    <span className="col-span-2">{t("manager.standard.governance.domain")}</span>
-                    <span className="text-right">{t("manager.standard.governance.score")}</span>
-                  </div>
-                  <div className="px-4">
-                    {data.compliance.length ? data.compliance.map((item) => <ComplianceRow key={item.key} item={item} />) : <EmptyState message={t("manager.standard.empty.compliance")} />}
-                  </div>
-                </div>
-              </div>
-
-              {previewOpen && (
-                <div className="border-t border-border pt-6 mt-6 grid grid-cols-1 sm:grid-cols-3 gap-8">
-                  <div><p className="text-xs text-muted-foreground mb-1">{t("manager.standard.governance.preparedBy")}</p><p className="text-sm font-medium text-foreground">{t("manager.standard.governance.systemManagement")}</p><p className="text-xs text-muted-foreground">{t("manager.standard.governance.systemManagementRole")}</p></div>
-                  <div><p className="text-xs text-muted-foreground mb-1">{t("manager.standard.governance.reviewedBy")}</p><p className="text-sm font-medium text-foreground">{t("manager.standard.governance.complianceTeam")}</p><p className="text-xs text-muted-foreground">{t("manager.standard.governance.complianceTeamRole")}</p></div>
-                  <div><p className="text-xs text-muted-foreground mb-1">{t("manager.standard.governance.approvedBy")}</p><p className="text-sm font-medium text-foreground">{t("manager.standard.governance.nationalManagement")}</p><p className="text-xs text-muted-foreground">{t("manager.standard.governance.nationalManagementRole")}</p></div>
-                </div>
-              )}
+          {visibleCenters.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    {[t("manager.standard.creCenters.name"), t("manager.standard.creCenters.location"), t("manager.standard.creCenters.operations"), t("manager.standard.creCenters.status"), t("manager.standard.creCenters.actions")].map((heading) => (
+                      <th key={heading} className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-muted-foreground">{heading}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleCenters.map((center) => (
+                    <tr key={center.cnes} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 align-top">
+                        <p className="font-semibold text-foreground">{center.name}</p>
+                        <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">CNES {center.cnes}</p>
+                        {center.unit_type && <p className="mt-1 text-[10px] text-muted-foreground">{center.unit_type}</p>}
+                      </td>
+                      <td className="px-4 py-3 align-top text-muted-foreground">
+                        <p className="font-medium text-foreground">{center.municipality} · {center.uf}</p>
+                        <p className="mt-0.5 max-w-56">{center.address || t("manager.standard.creCenters.addressUnavailable")}</p>
+                        {center.phone && <p className="mt-0.5">{center.phone}</p>}
+                      </td>
+                      <td className="px-4 py-3 align-top text-muted-foreground">
+                        <p>{t("manager.standard.creCenters.queueShort", { count: integer(center.queue, locale) })}</p>
+                        <p>{t("manager.standard.creCenters.capacityShort", { count: integer(center.capacity, locale) })}</p>
+                        <p>{t("manager.standard.creCenters.shipmentsShort", { count: integer(center.active_shipments, locale) })}</p>
+                        <p>{t("manager.standard.creCenters.partnersShort", { count: integer(center.ngo_partners, locale) })}</p>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${center.active ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                          {center.active ? t("manager.standard.creCenters.activeStatus") : t("manager.standard.creCenters.inactiveStatus")}
+                        </span>
+                        {center.opm_enabled && <p className="mt-2 text-[10px] font-medium text-[#1565C0]">{t("manager.standard.creCenters.opmEnabled")}</p>}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <button
+                          type="button"
+                          onClick={() => openMap(center)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-2 font-semibold text-[#1565C0] hover:border-[#1565C0]/40 hover:bg-blue-50 transition-colors"
+                        >
+                          <MapPin size={12} />{t("manager.standard.creCenters.viewMap")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : <EmptyState message={t("manager.standard.governance.noSelectedReport")} />}
+          ) : <EmptyState message={t("manager.standard.creCenters.noCenters")} />}
         </Card>
       </div>
     </div>
@@ -1122,7 +1116,7 @@ export function ManagerHomePage() {
 
   const navItems = useMemo(() => [
     { id: "inicio" as const, label: t("manager.standard.nav.executive"), icon: LayoutDashboard },
-    { id: "politicas" as const, label: t("manager.standard.nav.governance"), icon: ShieldCheck },
+    { id: "cres" as const, label: t("manager.standard.nav.creCenters"), icon: Building2 },
     { id: "ciclovida" as const, label: t("manager.standard.nav.lifecycle"), icon: Wrench },
     { id: "logistica" as const, label: t("manager.standard.nav.logistics"), icon: Truck },
     { id: "financas" as const, label: t("manager.standard.nav.finance"), icon: Banknote },
@@ -1171,7 +1165,7 @@ export function ManagerHomePage() {
 
         <div className="flex-1 overflow-y-auto">
           {activePage === "inicio" && <PaginaInicio data={data} onRefresh={dashboard.reload} onNavigate={setActivePage} />}
-          {activePage === "politicas" && <PaginaPoliticas data={data} />}
+          {activePage === "cres" && <PaginaCREs data={data} />}
           {activePage === "ciclovida" && <PaginaCicloVida data={data} onRefresh={dashboard.reload} />}
           {activePage === "logistica" && <PaginaLogistica data={data} />}
           {activePage === "financas" && <PaginaFinancas data={data} />}
