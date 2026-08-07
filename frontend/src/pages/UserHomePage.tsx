@@ -17,6 +17,9 @@ import { useLang } from "../i18n/LanguageContext";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { SettingsModal } from "../components/SettingsModal";
+import { DeviceHistoryModal } from "../components/DeviceHistoryModal";
+import { exportDeviceCardPdf } from "../components/DeviceIdentityCard";
+import { PatientSupportModal, type PatientSupportMode } from "../components/PatientSupportModal";
 import { Card } from "../components/Card";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { Avatar } from "../components/Avatar";
@@ -28,7 +31,9 @@ import {
   useUsuarioAtual,
   usePacientePerfil,
   useNotificacoes,
+  useCurrentDevice,
   type PedidoAtual,
+  type PatientDevice,
   type HistoricoStatus,
 } from "../hooks/FetchData";
 import type { TranslationKey } from "../i18n/translations";
@@ -91,13 +96,21 @@ function WelcomeSection({ nomeExibicao }: { nomeExibicao: string }) {
 
 function PedidoStatusCard({ pedido, onOpenTimeline }: { pedido: PedidoAtual; onOpenTimeline: () => void }) {
   const { t, locale } = useLang();
-  const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(locale) : null);
+  const fmtDate = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString(locale) : null);
+  const delivered = pedido.status_solicitacao === "ENTREGUE" || Boolean(pedido.data_entrega);
 
   const details = [
     { label: t("home.pedido.procedureLabel"), value: pedido.nome_procedimento },
     { label: t("home.pedido.productLabel"), value: pedido.nome_produto ?? t("home.pedido.productPending") },
     { label: t("home.pedido.workshopLabel"), value: pedido.oficina_nome ?? t("home.pedido.workshopPending") },
-    { label: t("home.pedido.requestedOn"), value: fmtDate(pedido.data_solicitacao) ?? "—" },
+    ...(delivered ? [
+      { label: t("home.pedido.exactModel"), value: pedido.modelo_exato ?? "—" },
+      { label: t("home.pedido.manufacturer"), value: pedido.fabricante ?? "—" },
+      { label: t("home.pedido.manufacturedAt"), value: fmtDate(pedido.data_manufatura) ?? "—" },
+      { label: t("home.pedido.serialNumber"), value: pedido.numero_serie ?? "—" },
+    ] : [
+      { label: t("home.pedido.requestedOn"), value: fmtDate(pedido.data_solicitacao) ?? "—" },
+    ]),
   ];
 
   return (
@@ -210,12 +223,14 @@ function TimelineCard({ pedido, historico }: { pedido: PedidoAtual; historico: H
   );
 }
 
-function DigitalIDCard({ pedido, nomeExibicao, iniciais, onViewHistory }: { pedido: PedidoAtual; nomeExibicao: string; iniciais: string; onViewHistory: () => void }) {
-  const { t } = useLang();
+function DigitalIDCard({ device, nomeExibicao, iniciais, onViewHistory }: { device: PatientDevice | null; nomeExibicao: string; iniciais: string; onViewHistory: () => void }) {
+  const { t, locale } = useLang();
   const [copied, setCopied] = useState(false);
-  const idValue = `SOL-${pedido.solicitacao_id}`;
+  const idValue = device ? `DEV-${device.id}` : "—";
 
   const handleCopy = () => {
+    if (!device) return;
+    void navigator.clipboard?.writeText(device.numero_serie || idValue);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -229,27 +244,35 @@ function DigitalIDCard({ pedido, nomeExibicao, iniciais, onViewHistory }: { pedi
         </div>
         <p className="text-xs text-muted-foreground mb-4">{t("home.id.subtitle")}</p>
 
-        <div className="flex flex-col items-center gap-3 py-2">
-          <QRCodePlaceholder />
-          <button
-            onClick={handleCopy}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono"
-            aria-label={t("home.id.copyAria")}
-          >
-            {copied ? t("home.id.copied") : idValue}
-          </button>
-        </div>
+        {device ? <>
+          <div className="flex flex-col items-center gap-3 py-2">
+            <QRCodePlaceholder value={device.qr_token || device.numero_serie} />
+            <button
+              onClick={handleCopy}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors font-mono"
+              aria-label={t("home.id.copyAria")}
+            >
+              {copied ? t("home.id.copied") : device.numero_serie}
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-[10px]">
+            <div><p className="font-bold uppercase tracking-wider text-slate-400">{t("home.deviceCard.model")}</p><p className="mt-0.5 font-semibold text-slate-700">{device.modelo_exato}</p></div>
+            <div><p className="font-bold uppercase tracking-wider text-slate-400">{t("home.deviceCard.manufacturer")}</p><p className="mt-0.5 font-semibold text-slate-700">{device.fabricante}</p></div>
+            <div><p className="font-bold uppercase tracking-wider text-slate-400">{t("home.deviceCard.uses")}</p><p className="mt-0.5 font-semibold text-slate-700">{device.numero_usos}</p></div>
+            <div><p className="font-bold uppercase tracking-wider text-slate-400">{t("home.deviceCard.deliveredAt")}</p><p className="mt-0.5 font-semibold text-slate-700">{device.data_entrega ? new Date(device.data_entrega).toLocaleDateString(locale) : "—"}</p></div>
+          </div>
 
-        <div className="mt-4 space-y-2">
-          <button type="button" onClick={onViewHistory} className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-secondary text-primary text-sm font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
-            <History className="w-4 h-4" aria-hidden="true" />
-            {t("home.id.viewHistory")}
-          </button>
-          <button type="button" onClick={() => window.print()} className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-[#0B5394] text-white text-sm font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
-            <FileDown className="w-4 h-4" aria-hidden="true" />
-            {t("home.id.exportPdf")}
-          </button>
-        </div>
+          <div className="mt-4 space-y-2">
+            <button type="button" onClick={onViewHistory} className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-secondary text-primary text-sm font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
+              <History className="w-4 h-4" aria-hidden="true" />
+              {t("home.id.viewHistory")}
+            </button>
+            <button type="button" onClick={() => exportDeviceCardPdf(device, nomeExibicao, locale)} className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-[#0B5394] text-white text-sm font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
+              <FileDown className="w-4 h-4" aria-hidden="true" />
+              {t("home.id.exportPdf")}
+            </button>
+          </div>
+        </> : <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center"><Package className="mx-auto h-8 w-8 text-slate-300"/><p className="mt-2 text-xs font-semibold text-slate-600">{t("home.id.noDeliveredDevice")}</p><p className="mt-1 text-[10px] text-slate-400">{t("home.id.noDeliveredDeviceDesc")}</p></div>}
 
         <div className="mt-4 pt-4 border-t border-border">
           <div className="flex items-center gap-2.5">
@@ -267,7 +290,7 @@ function DigitalIDCard({ pedido, nomeExibicao, iniciais, onViewHistory }: { pedi
   );
 }
 
-function SupportCard() {
+function SupportCard({ onPain, onContact }: { onPain: () => void; onContact: () => void }) {
   const { t } = useLang();
   const links = [
     {
@@ -276,23 +299,23 @@ function SupportCard() {
       description: t("home.support.report.desc"),
       color: "text-destructive",
       bg: "hover:bg-red-50 focus:ring-destructive/30",
-      action: () => { window.location.href = "tel:136"; },
+      action: onPain,
     },
     {
       icon: Phone,
-      label: t("home.support.contact.label"),
-      description: t("home.support.contact.desc"),
+      label: t("home.support.cre.label"),
+      description: t("home.support.cre.desc"),
       color: "text-primary",
       bg: "hover:bg-secondary focus:ring-primary/30",
-      action: () => { window.location.href = "tel:136"; },
+      action: onContact,
     },
     {
       icon: HelpCircle,
-      label: t("home.support.faq.label"),
-      description: t("home.support.faq.desc"),
+      label: t("home.support.contact.label"),
+      description: t("home.support.contact.desc"),
       color: "text-muted-foreground",
       bg: "hover:bg-secondary focus:ring-primary/30",
-      action: () => window.open("https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/p/pessoa-com-deficiencia", "_blank", "noopener,noreferrer"),
+      action: () => window.open("https://www.gov.br/saude/pt-br/canais-de-atendimento/ouvsus", "_blank", "noopener,noreferrer"),
     },
   ];
 
@@ -337,6 +360,9 @@ function SupportCard() {
 export function UserHomePage() {
   const { signOut, user } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportMode, setSupportMode] = useState<PatientSupportMode>("pain");
   const { t, locale } = useLang();
   const navigate = useNavigate();
   const { visibleIds, toggle, reset, isVisible } = useDashboardCardPreferences<UserHomeCardId>(
@@ -347,7 +373,8 @@ export function UserHomePage() {
   const { data: usuario, loading: loadingUsuario } = useUsuarioAtual();
   const { data: perfil } = usePacientePerfil();
   const { data: pedidos, loading: loadingPedidos, error: erroPedidos } = usePedidos();
-  const pedidoAtivo = pedidos?.[0] ?? null;
+  const { data: currentDevice, loading: loadingDevice } = useCurrentDevice();
+  const pedidoAtivo = pedidos?.find((pedido) => !["ENTREGUE", "CANCELADA", "NEGADA"].includes(pedido.status_solicitacao)) ?? pedidos?.find((pedido) => pedido.status_solicitacao === "ENTREGUE") ?? pedidos?.[0] ?? null;
   const { data: historico } = useHistoricoSolicitacao(pedidoAtivo?.solicitacao_id ?? null);
   const { data: notificacoes, marcarComoLida } = useNotificacoes();
 
@@ -376,11 +403,12 @@ export function UserHomePage() {
       if (!n.lida) void marcarComoLida(n.id);
       const target = patientSectionForAlert(n.destino_ui);
       if (target === "patient-notifications") window.scrollTo({ top: 0, behavior: "smooth" });
+      else if (target === "patient-support-card") { setSupportMode("contact"); setSupportOpen(true); }
       else document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
     },
   }));
 
-  const loading = loadingUsuario || loadingPedidos;
+  const loading = loadingUsuario || loadingPedidos || loadingDevice;
   const cardOptions = [
     { id: "request" as const, label: t("home.pedido.title") },
     { id: "timeline" as const, label: t("home.timeline.title") },
@@ -423,18 +451,14 @@ export function UserHomePage() {
           <Card>
             <p className="p-6 text-sm text-destructive">{erroPedidos}</p>
           </Card>
-        ) : !pedidoAtivo ? (
-          <Card>
-            <p className="p-6 text-sm text-muted-foreground">{t("home.pedido.noPedido")}</p>
-          </Card>
         ) : (
           <div className={`grid gap-5 ${hasLeftColumn && hasRightColumn ? "lg:grid-cols-[65fr_35fr]" : "grid-cols-1"}`}>
             {hasLeftColumn && <div className="space-y-5">
               {isVisible("request") && <section id="patient-request-card" aria-labelledby="pedido-status-heading" className="scroll-mt-24">
                 <h2 id="pedido-status-heading" className="sr-only">{t("home.pedido.title")}</h2>
-                <PedidoStatusCard pedido={pedidoAtivo} onOpenTimeline={() => scrollToSection("patient-timeline-card")} />
+                {pedidoAtivo ? <PedidoStatusCard pedido={pedidoAtivo} onOpenTimeline={() => scrollToSection("patient-timeline-card")} /> : <Card><p className="p-6 text-sm text-muted-foreground">{t("home.pedido.noPedido")}</p></Card>}
               </section>}
-              {isVisible("timeline") && <section id="patient-timeline-card" aria-labelledby="timeline-heading" className="scroll-mt-24">
+              {isVisible("timeline") && pedidoAtivo && <section id="patient-timeline-card" aria-labelledby="timeline-heading" className="scroll-mt-24">
                 <h2 id="timeline-heading" className="sr-only">{t("home.timeline.title")}</h2>
                 <TimelineCard pedido={pedidoAtivo} historico={historico ?? []} />
               </section>}
@@ -443,11 +467,11 @@ export function UserHomePage() {
             {hasRightColumn && <div className="space-y-5">
               {isVisible("digitalId") && <section id="patient-digital-id-card" aria-labelledby="digital-id-heading" className="scroll-mt-24">
                 <h2 id="digital-id-heading" className="sr-only">{t("home.id.title")}</h2>
-                <DigitalIDCard pedido={pedidoAtivo} nomeExibicao={nomeExibicao || "—"} iniciais={iniciais} onViewHistory={() => scrollToSection("patient-timeline-card")} />
+                <DigitalIDCard device={currentDevice} nomeExibicao={nomeExibicao || "—"} iniciais={iniciais} onViewHistory={() => setHistoryOpen(true)} />
               </section>}
               {isVisible("support") && <section id="patient-support-card" aria-labelledby="support-heading" className="scroll-mt-24">
                 <h2 id="support-heading" className="sr-only">{t("home.support.title")}</h2>
-                <SupportCard />
+                <SupportCard onPain={() => { setSupportMode("pain"); setSupportOpen(true); }} onContact={() => { setSupportMode("contact"); setSupportOpen(true); }} />
               </section>}
             </div>}
           </div>
@@ -456,6 +480,8 @@ export function UserHomePage() {
 
       <Footer />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <DeviceHistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} device={currentDevice} patientName={nomeExibicao || "—"} />
+      {supportOpen && <PatientSupportModal open={supportOpen} mode={supportMode} onClose={() => setSupportOpen(false)} />}
     </div>
   );
 }

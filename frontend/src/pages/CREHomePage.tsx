@@ -6,6 +6,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { SettingsModal } from "../components/SettingsModal";
 import { CommunicationsCenter } from "../components/CommunicationsCenter";
+import { CreSupportInbox } from "../components/CreSupportInbox";
 import { ShipmentModal, TriageModal } from "../components/CreActionModals";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { crePageForAlert } from "../lib/alertRouting";
@@ -48,6 +49,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  MessageSquare,
   Package,
   PackageCheck,
   Phone,
@@ -84,7 +86,7 @@ import {
 // TYPES & DATA
 // ═══════════════════════════════════════════════════════════════
 
-type Page = "inicio" | "pacientes" | "logistica" | "triagens" | "relatorios" | "comunicacoes";
+type Page = "inicio" | "pacientes" | "logistica" | "triagens" | "relatorios" | "atendimentos" | "comunicacoes";
 
 const CRE_HOME_CARD_IDS = ["queue", "stock", "logistics", "matchings"] as const;
 type CreHomeCardId = (typeof CRE_HOME_CARD_IDS)[number];
@@ -196,6 +198,7 @@ function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps)
     { icon: RefreshCw,     label: t("nav.logistics"), page: "logistica" },
     { icon: ClipboardList, label: t("nav.triage"),    page: "triagens"  },
     { icon: Activity,      label: t("nav.reports"),   page: "relatorios"},
+    { icon: MessageSquare, label: t("nav.supportInbox"), page: "atendimentos"},
     { icon: Bell,          label: t("nav.communications"), page: "comunicacoes"},
   ];
 
@@ -386,6 +389,7 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
     logistica:  { title: t("page.logistica.title"),  sub: t("page.logistica.sub")  },
     triagens:   { title: t("page.triagens.title"),   sub: t("page.triagens.sub")   },
     relatorios: { title: t("page.relatorios.title"), sub: t("page.relatorios.sub") },
+    atendimentos: { title: t("page.atendimentos.title"), sub: t("page.atendimentos.sub") },
     comunicacoes: { title: t("page.comunicacoes.title"), sub: t("page.comunicacoes.sub") },
   };
   const { title, sub } = pageTitleMap[page];
@@ -1763,6 +1767,7 @@ function AppInner() {
         {page === "logistica"  && <LogisticaReversa onNewReturn={() => setShipmentOpen(true)} refreshKey={refreshKey} />}
         {page === "triagens"   && <Triagens onNewTriage={() => openNewTriage()} onEditTriage={openEditTriage} refreshKey={refreshKey} />}
         {page === "relatorios" && <Relatorios onNavigate={setPage} />}
+        {page === "atendimentos" && <CreSupportInbox />}
         {page === "comunicacoes" && <CommunicationsCenter role="FISCAL_CRE" />}
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

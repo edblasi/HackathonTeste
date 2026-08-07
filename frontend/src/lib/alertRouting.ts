@@ -11,6 +11,7 @@ export type AlertTarget =
   | "cre_logistics"
   | "cre_triages"
   | "cre_reports"
+  | "cre_support"
   | "patient_orders"
   | "patient_notifications"
   | "patient_support";
@@ -28,6 +29,7 @@ const MANAGER_TARGETS: Record<AlertTarget, string> = {
   cre_logistics: "logistica",
   cre_triages: "relatorios",
   cre_reports: "relatorios",
+  cre_support: "comunicacoes",
   patient_orders: "cadastros",
   patient_notifications: "comunicacoes",
   patient_support: "comunicacoes",
@@ -46,6 +48,7 @@ const CRE_TARGETS: Record<AlertTarget, string> = {
   cre_logistics: "logistica",
   cre_triages: "triagens",
   cre_reports: "relatorios",
+  cre_support: "atendimentos",
   patient_orders: "pacientes",
   patient_notifications: "comunicacoes",
   patient_support: "comunicacoes",

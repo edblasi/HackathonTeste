@@ -1,45 +1,45 @@
 interface QRCodePlaceholderProps {
   size?: number;
+  value?: string;
 }
 
-export function QRCodePlaceholder({ size = 140 }: QRCodePlaceholderProps) {
+function stringSeed(value: string): number {
+  let seed = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    seed = Math.imul(seed ^ value.charCodeAt(index), 16777619) >>> 0;
+  }
+  return seed || 1;
+}
+
+export function QRCodePlaceholder({ size = 140, value = "UMDR" }: QRCodePlaceholderProps) {
+  let state = stringSeed(value);
+  const random = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 4294967295;
+  };
   const cells = Array.from({ length: 21 * 21 }, (_, i) => {
     const row = Math.floor(i / 21);
     const col = i % 21;
-    // Finder patterns corners
-    const inFinderTL = row < 7 && col < 7;
-    const inFinderTR = row < 7 && col >= 14;
-    const inFinderBL = row >= 14 && col < 7;
-    const isFinderBorder =
-      (inFinderTL && (row === 0 || row === 6 || col === 0 || col === 6)) ||
-      (inFinderTR && (row === 0 || row === 6 || col === 14 || col === 20)) ||
-      (inFinderBL && (row === 14 || row === 20 || col === 0 || col === 6));
-    const isFinderInner =
-      (inFinderTL && row >= 2 && row <= 4 && col >= 2 && col <= 4) ||
-      (inFinderTR && row >= 2 && row <= 4 && col >= 16 && col <= 18) ||
-      (inFinderBL && row >= 16 && row <= 18 && col >= 2 && col <= 4);
-    const isAlignmentPattern =
-      row >= 9 &&
-      row <= 12 &&
-      col >= 9 &&
-      col <= 12 &&
-      (row === 9 || row === 12 || col === 9 || col === 12 || (row === 10 && col === 10));
-    // Timing patterns
-    const isTiming =
-      (row === 6 && col > 7 && col < 14 && col % 2 === 0) ||
-      (col === 6 && row > 7 && row < 14 && row % 2 === 0);
-    // Random data modules (seeded)
-    const seed = (row * 31 + col * 17 + row * col) % 7;
-    const isData =
-      !inFinderTL && !inFinderTR && !inFinderBL && !isAlignmentPattern && !isTiming && seed < 3;
-    return isFinderBorder || isFinderInner || isAlignmentPattern || isTiming || isData;
+    const finderOrigin = row < 7 && col < 7 ? [0, 0] : row < 7 && col >= 14 ? [0, 14] : row >= 14 && col < 7 ? [14, 0] : null;
+    if (finderOrigin) {
+      const [r0, c0] = finderOrigin;
+      const rr = row - r0;
+      const cc = col - c0;
+      return rr === 0 || rr === 6 || cc === 0 || cc === 6 || (rr >= 2 && rr <= 4 && cc >= 2 && cc <= 4);
+    }
+    const isTiming = (row === 6 && col > 7 && col < 14) || (col === 6 && row > 7 && row < 14);
+    if (isTiming) return (row + col) % 2 === 0;
+    return random() > 0.53;
   });
 
   return (
     <div
       className="inline-grid bg-white p-3 rounded-lg border border-border"
       style={{ gridTemplateColumns: "repeat(21, 1fr)", gap: "1px", width: size, height: size }}
-      aria-label="QR Code for the device digital identity"
+      aria-label="QR Code da identidade digital do dispositivo"
+      title={value}
     >
       {cells.map((dark, i) => (
         <div

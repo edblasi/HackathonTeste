@@ -8,7 +8,8 @@
     "settings": "Configurações",
     "logout": "Sair",
     "system": "Sistema Nacional",
-    "communications": "Alertas e recalls"
+    "communications": "Alertas e recalls",
+    "supportInbox": "Atendimentos"
   },
   "page": {
     "inicio": {
@@ -34,6 +35,10 @@
     "comunicacoes": {
       "title": "Alertas e recalls",
       "sub": "Comunicados, recalls e avisos da unidade"
+    },
+    "atendimentos": {
+      "title": "Atendimentos do paciente",
+      "sub": "Leia relatos, converse com pacientes e registre a orientação da equipe."
     }
   },
   "topbar": {
@@ -166,6 +171,65 @@
       "destinationAddress": "Endereço de destino",
       "trackingCode": "Código de rastreio",
       "saveReturn": "Registrar devolução"
+    },
+    "support": {
+      "openCases": "Atendimentos em aberto",
+      "painCases": "Relatos de dor ativos",
+      "totalCases": "Total de atendimentos",
+      "inbox": "Caixa de atendimentos",
+      "patientFallback": "Paciente",
+      "pain": "Dor/desconforto",
+      "support": "Suporte",
+      "patient": "Paciente",
+      "creTeam": "Equipe CRE",
+      "noPhone": "telefone não informado",
+      "severityLabel": "Gravidade informada",
+      "quickGuidance": "Orientações rápidas",
+      "noAction": "Sem ação imediata",
+      "maintenance": "Comparecer ao CRE",
+      "hospital": "Orientar urgência",
+      "custom": "Resposta personalizada",
+      "replyPlaceholder": "Escreva a resposta para o paciente…",
+      "closeAfter": "Encerrar atendimento após responder",
+      "sendReply": "Enviar resposta",
+      "replySent": "Resposta enviada ao paciente.",
+      "genericError": "Não foi possível carregar ou responder ao atendimento.",
+      "closedNotice": "Este atendimento está encerrado.",
+      "selectTitle": "Selecione um atendimento",
+      "selectDesc": "Escolha um paciente na lista para ler a reclamação, acompanhar a conversa e responder.",
+      "empty": "Nenhum atendimento encontrado.",
+      "safetyNote": "As orientações rápidas são modelos de comunicação. A decisão clínica continua sendo responsabilidade da equipe assistencial e deve considerar o quadro real do paciente.",
+      "filters": {
+        "all": "Todos",
+        "open": "Abertos",
+        "inProgress": "Em atendimento",
+        "guided": "Orientados",
+        "closed": "Encerrados"
+      },
+      "status": {
+        "ABERTO": "Aberto",
+        "EM_ATENDIMENTO": "Em atendimento",
+        "ORIENTADO": "Orientado",
+        "ENCERRADO": "Encerrado"
+      },
+      "severity": {
+        "NAO_INFORMADA": "Não informada",
+        "LEVE": "Leve",
+        "MODERADA": "Moderada",
+        "INTENSA": "Intensa"
+      },
+      "guidance": {
+        "NENHUMA": "Mensagem",
+        "SEM_ACAO": "Sem ação imediata",
+        "COMPARECER_CRE": "Comparecer ao CRE",
+        "PROCURAR_HOSPITAL": "Procurar serviço de urgência",
+        "PERSONALIZADA": "Orientação personalizada"
+      },
+      "presets": {
+        "noAction": "Pelo relato enviado, não identificamos necessidade de ação imediata. Continue observando o dispositivo e nos procure novamente se houver piora ou novos sintomas.",
+        "maintenance": "Precisamos avaliar o dispositivo presencialmente. Dirija-se ao CRE responsável para revisão, ajuste ou manutenção.",
+        "hospital": "Pelos sinais relatados, recomendamos procurar um serviço de urgência/emergência para avaliação presencial. Não aguarde apenas o retorno pelo portal."
+      }
     }
   },
   "logistics": {
@@ -413,9 +477,11 @@
       "subtitle": "Apresente este QR Code em qualquer unidade de saúde para acessar seu histórico de implante.",
       "copied": "Copiado!",
       "viewHistory": "Ver Histórico Completo",
-      "exportPdf": "Exportar PDF (Carteirinha)",
+      "exportPdf": "Exportar carteirinha (PDF)",
       "idLabel": "ID",
-      "copyAria": "Copiar ID da solicitação"
+      "copyAria": "Copiar ID da solicitação",
+      "noDeliveredDevice": "Nenhum dispositivo entregue ainda",
+      "noDeliveredDeviceDesc": "A carteirinha será liberada quando um dispositivo físico for entregue."
     },
     "support": {
       "title": "Suporte e Ajuda",
@@ -426,13 +492,17 @@
       },
       "contact": {
         "label": "Contatar o Ministério da Saúde",
-        "desc": "Disque Saúde — 136 (gratuito, 24h)"
+        "desc": "Ouvidoria-Geral do SUS — canais oficiais online e Disque 136"
       },
       "faq": {
         "label": "Perguntas Frequentes",
         "desc": "Tire dúvidas sobre próteses e cuidados"
       },
-      "privacyNote": "Seus dados são protegidos pela LGPD e pelo protocolo de segurança do Ministério da Saúde."
+      "privacyNote": "Seus dados são protegidos pela LGPD e pelo protocolo de segurança do Ministério da Saúde.",
+      "cre": {
+        "label": "Falar com meu CRE",
+        "desc": "Envie uma mensagem ou ligue para a unidade responsável"
+      }
     },
     "notif": {
       "title": "Próxima manutenção em {days} dias",
@@ -460,6 +530,88 @@
         "AGUARDANDO_MEDIDAS": "Aguardando Medidas",
         "CONTROLE_QUALIDADE": "Controle de Qualidade",
         "PRONTA_PARA_ENTREGA": "Pronta para Entrega"
+      },
+      "exactModel": "Modelo exato",
+      "manufacturer": "Fabricante da peça",
+      "manufacturedAt": "Data de manufatura",
+      "serialNumber": "Número de série"
+    },
+    "deviceCard": {
+      "title": "Carteirinha digital do dispositivo",
+      "type": "Tipo",
+      "model": "Modelo",
+      "manufacturer": "Fabricante",
+      "provider": "Fornecedora",
+      "workshop": "Oficina responsável",
+      "manufacturedAt": "Manufaturado em",
+      "serial": "Número de série",
+      "uses": "Usos registrados",
+      "deliveredAt": "Entregue em",
+      "status": {
+        "EM_USO": "Em uso",
+        "MANUTENCAO": "Em manutenção",
+        "SUBSTITUIDO": "Substituído",
+        "RECOLHIDO": "Recolhido",
+        "DESCARTADO": "Descartado"
+      }
+    },
+    "historyModal": {
+      "title": "Histórico completo do dispositivo",
+      "subtitle": "Carteirinha, identificação física e sessões de uso registradas.",
+      "useCount": "Número de usos",
+      "totalTime": "Tempo total de uso",
+      "avgTime": "Tempo médio por uso",
+      "usageHistory": "Histórico de usos",
+      "started": "Início",
+      "context": "Contexto",
+      "noUsage": "Ainda não há sessões de uso registradas para este dispositivo."
+    },
+    "supportModal": {
+      "painTitle": "Relatar dor ou desconforto",
+      "contactTitle": "Falar com meu CRE",
+      "subtitle": "O atendimento é encaminhado à unidade responsável pelo seu dispositivo ou solicitação.",
+      "painSubject": "Relato de dor ou desconforto",
+      "contactSubject": "Contato com o CRE",
+      "relatedCre": "CRE responsável",
+      "safetyTitle": "Orientação de segurança",
+      "safetyText": "Este canal não substitui avaliação médica. Em caso de dor intensa, sangramento, falta de ar, trauma importante, febre alta ou piora rápida, procure imediatamente um serviço de urgência ou emergência.",
+      "sendMessage": "Enviar mensagem",
+      "sendMessageDesc": "Explique o que está acontecendo e aguarde a resposta da equipe do CRE.",
+      "directContact": "Contato direto",
+      "directContactDesc": "Avise o CRE e veja o telefone da unidade para ligar diretamente.",
+      "severity": "Intensidade do desconforto",
+      "severityLight": "Leve",
+      "severityModerate": "Moderada",
+      "severityIntense": "Intensa",
+      "messageLabel": "Mensagem",
+      "painPlaceholder": "Descreva onde dói, há quanto tempo começou, se piora ao usar o dispositivo e qualquer outro detalhe relevante.",
+      "messagePlaceholder": "Escreva sua dúvida ou solicitação para a equipe do CRE.",
+      "messageRequired": "Escreva uma mensagem com pelo menos 3 caracteres.",
+      "send": "Enviar ao CRE",
+      "genericError": "Não foi possível concluir o atendimento.",
+      "creNotified": "O CRE responsável foi avisado.",
+      "sent": "Mensagem enviada com sucesso.",
+      "directInfo": "Você pode ligar para a unidade abaixo. Se os sintomas forem intensos ou houver risco imediato à sua saúde, procure um serviço de urgência/emergência em vez de aguardar retorno.",
+      "phoneUnavailable": "Telefone não cadastrado para esta unidade",
+      "otherOption": "Escolher outra opção",
+      "myConversations": "Minhas conversas",
+      "newContact": "Novo contato",
+      "you": "Você",
+      "creTeam": "Equipe do CRE",
+      "replyPlaceholder": "Responder à equipe do CRE…",
+      "ministryLink": "Abrir Ouvidoria-Geral do SUS / Ministério da Saúde",
+      "status": {
+        "ABERTO": "Aberto",
+        "EM_ATENDIMENTO": "Em atendimento",
+        "ORIENTADO": "Orientado",
+        "ENCERRADO": "Encerrado"
+      },
+      "guidance": {
+        "NENHUMA": "Mensagem",
+        "SEM_ACAO": "Sem ação imediata",
+        "COMPARECER_CRE": "Comparecer ao CRE",
+        "PROCURAR_HOSPITAL": "Procurar serviço de urgência",
+        "PERSONALIZADA": "Orientação personalizada"
       }
     }
   },
@@ -1214,5 +1366,8 @@
     "recentRecallsHint": "Registros mais recentes da rede",
     "noRecalls": "Nenhum recall cadastrado.",
     "devices": "dispositivo(s)"
+  },
+  "common": {
+    "back": "Voltar"
   }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiGet, apiPatch } from "../lib/api";
+import { apiGet, apiPatch, apiPost } from "../lib/api";
 
 interface UseApiResult<T> {
   data: T | null;
@@ -64,6 +64,15 @@ export interface PedidoAtual {
   producao_data_conclusao: string | null;
   data_entrega: string | null;
   oficina_nome: string | null;
+  dispositivo_id?: number | null;
+  modelo_exato?: string | null;
+  fabricante?: string | null;
+  fornecedor_nome?: string | null;
+  numero_serie?: string | null;
+  data_manufatura?: string | null;
+  data_ativacao?: string | null;
+  status_dispositivo?: string | null;
+  qr_token?: string | null;
 }
 
 export interface HistoricoStatus {
@@ -111,6 +120,94 @@ export interface Notificacao {
   destino_ui?: string | null;
   referencia_tabela?: string | null;
   referencia_id?: number | null;
+}
+
+
+export interface PatientDevice {
+  id: number;
+  ordem_producao_id: number;
+  solicitacao_id: number | null;
+  paciente_id: number;
+  produto_id: number | null;
+  oficina_id: number;
+  numero_serie: string;
+  modelo_exato: string;
+  fabricante: string;
+  fornecedor_nome: string | null;
+  data_manufatura: string;
+  data_ativacao: string | null;
+  qr_token: string;
+  status: "EM_USO" | "MANUTENCAO" | "SUBSTITUIDO" | "RECOLHIDO" | "DESCARTADO";
+  nome_produto: string | null;
+  especificacao_tecnica: string | null;
+  oficina_nome: string | null;
+  cnes_cre: string | null;
+  cre_nome: string | null;
+  cre_telefone: string | null;
+  cre_endereco: string | null;
+  data_entrega: string | null;
+  numero_usos: number;
+  tempo_total_uso_minutos: number;
+  ultimo_uso_em: string | null;
+}
+
+export interface DeviceUsage {
+  id: number;
+  dispositivo_id: number;
+  inicio_uso: string;
+  fim_uso: string;
+  contexto: string | null;
+  observacao: string | null;
+  duracao_minutos: number;
+}
+
+export interface DeviceHistory {
+  device: PatientDevice;
+  summary: {
+    numero_usos: number;
+    tempo_total_uso_minutos: number;
+    tempo_medio_uso_minutos: number;
+    primeiro_uso_em: string | null;
+    ultimo_uso_em: string | null;
+  };
+  usages: DeviceUsage[];
+}
+
+export interface SupportCreContext {
+  cnes: string;
+  nome: string;
+  telefone: string | null;
+  endereco: string | null;
+  tipo_estabelecimento: string | null;
+  solicitacao_id: number | null;
+  dispositivo_id: number | null;
+}
+
+export interface SupportMessage {
+  id: number;
+  atendimento_id: number;
+  autor_auth_user_id: string;
+  autor_papel: "PACIENTE" | "FISCAL_CRE" | "GESTOR";
+  mensagem: string;
+  orientacao: "NENHUMA" | "SEM_ACAO" | "COMPARECER_CRE" | "PROCURAR_HOSPITAL" | "PERSONALIZADA";
+  criado_em: string;
+}
+
+export interface SupportTicket {
+  id: number;
+  paciente_id: number;
+  cnes_destino: string;
+  solicitacao_id: number | null;
+  dispositivo_id: number | null;
+  categoria: "DOR" | "MANUTENCAO" | "DUVIDA" | "SUPORTE" | "OUTRO";
+  gravidade: "NAO_INFORMADA" | "LEVE" | "MODERADA" | "INTENSA";
+  canal: "MENSAGEM" | "CONTATO_DIRETO";
+  assunto: string;
+  status: "ABERTO" | "EM_ATENDIMENTO" | "ORIENTADO" | "ENCERRADO";
+  criado_em: string;
+  atualizado_em: string;
+  paciente?: { id: number; nome_completo: string; cns: string; telefone_contato: string | null } | null;
+  ultima_mensagem?: SupportMessage | null;
 }
 
 export interface KpiDashboard {
@@ -208,6 +305,17 @@ export function usePedidos() { return useApiQuery<PedidoAtual[]>("/api/patient/o
 export function useHistoricoSolicitacao(id: number | null) {
   return useApiQuery<HistoricoStatus[]>(id ? `/api/patient/orders/${id}/history` : null, [id]);
 }
+export function useCurrentDevice() { return useApiQuery<PatientDevice | null>("/api/patient/devices/current"); }
+export function useDeviceHistory(id: number | null) { return useApiQuery<DeviceHistory>(id ? `/api/patient/devices/${id}/history` : null, [id]); }
+export function usePatientSupportContext() { return useApiQuery<SupportCreContext>("/api/patient/support/context"); }
+export function usePatientSupportTickets(refreshKey = 0) { return useApiQuery<SupportTicket[]>("/api/patient/support/tickets", [refreshKey]); }
+export function useCreSupportTickets(refreshKey = 0) { return useApiQuery<SupportTicket[]>("/api/cre/support/tickets", [refreshKey]); }
+
+export async function createPatientSupportTicket(body: unknown) { return apiPost<SupportTicket & { cre: SupportCreContext }>("/api/patient/support/tickets", body); }
+export async function getPatientSupportMessages(ticketId: number) { return apiGet<SupportMessage[]>(`/api/patient/support/tickets/${ticketId}/messages`); }
+export async function replyPatientSupport(ticketId: number, message: string) { return apiPost<SupportMessage>(`/api/patient/support/tickets/${ticketId}/messages`, { mensagem: message }); }
+export async function getCreSupportMessages(ticketId: number) { return apiGet<SupportMessage[]>(`/api/cre/support/tickets/${ticketId}/messages`); }
+export async function replyCreSupport(ticketId: number, body: { mensagem: string; orientacao: "SEM_ACAO" | "COMPARECER_CRE" | "PROCURAR_HOSPITAL" | "PERSONALIZADA"; encerrar?: boolean }) { return apiPost<SupportMessage>(`/api/cre/support/tickets/${ticketId}/messages`, body); }
 
 export function useNotificacoes() {
   const result = useApiQuery<Notificacao[]>("/api/notifications");

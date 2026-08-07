@@ -8,7 +8,8 @@
     "settings": "Settings",
     "logout": "Log out",
     "system": "National System",
-    "communications": "Alerts and recalls"
+    "communications": "Alerts and recalls",
+    "supportInbox": "Patient support"
   },
   "page": {
     "inicio": {
@@ -34,6 +35,10 @@
     "comunicacoes": {
       "title": "Alerts and recalls",
       "sub": "Notices, recalls and unit alerts"
+    },
+    "atendimentos": {
+      "title": "Patient support",
+      "sub": "Read reports, talk to patients and record the team guidance."
     }
   },
   "topbar": {
@@ -166,6 +171,65 @@
       "destinationAddress": "Destination address",
       "trackingCode": "Tracking code",
       "saveReturn": "Register return"
+    },
+    "support": {
+      "openCases": "Open support cases",
+      "painCases": "Active pain reports",
+      "totalCases": "Total cases",
+      "inbox": "Support inbox",
+      "patientFallback": "Patient",
+      "pain": "Pain/discomfort",
+      "support": "Support",
+      "patient": "Patient",
+      "creTeam": "CRE team",
+      "noPhone": "phone not provided",
+      "severityLabel": "Reported severity",
+      "quickGuidance": "Quick guidance",
+      "noAction": "No immediate action",
+      "maintenance": "Go to CRE",
+      "hospital": "Recommend urgent care",
+      "custom": "Custom reply",
+      "replyPlaceholder": "Write a response to the patient…",
+      "closeAfter": "Close case after replying",
+      "sendReply": "Send response",
+      "replySent": "Response sent to the patient.",
+      "genericError": "The support case could not be loaded or answered.",
+      "closedNotice": "This support case is closed.",
+      "selectTitle": "Select a support case",
+      "selectDesc": "Choose a patient to read the complaint, follow the conversation and respond.",
+      "empty": "No support cases found.",
+      "safetyNote": "Quick guidance options are communication templates. Clinical decisions remain the responsibility of the care team and must consider the patient’s actual condition.",
+      "filters": {
+        "all": "All",
+        "open": "Open",
+        "inProgress": "In progress",
+        "guided": "Guidance sent",
+        "closed": "Closed"
+      },
+      "status": {
+        "ABERTO": "Open",
+        "EM_ATENDIMENTO": "In progress",
+        "ORIENTADO": "Guidance sent",
+        "ENCERRADO": "Closed"
+      },
+      "severity": {
+        "NAO_INFORMADA": "Not reported",
+        "LEVE": "Mild",
+        "MODERADA": "Moderate",
+        "INTENSA": "Severe"
+      },
+      "guidance": {
+        "NENHUMA": "Message",
+        "SEM_ACAO": "No immediate action",
+        "COMPARECER_CRE": "Go to CRE",
+        "PROCURAR_HOSPITAL": "Seek urgent care",
+        "PERSONALIZADA": "Custom guidance"
+      },
+      "presets": {
+        "noAction": "Based on the report sent, we did not identify a need for immediate action. Keep monitoring the device and contact us again if symptoms worsen or new symptoms appear.",
+        "maintenance": "We need to assess the device in person. Please go to the responsible CRE for review, adjustment or maintenance.",
+        "hospital": "Based on the reported signs, we recommend seeking urgent/emergency care for an in-person assessment. Do not wait only for a portal reply."
+      }
     }
   },
   "logistics": {
@@ -413,9 +477,11 @@
       "subtitle": "Present this QR Code at any healthcare facility to access your implant records.",
       "copied": "Copied!",
       "viewHistory": "View Full History",
-      "exportPdf": "Export PDF (ID Card)",
+      "exportPdf": "Export device card (PDF)",
       "idLabel": "ID",
-      "copyAria": "Copy request ID"
+      "copyAria": "Copy request ID",
+      "noDeliveredDevice": "No delivered device yet",
+      "noDeliveredDeviceDesc": "The digital card becomes available after a physical device is delivered."
     },
     "support": {
       "title": "Support & Help",
@@ -426,13 +492,17 @@
       },
       "contact": {
         "label": "Contact Ministry of Health",
-        "desc": "Health Line — 136 (free, 24h)"
+        "desc": "SUS Ombudsman — official online channels and hotline 136"
       },
       "faq": {
         "label": "Frequently Asked Questions",
         "desc": "Get answers about prostheses and care"
       },
-      "privacyNote": "Your data is protected by the LGPD and the Ministry of Health security protocol."
+      "privacyNote": "Your data is protected by the LGPD and the Ministry of Health security protocol.",
+      "cre": {
+        "label": "Contact my CRE",
+        "desc": "Send a message or call the unit responsible for your care"
+      }
     },
     "notif": {
       "title": "Next maintenance in {days} days",
@@ -460,6 +530,88 @@
         "AGUARDANDO_MEDIDAS": "Awaiting Measurements",
         "CONTROLE_QUALIDADE": "Quality Control",
         "PRONTA_PARA_ENTREGA": "Ready for Delivery"
+      },
+      "exactModel": "Exact model",
+      "manufacturer": "Device manufacturer",
+      "manufacturedAt": "Manufacture date",
+      "serialNumber": "Serial number"
+    },
+    "deviceCard": {
+      "title": "Digital device card",
+      "type": "Type",
+      "model": "Model",
+      "manufacturer": "Manufacturer",
+      "provider": "Supplier",
+      "workshop": "Responsible workshop",
+      "manufacturedAt": "Manufactured on",
+      "serial": "Serial number",
+      "uses": "Recorded uses",
+      "deliveredAt": "Delivered on",
+      "status": {
+        "EM_USO": "In use",
+        "MANUTENCAO": "In maintenance",
+        "SUBSTITUIDO": "Replaced",
+        "RECOLHIDO": "Collected",
+        "DESCARTADO": "Discarded"
+      }
+    },
+    "historyModal": {
+      "title": "Complete device history",
+      "subtitle": "Device card, physical identity and recorded usage sessions.",
+      "useCount": "Number of uses",
+      "totalTime": "Total usage time",
+      "avgTime": "Average time per use",
+      "usageHistory": "Usage history",
+      "started": "Started",
+      "context": "Context",
+      "noUsage": "No usage sessions have been recorded for this device yet."
+    },
+    "supportModal": {
+      "painTitle": "Report pain or discomfort",
+      "contactTitle": "Contact my CRE",
+      "subtitle": "The request is routed to the unit responsible for your device or request.",
+      "painSubject": "Pain or discomfort report",
+      "contactSubject": "Contact with CRE",
+      "relatedCre": "Responsible CRE",
+      "safetyTitle": "Safety guidance",
+      "safetyText": "This channel does not replace medical evaluation. For severe pain, bleeding, shortness of breath, major trauma, high fever, or rapid worsening, seek urgent or emergency care immediately.",
+      "sendMessage": "Send a message",
+      "sendMessageDesc": "Explain what is happening and wait for the CRE team response.",
+      "directContact": "Direct contact",
+      "directContactDesc": "Notify the CRE and see the unit phone number to call directly.",
+      "severity": "Discomfort intensity",
+      "severityLight": "Mild",
+      "severityModerate": "Moderate",
+      "severityIntense": "Severe",
+      "messageLabel": "Message",
+      "painPlaceholder": "Describe where it hurts, when it started, whether device use makes it worse, and any other relevant detail.",
+      "messagePlaceholder": "Write your question or request to the CRE team.",
+      "messageRequired": "Write a message with at least 3 characters.",
+      "send": "Send to CRE",
+      "genericError": "The support request could not be completed.",
+      "creNotified": "The responsible CRE was notified.",
+      "sent": "Message sent successfully.",
+      "directInfo": "You can call the unit below. If symptoms are severe or there is immediate risk to your health, seek urgent/emergency care instead of waiting for a reply.",
+      "phoneUnavailable": "No phone number registered for this unit",
+      "otherOption": "Choose another option",
+      "myConversations": "My conversations",
+      "newContact": "New contact",
+      "you": "You",
+      "creTeam": "CRE team",
+      "replyPlaceholder": "Reply to the CRE team…",
+      "ministryLink": "Open SUS Ombudsman / Ministry of Health",
+      "status": {
+        "ABERTO": "Open",
+        "EM_ATENDIMENTO": "In progress",
+        "ORIENTADO": "Guidance sent",
+        "ENCERRADO": "Closed"
+      },
+      "guidance": {
+        "NENHUMA": "Message",
+        "SEM_ACAO": "No immediate action",
+        "COMPARECER_CRE": "Go to CRE",
+        "PROCURAR_HOSPITAL": "Seek urgent care",
+        "PERSONALIZADA": "Custom guidance"
       }
     }
   },
@@ -1214,5 +1366,8 @@
     "recentRecallsHint": "Latest network records",
     "noRecalls": "No recalls registered.",
     "devices": "device(s)"
+  },
+  "common": {
+    "back": "Back"
   }
 }
