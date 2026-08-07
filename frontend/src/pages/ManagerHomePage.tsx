@@ -1340,29 +1340,29 @@ export function ManagerHomePage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ fontFamily: "Inter, DM Sans, sans-serif", background: "#F8F9FA" }}>
-      <aside className="flex flex-col w-60 shrink-0 h-full" style={{ background: "#0A1929" }}>
-        <div className="px-5 pt-6 pb-5 border-b border-white/8">
-          <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-lg bg-[#1565C0] flex items-center justify-center shrink-0"><Activity size={15} className="text-white" /></div><div><p className="text-white text-xs font-semibold leading-tight">{t("manager.standard.brand")}</p><p className="text-blue-400/60 text-[10px] leading-tight">{t("manager.standard.brandFull")}</p></div></div>
+      <aside className="flex w-60 shrink-0 flex-col h-full bg-white border-r border-slate-200">
+        <div className="px-5 pt-6 pb-5 border-b border-slate-100">
+          <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-lg bg-[#1565C0] flex items-center justify-center shrink-0"><Activity size={15} className="text-white" /></div><div><p className="text-slate-900 text-xs font-semibold leading-tight">{t("manager.standard.brand")}</p><p className="text-slate-400 text-[10px] leading-tight">{t("manager.standard.brandFull")}</p></div></div>
         </div>
 
-        <div className="px-4 py-3"><div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2"><Search size={12} className="text-blue-300/60" /><input value={search} onChange={(event) => setSearch(event.target.value)} type="text" placeholder={t("manager.standard.search")} className="bg-transparent text-xs text-blue-100/80 placeholder-blue-300/40 outline-none w-full" /></div></div>
+        <div className="px-4 py-3"><div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><Search size={12} className="text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} type="text" placeholder={t("manager.standard.search")} className="w-full bg-transparent text-xs text-slate-700 placeholder-slate-400 outline-none" /></div></div>
 
         <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-          <p className="text-[10px] font-semibold tracking-widest text-blue-400/50 uppercase px-2 py-2">{t("manager.standard.mainMenu")}</p>
+          <p className="text-[10px] font-semibold tracking-widest text-slate-400 uppercase px-2 py-2">{t("manager.standard.mainMenu")}</p>
           {filteredNavItems.map((item) => {
             const isActive = activePage === item.id;
-            return <button key={item.id} onClick={() => setActivePage(item.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors text-xs font-medium ${isActive ? "bg-[#1565C0] text-white" : "text-blue-200/70 hover:bg-white/5 hover:text-blue-100"}`}><item.icon size={14} className={isActive ? "text-white" : "text-blue-300/60"} /><span className="leading-tight">{item.label}</span>{isActive && <ChevronRight size={11} className="ml-auto opacity-60" />}</button>;
+            return <button key={item.id} onClick={() => setActivePage(item.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors text-xs font-medium ${isActive ? "bg-blue-50 text-blue-700 font-semibold" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}><item.icon size={14} className={isActive ? "text-blue-600" : "text-slate-400"} /><span className="leading-tight">{item.label}</span>{isActive && <ChevronRight size={11} className="ml-auto text-blue-400" />}</button>;
           })}
         </nav>
 
-        <div className="px-4 py-4 border-t border-white/8 space-y-3">
-          <div className="rounded-lg bg-white/5 p-1"><LanguageToggle /></div>
+        <div className="px-4 py-4 border-t border-slate-100 space-y-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-1"><LanguageToggle /></div>
           <div className="relative">
             <div className="flex items-center gap-2.5">
-              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="w-7 h-7 rounded-full bg-[#1565C0] flex items-center justify-center shrink-0 text-white text-xs font-semibold hover:ring-2 hover:ring-blue-300/50 hover:ring-offset-2 hover:ring-offset-[#0A1929] transition-all" aria-expanded={profileOpen}>{initials}</button>
-              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="flex-1 min-w-0 text-left"><p className="text-white text-xs font-medium truncate">{managerName}</p><p className="text-blue-400/60 text-[10px] truncate">{t("manager.standard.executiveAccess")}</p></button>
-              <button type="button" onClick={() => setSettingsOpen(true)} title={t("shell.navbar.settings")} className="text-blue-300/60 hover:text-white transition"><Settings size={14} /></button>
-              <button onClick={() => void signOut()} title={t("manager.standard.actions.logout")} className="text-blue-300/60 hover:text-red-300 transition"><LogOut size={14} /></button>
+              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="w-7 h-7 rounded-full bg-[#1565C0] flex items-center justify-center shrink-0 text-white text-xs font-semibold hover:ring-2 hover:ring-blue-200 hover:ring-offset-2 hover:ring-offset-white transition-all" aria-expanded={profileOpen}>{initials}</button>
+              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="flex-1 min-w-0 text-left"><p className="text-slate-900 text-xs font-medium truncate">{managerName}</p><p className="text-slate-400 text-[10px] truncate">{t("manager.standard.executiveAccess")}</p></button>
+              <button type="button" onClick={() => setSettingsOpen(true)} title={t("shell.navbar.settings")} className="text-slate-400 hover:text-slate-700 transition"><Settings size={14} /></button>
+              <button onClick={() => void signOut()} title={t("manager.standard.actions.logout")} className="text-slate-400 hover:text-red-600 transition"><LogOut size={14} /></button>
             </div>
             {profileOpen && <div className="absolute bottom-10 left-0 z-[100] w-80 overflow-hidden rounded-xl border border-border bg-white shadow-2xl">
               <div className="bg-gradient-to-br from-[#1565C0] to-[#0A4880] px-5 py-4 text-white"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/40 bg-white/15 text-sm font-bold">{initials}</div><div className="min-w-0"><p className="truncate text-sm font-bold">{managerName}</p><p className="text-xs text-white/75">{t("manager.standard.executiveAccess")}</p></div><button type="button" onClick={() => setProfileOpen(false)} className="ml-auto text-white/70 hover:text-white"><X size={15} /></button></div></div>
