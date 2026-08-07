@@ -18,6 +18,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
 import { TopNav } from "../components/User/TopNav";
+import { LanguageToggle } from "../components/LanguageToggle";
 import { Stepper } from "../components/Stepper";
 import { usePacientePerfil, usePedidos, type UsuarioSistema } from "../hooks/FetchData";
 import { apiGet } from "../lib/api";
@@ -172,6 +173,7 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
                   {t("shell.topnav.brandFull")}
                 </span>
               </div>
+              <LanguageToggle />
             </div>
             <h2
               className="text-[2.1rem] text-foreground mb-2 leading-tight"

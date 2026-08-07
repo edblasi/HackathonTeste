@@ -1,8 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import translations, { type Locale, type TranslationKey } from "./translations";
 
 // ─── Detect browser locale ─────────────────────────────────────────────────────
 function detectLocale(): Locale {
+  const savedLocale = window.localStorage.getItem("umdr-locale");
+  if (savedLocale === "pt-BR" || savedLocale === "en-US" || savedLocale === "es-419") return savedLocale;
+
   const lang = navigator.language || navigator.languages?.[0] || "pt-BR";
   if (lang.startsWith("en")) return "en-US";
   if (lang.startsWith("es")) return "es-419";
@@ -28,6 +31,11 @@ const LangContext = createContext<LangContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<Locale>(detectLocale);
+
+  useEffect(() => {
+    window.localStorage.setItem("umdr-locale", locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   function t(key: TranslationKey, params?: Record<string, string | number>): string {
     let value = getByPath(translations[locale], key);
