@@ -502,7 +502,8 @@
       "cre": {
         "label": "Falar com meu CRE",
         "desc": "Envie uma mensagem ou ligue para a unidade responsável"
-      }
+      },
+      "awaitingCre": "Seu CRE ainda não foi definido. Os canais de dor e contato com o CRE serão liberados após a autorização do SISREG e o encaminhamento para a unidade responsável."
     },
     "notif": {
       "title": "Próxima manutenção em {days} dias",
@@ -534,7 +535,8 @@
       "exactModel": "Modelo exato",
       "manufacturer": "Fabricante da peça",
       "manufacturedAt": "Data de manufatura",
-      "serialNumber": "Número de série"
+      "serialNumber": "Número de série",
+      "assignedCre": "CRE vinculado"
     },
     "deviceCard": {
       "title": "Carteirinha digital do dispositivo",
@@ -863,7 +865,95 @@
       "successPatient": "Paciente e credencial cadastrados com sucesso.",
       "successStaff": "Profissional e credencial cadastrados com sucesso.",
       "successProvider": "Fornecedor cadastrado com sucesso.",
-      "successRequest": "Solicitação cadastrada com sucesso."
+      "successRequest": "Solicitação cadastrada com sucesso.",
+      "demo": {
+        "pageTitle": "Pipeline demonstrativa de acesso e encaminhamento",
+        "pageSubtitle": "Crie atores do sistema e simule o percurso do paciente desde a UBS até a autorização e o vínculo com a rede assistencial.",
+        "bannerTitle": "Ambiente controlado para demonstração do fluxo assistencial",
+        "bannerText": "Use esta área para apresentar como usuários e vínculos seriam criados em uma operação real. Os registros são persistidos neste ambiente demonstrativo: paciente entra pela UBS sem CRE, SISREG autoriza e direciona o caso, e a rede parceira pode ser cadastrada separadamente.",
+        "tabs": {
+          "manager": "Gestor",
+          "cre": "CRE",
+          "patient": "Paciente",
+          "sisreg": "SISREG",
+          "ong": "ONG parceira"
+        },
+        "manager": {
+          "title": "Criar gestor",
+          "subtitle": "Cria uma nova credencial de gestão vinculada a um profissional de saúde e a uma unidade institucional."
+        },
+        "cre": {
+          "title": "Criar CRE",
+          "subtitle": "Cadastra a unidade CNES, sua oficina ortopédica e a credencial inicial do responsável pelo CRE em um único fluxo."
+        },
+        "patient": {
+          "title": "Registrar paciente pela UBS",
+          "subtitle": "Simula a chegada de um novo caso pela atenção básica: cria o paciente, sua credencial e a solicitação que ficará aguardando autorização do SISREG.",
+          "waitingNotice": "O paciente será criado sem CRE de destino. A solicitação permanecerá em “Aguardando autorização” até ser processada na etapa SISREG."
+        },
+        "sisreg": {
+          "title": "Autorizar e encaminhar via SISREG",
+          "subtitle": "Selecione uma solicitação pendente e o CRE de destino para simular a autorização regulatória.",
+          "empty": "Não há solicitações aguardando autorização do SISREG neste momento. Crie primeiro um paciente pela UBS.",
+          "effect": "Ao autorizar, o sistema registra o número SISREG, vincula o CRE, altera o status para “Em fila”, cria a entrada na fila do CRE e notifica o paciente.",
+          "authorize": "Autorizar e vincular CRE"
+        },
+        "ong": {
+          "title": "Cadastrar ONG parceira",
+          "subtitle": "Registra uma parceria entre uma organização da sociedade civil e um CRE da rede."
+        },
+        "sections": {
+          "creUnit": "Dados da unidade e da oficina",
+          "creResponsible": "Responsável e credencial inicial do CRE",
+          "patientIdentity": "Identificação e acesso do paciente",
+          "ubsRequest": "Solicitação originada na UBS",
+          "ubsRequestHelp": "A UBS e o profissional solicitante representam a origem do caso. O CRE ainda não deve ser definido nesta etapa."
+        },
+        "fields": {
+          "institutionalUnit": "Unidade institucional vinculada",
+          "creCnes": "CNES do CRE",
+          "legalName": "Razão social",
+          "creName": "Nome do CRE / nome fantasia",
+          "establishmentType": "Tipo de estabelecimento",
+          "monthlyCapacity": "Capacidade mensal de produção",
+          "responsibleName": "Nome do responsável técnico",
+          "responsibleEmail": "E-mail do responsável",
+          "responsiblePassword": "Senha inicial do responsável",
+          "responsibleCns": "CNS do responsável",
+          "responsibleCpf": "CPF do responsável",
+          "responsibleCbo": "CBO do responsável",
+          "requestingUbs": "UBS solicitante",
+          "requestingProfessional": "Profissional solicitante",
+          "pendingRequest": "Solicitação aguardando SISREG",
+          "destinationCre": "CRE de destino",
+          "authorizationNumber": "Número de autorização SISREG",
+          "sisregObservation": "Observação da autorização",
+          "partnerCre": "CRE parceiro",
+          "ongName": "Nome da ONG",
+          "partnershipType": "Tipo de parceria",
+          "contactPerson": "Responsável de contato",
+          "notes": "Observações"
+        },
+        "values": {
+          "selectUbsFirst": "Selecione a UBS primeiro",
+          "autoGenerated": "Opcional — gerado automaticamente"
+        },
+        "partnershipTypes": {
+          "social": "Apoio social",
+          "transport": "Transporte",
+          "rehabilitation": "Reabilitação",
+          "training": "Capacitação",
+          "donation": "Doação",
+          "other": "Outro"
+        },
+        "success": {
+          "manager": "Gestor e credencial criados com sucesso.",
+          "cre": "CRE, oficina e credencial responsável criados com sucesso.",
+          "patient": "Paciente registrado pela UBS. A solicitação está aguardando autorização do SISREG.",
+          "sisreg": "SISREG autorizado: o paciente foi vinculado ao CRE e inserido na fila.",
+          "ong": "ONG parceira vinculada ao CRE com sucesso."
+        }
+      }
     },
     "standard": {
       "brand": "CNDA · SUS",
@@ -882,7 +972,7 @@
         "finance": "Finanças e licitações",
         "equity": "Análise de equidade",
         "reports": "Relatórios",
-        "registrations": "Cadastros",
+        "registrations": "Pipeline demonstrativa",
         "creCenters": "CREs e rede assistencial",
         "communications": "Alertas e recalls"
       },
@@ -945,9 +1035,9 @@
           "subtitle": "Exportação filtrada e relatórios recentes — Central Nacional de Dispositivos Assistivos"
         },
         "registrations": {
-          "breadcrumb": "Administração",
-          "title": "Centro de Cadastros",
-          "subtitle": "Cadastre pacientes, profissionais, fornecedores e solicitações sem alterar a identidade visual do painel"
+          "breadcrumb": "Administração / Demonstração",
+          "title": "Pipeline demonstrativa",
+          "subtitle": "Simule a criação dos atores e o encaminhamento do paciente desde a UBS até SISREG e CRE."
         },
         "creCenters": {
           "breadcrumb": "CREs e rede assistencial",

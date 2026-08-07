@@ -164,14 +164,46 @@ export interface ManagerDashboardData {
 
 export interface AdminCatalogs {
   patients: Array<{ id: number; nome_completo: string; cns: string; cpf: string | null }>;
-  professionals: Array<{ id: number; nome_completo: string; cns: string; cbo: string; cnes_vinculo: string }>;
-  units: Array<{ codigo_cnes: string; nome_fantasia: string | null; razao_social: string }>;
+  professionals: Array<{ id: number; nome_completo: string; cns: string; cbo: string; cnes_vinculo: string; ativo?: boolean }>;
+  units: Array<{
+    codigo_cnes: string;
+    cnpj_mantenedora?: string | null;
+    nome_fantasia: string | null;
+    razao_social: string;
+    tipo_estabelecimento?: string | null;
+    municipio_ibge6?: string | null;
+    logradouro?: string | null;
+    telefone?: string | null;
+    habilitado_opm?: boolean;
+    ativo?: boolean;
+  }>;
   municipalities: Array<{ codigo_ibge6: string; nome_municipio: string; uf_sigla: string }>;
   procedures: Array<{ codigo: string; nome_procedimento: string }>;
   diagnoses: Array<{ codigo: string; descricao: string }>;
-  workshops: Array<{ id: number; cnes: string; nome: string }>;
+  workshops: Array<{ id: number; cnes: string; nome: string; capacidade_producao_mensal?: number | null; responsavel_tecnico_id?: number | null; ativo?: boolean }>;
   materials: Array<Record<string, string | number | null>>;
   providers: Array<Record<string, string | number | null>>;
+  pending_requests: Array<{
+    id: number;
+    paciente_id: number;
+    paciente_nome?: string | null;
+    paciente_cns?: string | null;
+    procedimento_sigtap: string;
+    procedimento_nome?: string | null;
+    estabelecimento_solicitante_cnes: string;
+    ubs_nome?: string | null;
+    data_solicitacao: string;
+    prioridade_clinica: string;
+    status: string;
+  }>;
+  cres: Array<{
+    codigo_cnes: string;
+    nome: string;
+    oficina_id: number;
+    capacidade_producao_mensal?: number | null;
+    municipio_ibge6?: string | null;
+    telefone?: string | null;
+  }>;
 }
 
 export type AccessPermission =

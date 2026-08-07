@@ -91,6 +91,29 @@ FIELD_LABELS = {
     "lado_acometido": "Lado acometido",
     "justificativa_clinica": "Justificativa clínica",
     "distancia_estimada_cre_km": "Distância estimada até o CRE",
+    "estabelecimento_solicitante_cnes": "UBS solicitante",
+    "profissional_solicitante_id": "Profissional solicitante",
+    "codigo_cnes": "CNES do CRE",
+    "razao_social": "Razão social",
+    "nome_fantasia": "Nome do CRE",
+    "tipo_estabelecimento": "Tipo de estabelecimento",
+    "municipio_ibge6": "Município",
+    "logradouro": "Endereço",
+    "capacidade_producao_mensal": "Capacidade mensal",
+    "nome_responsavel": "Responsável técnico",
+    "email_responsavel": "E-mail do responsável",
+    "password_responsavel": "Senha do responsável",
+    "cns_responsavel": "CNS do responsável",
+    "cpf_responsavel": "CPF do responsável",
+    "cbo_responsavel": "CBO do responsável",
+    "solicitacao_id": "Solicitação",
+    "cre_destino_cnes": "CRE de destino",
+    "numero_autorizacao": "Número de autorização SISREG",
+    "oficina_id": "CRE parceiro",
+    "nome_ong": "Nome da ONG",
+    "tipo_parceria": "Tipo de parceria",
+    "responsavel_contato": "Responsável de contato",
+    "observacoes": "Observações",
 }
 
 
@@ -590,6 +613,442 @@ async def patch_notification(
 
 
 # -----------------------------------------------------------------------------
+# Identidade física do dispositivo e suporte paciente-CRE
+# -----------------------------------------------------------------------------
+
+async def _patient_device_rows(patient_id: int) -> list[dict[str, Any]]:
+    rows = await db_select(
+        "producao",
+        "dispositivo_opm",
+        filters={"paciente_id": f"eq.{patient_id}"},
+        order="data_ativacao.desc,criado_em.desc",
+        limit=50,
+    )
+    return [row for row in rows if row.get("status") not in {"SUBSTITUIDO", "RECOLHIDO", "DESCARTADO"}]
+
+
+async def _hydrate_device(device: dict[str, Any]) -> dict[str, Any]:
+    order_rows = await db_select(
+        "producao",
+        "ordem_producao",
+        select="id,solicitacao_id,produto_id,oficina_id,status,data_conclusao",
+        filters={"id": f"eq.{device['ordem_producao_id']}"},
+        limit=1,
+    )
+    order = order_rows[0] if order_rows else {}
+    product_rows = await db_select(
+        "producao",
+        "produto_ortese",
+        select="id,nome_produto,especificacao_tecnica",
+        filters={"id": f"eq.{device.get('produto_id') or order.get('produto_id')}"},
+        limit=1,
+    ) if (device.get("produto_id") or order.get("produto_id")) else []
+    product = product_rows[0] if product_rows else {}
+    workshop_rows = await db_select(
+        "producao",
+        "oficina_ortopedica",
+        select="id,cnes,nome",
+        filters={"id": f"eq.{device.get('oficina_id') or order.get('oficina_id')}"},
+        limit=1,
+    ) if (device.get("oficina_id") or order.get("oficina_id")) else []
+    workshop = workshop_rows[0] if workshop_rows else {}
+    unit_rows = await db_select(
+        "dominio",
+        "estabelecimento_cnes",
+        select="codigo_cnes,nome_fantasia,razao_social,telefone,logradouro,municipio_ibge6",
+        filters={"codigo_cnes": f"eq.{workshop.get('cnes')}"},
+        limit=1,
+    ) if workshop.get("cnes") else []
+    unit = unit_rows[0] if unit_rows else {}
+    delivery_rows = await db_select(
+        "producao",
+        "entrega_ortese",
+        select="data_entrega",
+        filters={"ordem_producao_id": f"eq.{device['ordem_producao_id']}"},
+        limit=1,
+    )
+    usage_rows = await db_select(
+        "producao",
+        "uso_dispositivo",
+        filters={"dispositivo_id": f"eq.{device['id']}"},
+        order="inicio_uso.desc",
+        limit=5000,
+    )
+    total_minutes = 0
+    for usage in usage_rows:
+        try:
+            start = datetime.fromisoformat(str(usage["inicio_uso"]).replace("Z", "+00:00"))
+            end = datetime.fromisoformat(str(usage["fim_uso"]).replace("Z", "+00:00"))
+            total_minutes += max(0, int((end - start).total_seconds() // 60))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return {
+        **device,
+        "solicitacao_id": order.get("solicitacao_id"),
+        "nome_produto": product.get("nome_produto"),
+        "especificacao_tecnica": product.get("especificacao_tecnica"),
+        "oficina_nome": workshop.get("nome"),
+        "cnes_cre": workshop.get("cnes"),
+        "cre_nome": unit.get("nome_fantasia") or unit.get("razao_social"),
+        "cre_telefone": unit.get("telefone"),
+        "cre_endereco": unit.get("logradouro"),
+        "data_entrega": delivery_rows[0].get("data_entrega") if delivery_rows else None,
+        "numero_usos": len(usage_rows),
+        "tempo_total_uso_minutos": total_minutes,
+        "ultimo_uso_em": usage_rows[0].get("inicio_uso") if usage_rows else None,
+    }
+
+
+async def _patient_related_cre(identity: Identity) -> dict[str, Any]:
+    if not identity.paciente_id:
+        raise HTTPException(status_code=422, detail="O paciente não possui vínculo cadastrado.")
+    devices = await _patient_device_rows(identity.paciente_id)
+    device = await _hydrate_device(devices[0]) if devices else None
+    cnes = device.get("cnes_cre") if device else None
+    request_id = device.get("solicitacao_id") if device else None
+    if not cnes:
+        requests = await db_select(
+            "fila",
+            "solicitacao_ortese",
+            select="id,cre_destino_cnes,status,data_solicitacao",
+            filters={"paciente_id": f"eq.{identity.paciente_id}"},
+            order="data_solicitacao.desc",
+            limit=20,
+        )
+        current = next((row for row in requests if row.get("status") not in {"CANCELADA", "NEGADA"}), requests[0] if requests else None)
+        if current:
+            cnes = current.get("cre_destino_cnes")
+            request_id = current.get("id")
+    if not cnes:
+        raise HTTPException(
+            status_code=409,
+            detail="O SISREG ainda não vinculou esta solicitação a um CRE. O suporte do CRE ficará disponível após a autorização e o encaminhamento.",
+        )
+    units = await db_select(
+        "dominio",
+        "estabelecimento_cnes",
+        select="codigo_cnes,nome_fantasia,razao_social,telefone,logradouro,tipo_estabelecimento",
+        filters={"codigo_cnes": f"eq.{cnes}"},
+        limit=1,
+    )
+    if not units:
+        raise HTTPException(status_code=404, detail="O CRE relacionado não foi encontrado no cadastro CNES.")
+    unit = units[0]
+    return {
+        "cnes": cnes,
+        "nome": unit.get("nome_fantasia") or unit.get("razao_social") or cnes,
+        "telefone": unit.get("telefone"),
+        "endereco": unit.get("logradouro"),
+        "tipo_estabelecimento": unit.get("tipo_estabelecimento"),
+        "solicitacao_id": request_id,
+        "dispositivo_id": device.get("id") if device else None,
+    }
+
+
+@app.get("/api/patient/devices/current")
+async def patient_current_device(identity: Identity = Depends(current_identity)) -> dict[str, Any] | None:
+    require_roles(identity, "PACIENTE")
+    if not identity.paciente_id:
+        return None
+    devices = await _patient_device_rows(identity.paciente_id)
+    return await _hydrate_device(devices[0]) if devices else None
+
+
+@app.get("/api/patient/devices/{device_id}/history")
+async def patient_device_history(device_id: int, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "PACIENTE")
+    if not identity.paciente_id:
+        raise HTTPException(status_code=404, detail="Dispositivo não encontrado.")
+    devices = await db_select(
+        "producao",
+        "dispositivo_opm",
+        filters={"id": f"eq.{device_id}", "paciente_id": f"eq.{identity.paciente_id}"},
+        limit=1,
+    )
+    if not devices:
+        raise HTTPException(status_code=404, detail="Dispositivo não encontrado.")
+    device = await _hydrate_device(devices[0])
+    usages = await db_select(
+        "producao",
+        "uso_dispositivo",
+        filters={"dispositivo_id": f"eq.{device_id}"},
+        order="inicio_uso.desc",
+        limit=5000,
+    )
+    enriched_usages: list[dict[str, Any]] = []
+    for usage in usages:
+        minutes = 0
+        try:
+            start = datetime.fromisoformat(str(usage["inicio_uso"]).replace("Z", "+00:00"))
+            end = datetime.fromisoformat(str(usage["fim_uso"]).replace("Z", "+00:00"))
+            minutes = max(0, int((end - start).total_seconds() // 60))
+        except (KeyError, TypeError, ValueError):
+            pass
+        enriched_usages.append({**usage, "duracao_minutos": minutes})
+    total_minutes = sum(item["duracao_minutos"] for item in enriched_usages)
+    return {
+        "device": device,
+        "summary": {
+            "numero_usos": len(enriched_usages),
+            "tempo_total_uso_minutos": total_minutes,
+            "tempo_medio_uso_minutos": round(total_minutes / len(enriched_usages)) if enriched_usages else 0,
+            "primeiro_uso_em": enriched_usages[-1].get("inicio_uso") if enriched_usages else None,
+            "ultimo_uso_em": enriched_usages[0].get("inicio_uso") if enriched_usages else None,
+        },
+        "usages": enriched_usages,
+    }
+
+
+@app.get("/api/patient/support/context")
+async def patient_support_context(identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "PACIENTE")
+    return await _patient_related_cre(identity)
+
+
+class PatientSupportCreate(BaseModel):
+    categoria: Literal["DOR", "MANUTENCAO", "DUVIDA", "SUPORTE", "OUTRO"] = "SUPORTE"
+    gravidade: Literal["NAO_INFORMADA", "LEVE", "MODERADA", "INTENSA"] = "NAO_INFORMADA"
+    canal: Literal["MENSAGEM", "CONTATO_DIRETO"] = "MENSAGEM"
+    assunto: str = Field(min_length=3, max_length=255)
+    mensagem: str | None = Field(default=None, max_length=3000)
+
+    @field_validator("assunto", "mensagem", mode="before")
+    @classmethod
+    def clean_support_text(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        return clean_text(value, field="Mensagem", required=False, max_length=3000)
+
+
+class SupportMessageCreate(BaseModel):
+    mensagem: str = Field(min_length=1, max_length=3000)
+
+    @field_validator("mensagem", mode="before")
+    @classmethod
+    def clean_message(cls, value: Any) -> str:
+        return clean_text(value, field="Mensagem", required=True, max_length=3000) or ""
+
+
+async def _notify_cre_support(cnes: str, title: str, message: str, ticket_id: int, urgent: bool = False) -> None:
+    users = await db_select(
+        "app",
+        "usuario_sistema",
+        select="auth_user_id,papel,cnes_vinculo,ativo",
+        filters={"cnes_vinculo": f"eq.{cnes}", "ativo": "eq.true"},
+        limit=500,
+    )
+    rows = [
+        {
+            "auth_user_id": user["auth_user_id"],
+            "tipo": "URGENTE" if urgent else "ALERTA",
+            "titulo": title,
+            "mensagem": message,
+            "referencia_tabela": "app.atendimento_paciente",
+            "referencia_id": ticket_id,
+            "destino_ui": "cre_support",
+        }
+        for user in users
+        if user.get("papel") in {"FISCAL_CRE", "GESTOR"}
+    ]
+    if rows:
+        await db_insert("app", "notificacao", rows)
+
+
+@app.get("/api/patient/support/tickets")
+async def patient_support_tickets(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
+    require_roles(identity, "PACIENTE")
+    if not identity.paciente_id:
+        return []
+    tickets = await db_select(
+        "app",
+        "atendimento_paciente",
+        filters={"paciente_id": f"eq.{identity.paciente_id}"},
+        order="atualizado_em.desc",
+        limit=100,
+    )
+    for ticket in tickets:
+        messages = await db_select(
+            "app",
+            "atendimento_mensagem",
+            filters={"atendimento_id": f"eq.{ticket['id']}"},
+            order="criado_em.desc",
+            limit=1,
+        )
+        ticket["ultima_mensagem"] = messages[0] if messages else None
+    return tickets
+
+
+@app.post("/api/patient/support/tickets", status_code=201)
+async def create_patient_support_ticket(payload: PatientSupportCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "PACIENTE")
+    if not identity.paciente_id:
+        raise HTTPException(status_code=422, detail="O paciente não possui vínculo cadastrado.")
+    context = await _patient_related_cre(identity)
+    default_message = (
+        "Paciente informou dor ou desconforto e optou por entrar em contato diretamente com o CRE por telefone."
+        if payload.canal == "CONTATO_DIRETO" and payload.categoria == "DOR"
+        else "Paciente solicitou contato direto com o CRE."
+    )
+    message = payload.mensagem or default_message
+    rows = await db_insert(
+        "app",
+        "atendimento_paciente",
+        {
+            "paciente_id": identity.paciente_id,
+            "cnes_destino": context["cnes"],
+            "solicitacao_id": context.get("solicitacao_id"),
+            "dispositivo_id": context.get("dispositivo_id"),
+            "categoria": payload.categoria,
+            "gravidade": payload.gravidade,
+            "canal": payload.canal,
+            "assunto": payload.assunto,
+            "status": "ABERTO",
+            "criado_por": identity.auth_user_id,
+        },
+    )
+    if not rows:
+        raise HTTPException(status_code=502, detail="Não foi possível registrar o atendimento.")
+    ticket = rows[0]
+    await db_insert(
+        "app",
+        "atendimento_mensagem",
+        {
+            "atendimento_id": ticket["id"],
+            "autor_auth_user_id": identity.auth_user_id,
+            "autor_papel": "PACIENTE",
+            "mensagem": message,
+            "orientacao": "NENHUMA",
+        },
+    )
+    title = "Paciente relatou dor/desconforto" if payload.categoria == "DOR" else "Nova mensagem de paciente"
+    await _notify_cre_support(
+        context["cnes"],
+        title,
+        f"{identity.nome_exibicao}: {message[:350]}",
+        ticket["id"],
+        urgent=payload.gravidade == "INTENSA",
+    )
+    return {**ticket, "cre": context}
+
+
+@app.get("/api/patient/support/tickets/{ticket_id}/messages")
+async def patient_support_messages(ticket_id: int, identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
+    require_roles(identity, "PACIENTE")
+    tickets = await db_select(
+        "app",
+        "atendimento_paciente",
+        select="id",
+        filters={"id": f"eq.{ticket_id}", "paciente_id": f"eq.{identity.paciente_id}"},
+        limit=1,
+    )
+    if not tickets:
+        raise HTTPException(status_code=404, detail="Atendimento não encontrado.")
+    return await db_select("app", "atendimento_mensagem", filters={"atendimento_id": f"eq.{ticket_id}"}, order="criado_em.asc", limit=500)
+
+
+@app.post("/api/patient/support/tickets/{ticket_id}/messages", status_code=201)
+async def patient_support_reply(ticket_id: int, payload: SupportMessageCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "PACIENTE")
+    tickets = await db_select(
+        "app",
+        "atendimento_paciente",
+        filters={"id": f"eq.{ticket_id}", "paciente_id": f"eq.{identity.paciente_id}"},
+        limit=1,
+    )
+    if not tickets:
+        raise HTTPException(status_code=404, detail="Atendimento não encontrado.")
+    ticket = tickets[0]
+    rows = await db_insert("app", "atendimento_mensagem", {
+        "atendimento_id": ticket_id,
+        "autor_auth_user_id": identity.auth_user_id,
+        "autor_papel": "PACIENTE",
+        "mensagem": payload.mensagem,
+        "orientacao": "NENHUMA",
+    })
+    await db_update("app", "atendimento_paciente", {"id": f"eq.{ticket_id}"}, {"status": "ABERTO", "atualizado_em": datetime.utcnow().isoformat()})
+    await _notify_cre_support(ticket["cnes_destino"], "Paciente respondeu ao atendimento", f"{identity.nome_exibicao}: {payload.mensagem[:350]}", ticket_id)
+    return rows[0]
+
+
+class CreSupportReply(BaseModel):
+    mensagem: str = Field(min_length=1, max_length=3000)
+    orientacao: Literal["SEM_ACAO", "COMPARECER_CRE", "PROCURAR_HOSPITAL", "PERSONALIZADA"] = "PERSONALIZADA"
+    encerrar: bool = False
+
+    @field_validator("mensagem", mode="before")
+    @classmethod
+    def clean_cre_message(cls, value: Any) -> str:
+        return clean_text(value, field="Resposta", required=True, max_length=3000) or ""
+
+
+@app.get("/api/cre/support/tickets")
+async def cre_support_tickets(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    filters = None if identity.papel == "GESTOR" else {"cnes_destino": f"eq.{identity.cnes_vinculo}"}
+    if identity.papel == "FISCAL_CRE" and not identity.cnes_vinculo:
+        raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+    tickets = await db_select("app", "atendimento_paciente", filters=filters, order="atualizado_em.desc", limit=500)
+    patient_ids = sorted({ticket.get("paciente_id") for ticket in tickets if ticket.get("paciente_id")})
+    patients: dict[int, dict[str, Any]] = {}
+    if patient_ids:
+        rows = await db_select("fila", "paciente", select="id,nome_completo,cns,telefone_contato", filters={"id": f"in.({','.join(map(str, patient_ids))})"}, limit=1000)
+        patients = {row["id"]: row for row in rows}
+    for ticket in tickets:
+        ticket["paciente"] = patients.get(ticket.get("paciente_id"))
+        latest = await db_select("app", "atendimento_mensagem", filters={"atendimento_id": f"eq.{ticket['id']}"}, order="criado_em.desc", limit=1)
+        ticket["ultima_mensagem"] = latest[0] if latest else None
+    return tickets
+
+
+async def _ensure_cre_ticket_access(ticket_id: int, identity: Identity) -> dict[str, Any]:
+    filters = {"id": f"eq.{ticket_id}"}
+    if identity.papel == "FISCAL_CRE":
+        if not identity.cnes_vinculo:
+            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+        filters["cnes_destino"] = f"eq.{identity.cnes_vinculo}"
+    rows = await db_select("app", "atendimento_paciente", filters=filters, limit=1)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Atendimento não encontrado para esta unidade.")
+    return rows[0]
+
+
+@app.get("/api/cre/support/tickets/{ticket_id}/messages")
+async def cre_support_messages(ticket_id: int, identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    await _ensure_cre_ticket_access(ticket_id, identity)
+    return await db_select("app", "atendimento_mensagem", filters={"atendimento_id": f"eq.{ticket_id}"}, order="criado_em.asc", limit=500)
+
+
+@app.post("/api/cre/support/tickets/{ticket_id}/messages", status_code=201)
+async def cre_support_reply(ticket_id: int, payload: CreSupportReply, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    ticket = await _ensure_cre_ticket_access(ticket_id, identity)
+    rows = await db_insert("app", "atendimento_mensagem", {
+        "atendimento_id": ticket_id,
+        "autor_auth_user_id": identity.auth_user_id,
+        "autor_papel": identity.papel,
+        "mensagem": payload.mensagem,
+        "orientacao": payload.orientacao,
+    })
+    new_status = "ENCERRADO" if payload.encerrar else "ORIENTADO"
+    await db_update("app", "atendimento_paciente", {"id": f"eq.{ticket_id}"}, {"status": new_status, "atualizado_em": datetime.utcnow().isoformat()})
+    patient_users = await db_select("app", "usuario_sistema", select="auth_user_id", filters={"paciente_id": f"eq.{ticket['paciente_id']}", "ativo": "eq.true"}, limit=10)
+    notice_type = "URGENTE" if payload.orientacao == "PROCURAR_HOSPITAL" else "INFO"
+    notification_rows = [{
+        "auth_user_id": row["auth_user_id"],
+        "tipo": notice_type,
+        "titulo": "Resposta do seu CRE",
+        "mensagem": payload.mensagem[:500],
+        "referencia_tabela": "app.atendimento_paciente",
+        "referencia_id": ticket_id,
+        "destino_ui": "patient_support",
+    } for row in patient_users]
+    if notification_rows:
+        await db_insert("app", "notificacao", notification_rows)
+    return rows[0]
+
+
+# -----------------------------------------------------------------------------
 # Painel CRE: as views já deixam as respostas prontas para o frontend.
 # -----------------------------------------------------------------------------
 
@@ -627,7 +1086,17 @@ async def cre_flow(identity: Identity = Depends(current_identity)) -> list[dict[
 @app.get("/api/cre/patients")
 async def cre_patients(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    return await db_select("fila", "vw_pacientes_aguardando", order="dias_espera_efetivos.desc")
+    filters = None
+    if identity.papel == "FISCAL_CRE":
+        if not identity.cnes_vinculo:
+            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+        filters = {"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"}
+    return await db_select(
+        "fila",
+        "vw_pacientes_aguardando",
+        filters=filters,
+        order="dias_espera_efetivos.desc",
+    )
 
 
 @app.get("/api/cre/lots")
@@ -639,7 +1108,12 @@ async def cre_lots(identity: Identity = Depends(current_identity)) -> list[dict[
 @app.get("/api/cre/triages")
 async def cre_triages(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    return await db_select("fila", "vw_triagens", order="data_hora.desc", limit=200)
+    filters = None
+    if identity.papel == "FISCAL_CRE":
+        if not identity.cnes_vinculo:
+            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+        filters = {"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"}
+    return await db_select("fila", "vw_triagens", filters=filters, order="data_hora.desc", limit=200)
 
 
 @app.get("/api/cre/shipments")
@@ -662,6 +1136,44 @@ async def cre_reports(identity: Identity = Depends(current_identity)) -> list[di
 async def catalogs(identity: Identity = Depends(current_identity)) -> dict[str, Any]:
     require_roles(identity, "FISCAL_CRE", "GESTOR")
     patients, professionals, units, municipalities, procedures, diagnoses, workshops, materials, providers = await _gather_catalogs()
+
+    pending_requests = await db_select(
+        "fila",
+        "solicitacao_ortese",
+        select="id,paciente_id,procedimento_sigtap,estabelecimento_solicitante_cnes,data_solicitacao,prioridade_clinica,status",
+        filters={"status": "eq.AGUARDANDO_AUTORIZACAO"},
+        order="data_solicitacao.asc",
+        limit=500,
+    )
+    patient_by_id = {int(row["id"]): row for row in patients if row.get("id") is not None}
+    procedure_by_code = {str(row.get("codigo")): row for row in procedures}
+    unit_by_cnes = {str(row.get("codigo_cnes")): row for row in units}
+    workshop_by_cnes = {str(row.get("cnes")): row for row in workshops}
+
+    for request_row in pending_requests:
+        patient = patient_by_id.get(int(request_row.get("paciente_id") or 0), {})
+        procedure = procedure_by_code.get(str(request_row.get("procedimento_sigtap") or ""), {})
+        ubs = unit_by_cnes.get(str(request_row.get("estabelecimento_solicitante_cnes") or ""), {})
+        request_row["paciente_nome"] = patient.get("nome_completo")
+        request_row["paciente_cns"] = patient.get("cns")
+        request_row["procedimento_nome"] = procedure.get("nome_procedimento")
+        request_row["ubs_nome"] = ubs.get("nome_fantasia") or ubs.get("razao_social")
+
+    cres: list[dict[str, Any]] = []
+    for cnes, workshop in workshop_by_cnes.items():
+        unit = unit_by_cnes.get(cnes, {})
+        if unit and unit.get("ativo") is False:
+            continue
+        cres.append({
+            "codigo_cnes": cnes,
+            "nome": unit.get("nome_fantasia") or workshop.get("nome") or unit.get("razao_social") or cnes,
+            "oficina_id": workshop.get("id"),
+            "capacidade_producao_mensal": workshop.get("capacidade_producao_mensal"),
+            "municipio_ibge6": unit.get("municipio_ibge6"),
+            "telefone": unit.get("telefone"),
+        })
+    cres.sort(key=lambda row: str(row.get("nome") or ""))
+
     return {
         "patients": patients,
         "professionals": professionals,
@@ -672,6 +1184,8 @@ async def catalogs(identity: Identity = Depends(current_identity)) -> dict[str, 
         "workshops": workshops,
         "materials": materials,
         "providers": providers,
+        "pending_requests": pending_requests,
+        "cres": cres,
     }
 
 
@@ -681,11 +1195,11 @@ async def _gather_catalogs() -> tuple[list[dict[str, Any]], ...]:
     return tuple(await asyncio.gather(
         db_select("fila", "paciente", select="id,nome_completo,cns,cpf", order="nome_completo.asc", limit=500),
         db_select("fila", "profissional_saude", select="id,nome_completo,cns,cbo,cnes_vinculo", order="nome_completo.asc", limit=500),
-        db_select("dominio", "estabelecimento_cnes", select="codigo_cnes,nome_fantasia,razao_social", order="nome_fantasia.asc", limit=500),
+        db_select("dominio", "estabelecimento_cnes", select="codigo_cnes,cnpj_mantenedora,nome_fantasia,razao_social,tipo_estabelecimento,municipio_ibge6,logradouro,telefone,habilitado_opm,ativo", filters={"ativo": "eq.true"}, order="nome_fantasia.asc", limit=500),
         db_select("dominio", "municipio_ibge", select="codigo_ibge6,nome_municipio,uf_sigla", order="nome_municipio.asc", limit=1000),
         db_select("dominio", "sigtap_procedimento", select="codigo,nome_procedimento", filters={"ativo": "eq.true"}, order="nome_procedimento.asc", limit=500),
         db_select("dominio", "cid10", select="codigo,descricao", order="descricao.asc", limit=1000),
-        db_select("producao", "oficina_ortopedica", select="id,cnes,nome", order="nome.asc", limit=500),
+        db_select("producao", "oficina_ortopedica", select="id,cnes,nome,capacidade_producao_mensal,responsavel_tecnico_id,ativo", filters={"ativo": "eq.true"}, order="nome.asc", limit=500),
         db_select("producao", "material_estoque", select="id,oficina_id,codigo_catmat,quantidade_atual,quantidade_minima,unidade_medida", order="id.asc", limit=500),
         db_select("app", "fornecedor", order="nome.asc", limit=500),
     ))
@@ -975,6 +1489,405 @@ async def create_provider(payload: ProviderCreate, identity: Identity = Depends(
         raise
 
 
+class DemoPatientCreate(PatientCreate):
+    estabelecimento_solicitante_cnes: str
+    profissional_solicitante_id: int = Field(ge=1)
+    procedimento_sigtap: str
+    cid10_codigo: str
+    justificativa_clinica: str
+    lado_acometido: Literal["DIREITO", "ESQUERDO", "BILATERAL", "NAO_APLICAVEL"] | None = None
+    prioridade_clinica: Literal["ROTINA", "PRIORITARIO", "URGENTE"] = "ROTINA"
+
+    @field_validator("estabelecimento_solicitante_cnes", mode="before")
+    @classmethod
+    def validate_requesting_unit(cls, value: Any) -> str:
+        result = normalize_code(value, field="CNES da UBS solicitante", length=7)
+        assert result is not None
+        return result
+
+    @field_validator("procedimento_sigtap", mode="before")
+    @classmethod
+    def validate_procedure(cls, value: Any) -> str:
+        result = normalize_sigtap(value, opm_only=True)
+        assert result is not None
+        return result
+
+    @field_validator("cid10_codigo", mode="before")
+    @classmethod
+    def validate_diagnosis(cls, value: Any) -> str:
+        return normalize_cid10(value)
+
+    @field_validator("justificativa_clinica", mode="before")
+    @classmethod
+    def validate_justification(cls, value: Any) -> str:
+        result = clean_text(value, field="Justificativa clínica", required=True, max_length=4000)
+        assert result is not None
+        return result
+
+
+@app.post("/api/admin/demo/patients", status_code=201)
+async def create_demo_patient(payload: DemoPatientCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    """Cria paciente + login + solicitação originada na UBS, ainda sem CRE e aguardando SISREG."""
+    require_roles(identity, "GESTOR")
+    await ensure_unique("fila", "paciente", "cns", payload.cns, "Já existe um paciente com este CNS.")
+    await ensure_unique("fila", "paciente", "cpf", payload.cpf, "Já existe um paciente com este CPF.")
+    if payload.municipio_residencia_ibge6:
+        await ensure_record_exists("dominio", "municipio_ibge", "codigo_ibge6", payload.municipio_residencia_ibge6, "O município informado não existe no catálogo IBGE carregado.")
+    await ensure_record_exists("dominio", "estabelecimento_cnes", "codigo_cnes", payload.estabelecimento_solicitante_cnes, "A UBS solicitante não existe no catálogo CNES.", extra_filters={"ativo": "eq.true"})
+    professional_rows = await db_select("fila", "profissional_saude", select="id,cnes_vinculo,ativo", filters={"id": f"eq.{payload.profissional_solicitante_id}"}, limit=1)
+    if not professional_rows or professional_rows[0].get("ativo") is False:
+        raise HTTPException(status_code=422, detail="O profissional solicitante não existe ou está inativo.")
+    if str(professional_rows[0].get("cnes_vinculo") or "") != payload.estabelecimento_solicitante_cnes:
+        raise HTTPException(status_code=422, detail="O profissional solicitante precisa estar vinculado à UBS selecionada.")
+    await ensure_record_exists("dominio", "sigtap_procedimento", "codigo", payload.procedimento_sigtap, "O procedimento SIGTAP informado não existe ou está inativo.", extra_filters={"ativo": "eq.true"})
+    await ensure_record_exists("dominio", "cid10", "codigo", payload.cid10_codigo, "O diagnóstico CID-10 informado não existe no catálogo carregado.")
+
+    patient_rows = await db_insert("fila", "paciente", {
+        "cns": payload.cns,
+        "cpf": payload.cpf or None,
+        "nome_completo": payload.nome_completo,
+        "data_nascimento": payload.data_nascimento.isoformat(),
+        "sexo": payload.sexo,
+        "municipio_residencia_ibge6": payload.municipio_residencia_ibge6 or None,
+        "zona_residencia": payload.zona_residencia,
+        "telefone_contato": payload.telefone_contato or None,
+        "email_contato": payload.email,
+    })
+    patient = patient_rows[0]
+    auth_user: dict[str, Any] | None = None
+    request_row: dict[str, Any] | None = None
+    try:
+        auth_user = await create_auth_user(payload.email, payload.password, payload.nome_completo)
+        profile_rows = await db_insert("app", "usuario_sistema", {
+            "auth_user_id": auth_user["id"],
+            "papel": "PACIENTE",
+            "paciente_id": patient["id"],
+            "nome_exibicao": payload.nome_completo,
+            "idioma_preferido": payload.idioma_preferido,
+        })
+        requests = await db_insert("fila", "solicitacao_ortese", {
+            "paciente_id": patient["id"],
+            "procedimento_sigtap": payload.procedimento_sigtap,
+            "cid10_codigo": payload.cid10_codigo,
+            "profissional_solicitante_id": payload.profissional_solicitante_id,
+            "estabelecimento_solicitante_cnes": payload.estabelecimento_solicitante_cnes,
+            "justificativa_clinica": payload.justificativa_clinica,
+            "lado_acometido": payload.lado_acometido or None,
+            "prioridade_clinica": payload.prioridade_clinica,
+            "status": "AGUARDANDO_AUTORIZACAO",
+            "cre_destino_cnes": None,
+        })
+        request_row = requests[0]
+        await db_insert("fila", "historico_status_solicitacao", {
+            "solicitacao_id": request_row["id"],
+            "status_anterior": None,
+            "status_novo": "AGUARDANDO_AUTORIZACAO",
+            "usuario_responsavel": "UBS / SUS Digital (simulação)",
+            "observacao": "Solicitação recebida da atenção básica e encaminhada para autorização SISREG.",
+        })
+        return {"patient": patient, "profile": profile_rows[0], "request": request_row}
+    except Exception:
+        if request_row:
+            await db_delete("fila", "solicitacao_ortese", {"id": f"eq.{request_row['id']}"})
+        if auth_user:
+            await delete_auth_user(auth_user["id"])
+        await db_delete("fila", "paciente", {"id": f"eq.{patient['id']}"})
+        raise
+
+
+class CreCreate(BaseModel):
+    codigo_cnes: str
+    cnpj_mantenedora: str | None = None
+    razao_social: str
+    nome_fantasia: str
+    tipo_estabelecimento: str = "CENTRO ESPECIALIZADO EM REABILITACAO"
+    municipio_ibge6: str
+    logradouro: str | None = None
+    telefone: str | None = None
+    capacidade_producao_mensal: int | None = Field(default=None, ge=0)
+    nome_responsavel: str
+    email_responsavel: EmailStr
+    password_responsavel: str = Field(min_length=6)
+    cns_responsavel: str
+    cpf_responsavel: str | None = None
+    cbo_responsavel: str
+    numero_conselho: str | None = None
+    tipo_conselho: str | None = None
+    idioma_preferido: Literal["pt-BR", "en-US", "es-419"] = "pt-BR"
+
+    @field_validator("codigo_cnes", mode="before")
+    @classmethod
+    def validate_cnes(cls, value: Any) -> str:
+        result = normalize_code(value, field="CNES do CRE", length=7)
+        assert result is not None
+        return result
+
+    @field_validator("cnpj_mantenedora", mode="before")
+    @classmethod
+    def validate_cnpj(cls, value: Any) -> str | None:
+        return normalize_cnpj(value)
+
+    @field_validator("municipio_ibge6", mode="before")
+    @classmethod
+    def validate_municipality(cls, value: Any) -> str:
+        result = normalize_code(value, field="Município IBGE", length=6)
+        assert result is not None
+        return result
+
+    @field_validator("telefone", mode="before")
+    @classmethod
+    def validate_phone(cls, value: Any) -> str | None:
+        return normalize_phone(value)
+
+    @field_validator("cns_responsavel", mode="before")
+    @classmethod
+    def validate_responsible_cns(cls, value: Any) -> str:
+        return normalize_cns(value)
+
+    @field_validator("cpf_responsavel", mode="before")
+    @classmethod
+    def validate_responsible_cpf(cls, value: Any) -> str | None:
+        return normalize_cpf(value)
+
+    @field_validator("cbo_responsavel", mode="before")
+    @classmethod
+    def validate_responsible_cbo(cls, value: Any) -> str:
+        result = normalize_code(value, field="CBO do responsável", length=6)
+        assert result is not None
+        return result
+
+    @field_validator("razao_social", "nome_fantasia", "nome_responsavel", mode="before")
+    @classmethod
+    def validate_required_text(cls, value: Any) -> str:
+        result = clean_text(value, field="Texto", required=True, max_length=255)
+        assert result is not None
+        return result
+
+    @field_validator("logradouro", mode="before")
+    @classmethod
+    def validate_address(cls, value: Any) -> str | None:
+        return clean_text(value, field="Endereço", max_length=255)
+
+
+@app.post("/api/admin/cres", status_code=201)
+async def create_cre(payload: CreCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "GESTOR")
+    await ensure_unique("dominio", "estabelecimento_cnes", "codigo_cnes", payload.codigo_cnes, "Já existe uma unidade com este CNES.")
+    await ensure_unique("fila", "profissional_saude", "cns", payload.cns_responsavel, "Já existe um profissional com este CNS.")
+    await ensure_unique("fila", "profissional_saude", "cpf", payload.cpf_responsavel, "Já existe um profissional com este CPF.")
+    await ensure_record_exists("dominio", "municipio_ibge", "codigo_ibge6", payload.municipio_ibge6, "O município informado não existe no catálogo IBGE.")
+    await ensure_record_exists("dominio", "cbo", "codigo", payload.cbo_responsavel, "O CBO do responsável não existe no catálogo carregado.")
+
+    unit: dict[str, Any] | None = None
+    professional: dict[str, Any] | None = None
+    workshop: dict[str, Any] | None = None
+    auth_user: dict[str, Any] | None = None
+    try:
+        unit = (await db_insert("dominio", "estabelecimento_cnes", {
+            "codigo_cnes": payload.codigo_cnes,
+            "cnpj_mantenedora": payload.cnpj_mantenedora or None,
+            "razao_social": payload.razao_social,
+            "nome_fantasia": payload.nome_fantasia,
+            "tipo_estabelecimento": payload.tipo_estabelecimento,
+            "municipio_ibge6": payload.municipio_ibge6,
+            "logradouro": payload.logradouro or None,
+            "telefone": payload.telefone or None,
+            "habilitado_opm": True,
+            "ativo": True,
+        }))[0]
+        professional = (await db_insert("fila", "profissional_saude", {
+            "cns": payload.cns_responsavel,
+            "cpf": payload.cpf_responsavel or None,
+            "nome_completo": payload.nome_responsavel,
+            "cbo": payload.cbo_responsavel,
+            "cnes_vinculo": payload.codigo_cnes,
+            "numero_conselho": payload.numero_conselho or None,
+            "tipo_conselho": payload.tipo_conselho or None,
+        }))[0]
+        workshop = (await db_insert("producao", "oficina_ortopedica", {
+            "cnes": payload.codigo_cnes,
+            "nome": payload.nome_fantasia,
+            "capacidade_producao_mensal": payload.capacidade_producao_mensal,
+            "responsavel_tecnico_id": professional["id"],
+            "ativo": True,
+        }))[0]
+        auth_user = await create_auth_user(payload.email_responsavel, payload.password_responsavel, payload.nome_responsavel)
+        profile = (await db_insert("app", "usuario_sistema", {
+            "auth_user_id": auth_user["id"],
+            "papel": "FISCAL_CRE",
+            "profissional_saude_id": professional["id"],
+            "cnes_vinculo": payload.codigo_cnes,
+            "nome_exibicao": payload.nome_responsavel,
+            "idioma_preferido": payload.idioma_preferido,
+        }))[0]
+        return {"unit": unit, "workshop": workshop, "professional": professional, "profile": profile}
+    except Exception:
+        if auth_user:
+            await delete_auth_user(auth_user["id"])
+        if workshop:
+            await db_delete("producao", "oficina_ortopedica", {"id": f"eq.{workshop['id']}"})
+        if professional:
+            await db_delete("fila", "profissional_saude", {"id": f"eq.{professional['id']}"})
+        if unit:
+            await db_delete("dominio", "estabelecimento_cnes", {"codigo_cnes": f"eq.{payload.codigo_cnes}"})
+        raise
+
+
+class SisregAuthorize(BaseModel):
+    solicitacao_id: int = Field(ge=1)
+    cre_destino_cnes: str
+    numero_autorizacao: str | None = None
+    distancia_estimada_cre_km: float | None = Field(default=None, ge=0)
+    observacao: str | None = None
+
+    @field_validator("cre_destino_cnes", mode="before")
+    @classmethod
+    def validate_cre(cls, value: Any) -> str:
+        result = normalize_code(value, field="CRE de destino", length=7)
+        assert result is not None
+        return result
+
+    @field_validator("numero_autorizacao", mode="before")
+    @classmethod
+    def validate_authorization(cls, value: Any) -> str | None:
+        return clean_text(value, field="Número de autorização SISREG", max_length=60)
+
+    @field_validator("observacao", mode="before")
+    @classmethod
+    def validate_note(cls, value: Any) -> str | None:
+        return clean_text(value, field="Observação", max_length=1000)
+
+
+@app.post("/api/admin/sisreg/authorize", status_code=200)
+async def authorize_sisreg(payload: SisregAuthorize, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "GESTOR")
+    request_rows = await db_select("fila", "solicitacao_ortese", select="id,paciente_id,status", filters={"id": f"eq.{payload.solicitacao_id}"}, limit=1)
+    if not request_rows:
+        raise HTTPException(status_code=404, detail="A solicitação selecionada não existe.")
+    request_row = request_rows[0]
+    if request_row.get("status") != "AGUARDANDO_AUTORIZACAO":
+        raise HTTPException(status_code=409, detail="Esta solicitação já foi processada pelo SISREG ou não está aguardando autorização.")
+    workshops = await db_select("producao", "oficina_ortopedica", select="id,cnes,nome,ativo", filters={"cnes": f"eq.{payload.cre_destino_cnes}", "ativo": "eq.true"}, limit=1)
+    if not workshops:
+        raise HTTPException(status_code=422, detail="O CRE selecionado não possui oficina ortopédica ativa.")
+    await ensure_record_exists("dominio", "estabelecimento_cnes", "codigo_cnes", payload.cre_destino_cnes, "O CRE selecionado não existe ou está inativo.", extra_filters={"ativo": "eq.true"})
+
+    authorization = payload.numero_autorizacao or f"SISREG-DEMO-{payload.solicitacao_id}-{datetime.now().strftime('%Y%m%d')}"
+    update_body: dict[str, Any] = {
+        "status": "EM_FILA",
+        "cre_destino_cnes": payload.cre_destino_cnes,
+        "sisreg_numero_autorizacao": authorization,
+        "sisreg_autorizado_em": datetime.now().isoformat(),
+        "data_ultima_atualizacao": datetime.now().isoformat(),
+    }
+    if payload.distancia_estimada_cre_km is not None:
+        update_body["distancia_estimada_cre_km"] = payload.distancia_estimada_cre_km
+    updated = (await db_update("fila", "solicitacao_ortese", {"id": f"eq.{payload.solicitacao_id}"}, update_body))[0]
+    await db_insert("fila", "historico_status_solicitacao", [
+        {
+            "solicitacao_id": payload.solicitacao_id,
+            "status_anterior": "AGUARDANDO_AUTORIZACAO",
+            "status_novo": "AUTORIZADA",
+            "usuario_responsavel": "SISREG (simulação)",
+            "observacao": payload.observacao or f"Autorização {authorization}; CRE definido: {payload.cre_destino_cnes}.",
+        },
+        {
+            "solicitacao_id": payload.solicitacao_id,
+            "status_anterior": "AUTORIZADA",
+            "status_novo": "EM_FILA",
+            "usuario_responsavel": "UMDR",
+            "observacao": "Paciente inserido na fila do CRE após autorização SISREG.",
+        },
+    ])
+    existing_queue = await db_select("fila", "fila_espera", select="id", filters={"solicitacao_id": f"eq.{payload.solicitacao_id}"}, limit=1)
+    if existing_queue:
+        await db_update("fila", "fila_espera", {"id": f"eq.{existing_queue[0]['id']}"}, {"data_saida_fila": None, "motivo_saida": None, "clock_pausado": False})
+    else:
+        await db_insert("fila", "fila_espera", {"solicitacao_id": payload.solicitacao_id, "posicao_prioridade": 1})
+
+    profiles = await db_select("app", "usuario_sistema", select="auth_user_id", filters={"paciente_id": f"eq.{request_row['paciente_id']}", "papel": "eq.PACIENTE", "ativo": "eq.true"}, limit=1)
+    if profiles:
+        await db_insert("app", "notificacao", {
+            "auth_user_id": profiles[0]["auth_user_id"],
+            "tipo": "INFO",
+            "titulo": "Solicitação autorizada pelo SISREG",
+            "mensagem": f"Sua solicitação foi autorizada e vinculada ao CRE {workshops[0].get('nome') or payload.cre_destino_cnes}. A etapa de triagem já pode ser iniciada.",
+            "referencia_tabela": "fila.solicitacao_ortese",
+            "referencia_id": payload.solicitacao_id,
+            "destino_ui": "patient_orders",
+        })
+    return {"request": updated, "authorization": authorization, "cre": workshops[0]}
+
+
+class OngPartnerCreate(BaseModel):
+    oficina_id: int = Field(ge=1)
+    nome_ong: str
+    cnpj: str | None = None
+    tipo_parceria: str
+    responsavel_contato: str | None = None
+    email: EmailStr | None = None
+    telefone: str | None = None
+    data_inicio: date | None = None
+    data_fim: date | None = None
+    observacoes: str | None = None
+
+    @field_validator("nome_ong", "tipo_parceria", mode="before")
+    @classmethod
+    def validate_required_text(cls, value: Any) -> str:
+        result = clean_text(value, field="Parceria", required=True, max_length=255)
+        assert result is not None
+        return result
+
+    @field_validator("cnpj", mode="before")
+    @classmethod
+    def validate_cnpj(cls, value: Any) -> str | None:
+        return normalize_cnpj(value)
+
+    @field_validator("telefone", mode="before")
+    @classmethod
+    def validate_phone(cls, value: Any) -> str | None:
+        return normalize_phone(value)
+
+    @field_validator("responsavel_contato", mode="before")
+    @classmethod
+    def validate_contact(cls, value: Any) -> str | None:
+        return clean_text(value, field="Responsável de contato", max_length=255)
+
+    @field_validator("observacoes", mode="before")
+    @classmethod
+    def validate_notes(cls, value: Any) -> str | None:
+        return clean_text(value, field="Observações", max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_period(self) -> "OngPartnerCreate":
+        validate_date_range(self.data_inicio, self.data_fim, label="parceria")
+        return self
+
+
+@app.post("/api/admin/partners/ongs", status_code=201)
+async def create_ong_partner(payload: OngPartnerCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "GESTOR")
+    await ensure_record_exists("producao", "oficina_ortopedica", "id", payload.oficina_id, "O CRE selecionado não possui oficina ativa.", extra_filters={"ativo": "eq.true"})
+    if payload.cnpj:
+        existing = await db_select("app", "parceria_ong", select="id", filters={"oficina_id": f"eq.{payload.oficina_id}", "cnpj": f"eq.{payload.cnpj}"}, limit=1)
+        if existing:
+            raise HTTPException(status_code=409, detail="Esta ONG já está vinculada a este CRE.")
+    rows = await db_insert("app", "parceria_ong", {
+        "oficina_id": payload.oficina_id,
+        "nome_ong": payload.nome_ong,
+        "cnpj": payload.cnpj or None,
+        "tipo_parceria": payload.tipo_parceria,
+        "responsavel_contato": payload.responsavel_contato or None,
+        "email": payload.email or None,
+        "telefone": payload.telefone or None,
+        "data_inicio": payload.data_inicio.isoformat() if payload.data_inicio else None,
+        "data_fim": payload.data_fim.isoformat() if payload.data_fim else None,
+        "observacoes": payload.observacoes or None,
+        "ativa": True,
+    })
+    return rows[0]
+
+
 class TriageCreate(BaseModel):
     paciente_id: int = Field(ge=1)
     procedimento_sigtap_proposto: str | None = None
@@ -1006,7 +1919,7 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
     )
     request_filters: dict[str, Any] = {"paciente_id": f"eq.{payload.paciente_id}"}
     if identity.cnes_vinculo:
-        request_filters["estabelecimento_solicitante_cnes"] = f"eq.{identity.cnes_vinculo}"
+        request_filters["cre_destino_cnes"] = f"eq.{identity.cnes_vinculo}"
     active_requests = await db_select(
         "fila",
         "solicitacao_ortese",
@@ -1016,9 +1929,14 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
         limit=20,
     )
     current_request = next(
-        (row for row in active_requests if row.get("status") not in {"ENTREGUE", "CANCELADA", "NEGADA"}),
-        active_requests[0] if active_requests else None,
+        (row for row in active_requests if row.get("status") in {"AUTORIZADA", "EM_FILA"}),
+        None,
     )
+    if identity.papel == "FISCAL_CRE" and not current_request:
+        raise HTTPException(
+            status_code=409,
+            detail="Este paciente ainda não possui uma solicitação autorizada pelo SISREG e vinculada a este CRE.",
+        )
     procedure = payload.procedimento_sigtap_proposto or (current_request or {}).get("procedimento_sigtap")
     if procedure:
         await ensure_record_exists(

@@ -91,7 +91,7 @@ type Page =
   | "comunicacoes"
   | "cadastros";
 
-type RegistrationTab = "patient" | "staff" | "provider" | "request";
+type RegistrationTab = "manager" | "cre" | "patient" | "sisreg" | "ong";
 
 type KpiCardData = {
   id?: string;
@@ -1054,15 +1054,17 @@ const inputClass = "h-10 rounded-lg border border-border bg-muted px-3 text-sm t
 function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
   const { t } = useLang();
   const [tab, setTab] = useState<RegistrationTab>("patient");
+  const [selectedUbs, setSelectedUbs] = useState("");
   const { data: catalogs, loading, error, reload } = useApiData<AdminCatalogs>("/api/admin/catalogs");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const tabs = [
-    ["patient", t("manager.registration.tabs.patient")],
-    ["staff", t("manager.registration.tabs.staff")],
-    ["provider", t("manager.registration.tabs.provider")],
-    ["request", t("manager.registration.tabs.request")],
+    ["manager", t("manager.registration.demo.tabs.manager")],
+    ["cre", t("manager.registration.demo.tabs.cre")],
+    ["patient", t("manager.registration.demo.tabs.patient")],
+    ["sisreg", t("manager.registration.demo.tabs.sisreg")],
+    ["ong", t("manager.registration.demo.tabs.ong")],
   ] as const;
 
   const submit = async (event: FormEvent<HTMLFormElement>, path: string) => {
@@ -1070,18 +1072,28 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
     setSubmitting(true);
     setMessage(null);
     const form = new FormData(event.currentTarget);
-    const body: Record<string, unknown> = Object.fromEntries(Array.from(form.entries()).map(([key, raw]) => [key, raw === "" ? null : raw]));
-    for (const key of ["valor_total", "sla_percentual", "paciente_id", "distancia_estimada_cre_km"]) {
+    const body: Record<string, unknown> = Object.fromEntries(
+      Array.from(form.entries()).map(([key, raw]) => [key, raw === "" ? null : raw]),
+    );
+    for (const key of [
+      "profissional_solicitante_id",
+      "solicitacao_id",
+      "oficina_id",
+      "capacidade_producao_mensal",
+      "distancia_estimada_cre_km",
+    ]) {
       if (body[key] !== null && body[key] !== undefined) body[key] = Number(body[key]);
     }
     try {
       await apiPost(path, body);
       event.currentTarget.reset();
+      setSelectedUbs("");
       const successKey: Record<RegistrationTab, TranslationKey> = {
-        patient: "manager.registration.successPatient",
-        staff: "manager.registration.successStaff",
-        provider: "manager.registration.successProvider",
-        request: "manager.registration.successRequest",
+        manager: "manager.registration.demo.success.manager",
+        cre: "manager.registration.demo.success.cre",
+        patient: "manager.registration.demo.success.patient",
+        sisreg: "manager.registration.demo.success.sisreg",
+        ong: "manager.registration.demo.success.ong",
       };
       setMessage({ ok: true, text: t(successKey[tab]) });
       reload();
@@ -1096,12 +1108,56 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
   if (loading) return <div className="p-8"><LoadingState message={t("manager.common.loading")} /></div>;
   if (error || !catalogs) return <div className="p-8"><ErrorState message={error ?? t("manager.common.error")} retryLabel={t("manager.common.retry")} onRetry={reload} /></div>;
 
+  const ubsUnits = catalogs.units.filter((unit) => {
+    const kind = String(unit.tipo_estabelecimento ?? "").toUpperCase();
+    return !unit.habilitado_opm || kind.includes("BASICA") || kind.includes("UBS");
+  });
+  const visibleUbsUnits = ubsUnits.length ? ubsUnits : catalogs.units;
+  const requestingProfessionals = selectedUbs
+    ? catalogs.professionals.filter((professional) => professional.cnes_vinculo === selectedUbs)
+    : [];
+
+  const submitLabel = submitting ? t("manager.registration.saving") : t("manager.registration.save");
+
   return (
     <div className="p-8">
-      <PageHeader breadcrumb={t("manager.standard.pages.registrations.breadcrumb")} title={t("manager.standard.pages.registrations.title")} subtitle={t("manager.standard.pages.registrations.subtitle")} />
-      <Card className="p-2 mb-5"><div className="grid grid-cols-2 gap-2 md:grid-cols-4">{tabs.map(([id, label]) => <button key={id} onClick={() => { setTab(id); setMessage(null); }} className={`rounded-lg px-3 py-2.5 text-xs font-semibold transition ${tab === id ? "bg-[#1565C0] text-white" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}</div></Card>
+      <PageHeader
+        breadcrumb={t("manager.standard.pages.registrations.breadcrumb")}
+        title={t("manager.registration.demo.pageTitle")}
+        subtitle={t("manager.registration.demo.pageSubtitle")}
+      />
+
+      <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1565C0] text-white"><ShieldCheck size={17} /></div>
+          <div>
+            <h2 className="text-sm font-semibold text-[#0A4880]">{t("manager.registration.demo.bannerTitle")}</h2>
+            <p className="mt-1 max-w-4xl text-xs leading-5 text-slate-600">{t("manager.registration.demo.bannerText")}</p>
+          </div>
+        </div>
+      </div>
+
+      <Card className="p-2 mb-5">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+          {tabs.map(([id, label]) => (
+            <button
+              type="button"
+              key={id}
+              onClick={() => { setTab(id); setMessage(null); }}
+              className={`rounded-lg px-3 py-2.5 text-xs font-semibold transition ${tab === id ? "bg-[#1565C0] text-white" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <Card className="p-6">
-        <div className="mb-5"><h2 className="text-lg font-semibold text-foreground">{t(`manager.registration.${tab}.title` as TranslationKey)}</h2><p className="mt-1 text-sm text-muted-foreground">{t(`manager.registration.${tab}.subtitle` as TranslationKey)}</p></div>
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-foreground">{t(`manager.registration.demo.${tab}.title` as TranslationKey)}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t(`manager.registration.demo.${tab}.subtitle` as TranslationKey)}</p>
+        </div>
+
         {message && (
           <div role={message.ok ? "status" : "alert"} aria-live="polite" className={`mb-5 flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm font-medium ${message.ok ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
             {message.ok ? <CheckCircle2 size={17} className="mt-0.5 shrink-0" /> : <AlertTriangle size={17} className="mt-0.5 shrink-0" />}
@@ -1109,60 +1165,143 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           </div>
         )}
 
-        {tab === "patient" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/patients")}>
-          <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
-          <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" required /></FormField>
-          <FormField label={t("manager.registration.fields.password")}><input className={inputClass} name="password" type="password" minLength={6} required /></FormField>
-          <FormField label={t("manager.registration.fields.cns")}><input className={inputClass} name="cns" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
-          <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} /></FormField>
-          <FormField label={t("manager.registration.fields.birthDate")}><input className={inputClass} name="data_nascimento" type="date" required /></FormField>
-          <FormField label={t("manager.registration.fields.sex")}><select className={inputClass} name="sexo" required><option value="F">{t("manager.registration.values.female")}</option><option value="M">{t("manager.registration.values.male")}</option></select></FormField>
-          <FormField label={t("manager.registration.fields.municipality")}><select className={inputClass} name="municipio_residencia_ibge6"><option value="">{t("manager.common.select")}</option>{catalogs.municipalities.map((item) => <option key={item.codigo_ibge6} value={item.codigo_ibge6}>{item.nome_municipio} - {item.uf_sigla}</option>)}</select></FormField>
-          <FormField label={t("manager.registration.fields.zone")}><select className={inputClass} name="zona_residencia" defaultValue="URBANA"><option value="URBANA">{t("manager.standard.zones.URBANA")}</option><option value="RURAL">{t("manager.standard.zones.RURAL")}</option><option value="RIBEIRINHA">{t("manager.standard.zones.RIBEIRINHA")}</option><option value="REMOTA">{t("manager.standard.zones.REMOTA")}</option></select></FormField>
-          <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone_contato" /></FormField>
-          <FormField label={t("manager.registration.fields.language")}><select className={inputClass} name="idioma_preferido" defaultValue="pt-BR"><option value="pt-BR">Português</option><option value="en-US">English</option><option value="es-419">Español</option></select></FormField>
-          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
-        </form>}
+        {tab === "manager" && (
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/staff")}>
+            <input type="hidden" name="papel" value="GESTOR" />
+            <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
+            <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" required /></FormField>
+            <FormField label={t("manager.registration.fields.password")}><input className={inputClass} name="password" type="password" minLength={6} required /></FormField>
+            <FormField label={t("manager.registration.fields.cns")}><input className={inputClass} name="cns" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
+            <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} /></FormField>
+            <FormField label={t("manager.registration.fields.cbo")}><input className={inputClass} name="cbo" inputMode="numeric" minLength={6} maxLength={6} required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.institutionalUnit")}>
+              <select className={inputClass} name="cnes_vinculo" required>
+                <option value="">{t("manager.common.select")}</option>
+                {catalogs.units.map((unit) => <option key={unit.codigo_cnes} value={unit.codigo_cnes}>{unit.nome_fantasia || unit.razao_social} — {unit.codigo_cnes}</option>)}
+              </select>
+            </FormField>
+            <FormField label={t("manager.registration.fields.councilNumber")}><input className={inputClass} name="numero_conselho" /></FormField>
+            <FormField label={t("manager.registration.fields.councilType")}><input className={inputClass} name="tipo_conselho" /></FormField>
+            <FormField label={t("manager.registration.fields.language")}>
+              <select className={inputClass} name="idioma_preferido" defaultValue="pt-BR"><option value="pt-BR">Português</option><option value="en-US">English</option><option value="es-419">Español</option></select>
+            </FormField>
+            <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitLabel}</button></div>
+          </form>
+        )}
 
-        {tab === "staff" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/staff")}>
-          <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
-          <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" required /></FormField>
-          <FormField label={t("manager.registration.fields.password")}><input className={inputClass} name="password" type="password" minLength={6} required /></FormField>
-          <FormField label={t("manager.registration.fields.role")}><select className={inputClass} name="papel" defaultValue="FISCAL_CRE"><option value="FISCAL_CRE">{t("manager.registration.values.cre")}</option><option value="GESTOR">{t("manager.registration.values.manager")}</option></select></FormField>
-          <FormField label={t("manager.registration.fields.cns")}><input className={inputClass} name="cns" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
-          <FormField label={t("manager.registration.fields.cbo")}><input className={inputClass} name="cbo" inputMode="numeric" minLength={6} maxLength={6} required /></FormField>
-          <FormField label={t("manager.registration.fields.unit")}><select className={inputClass} name="cnes_vinculo" required><option value="">{t("manager.common.select")}</option>{catalogs.units.map((unit) => <option key={unit.codigo_cnes} value={unit.codigo_cnes}>{unit.nome_fantasia || unit.razao_social}</option>)}</select></FormField>
-          <FormField label={t("manager.registration.fields.councilNumber")}><input className={inputClass} name="numero_conselho" /></FormField>
-          <FormField label={t("manager.registration.fields.councilType")}><input className={inputClass} name="tipo_conselho" /></FormField>
-          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
-        </form>}
+        {tab === "cre" && (
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/cres")}>
+            <div className="md:col-span-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.creUnit")}</h3></div>
+            <FormField label={t("manager.registration.demo.fields.creCnes")}><input className={inputClass} name="codigo_cnes" inputMode="numeric" minLength={7} maxLength={7} required /></FormField>
+            <FormField label={t("manager.registration.fields.cnpj")}><input className={inputClass} name="cnpj_mantenedora" inputMode="numeric" maxLength={14} /></FormField>
+            <FormField label={t("manager.registration.demo.fields.legalName")}><input className={inputClass} name="razao_social" required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.creName")}><input className={inputClass} name="nome_fantasia" required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.establishmentType")}><input className={inputClass} name="tipo_estabelecimento" defaultValue="CENTRO ESPECIALIZADO EM REABILITACAO" required /></FormField>
+            <FormField label={t("manager.registration.fields.municipality")}>
+              <select className={inputClass} name="municipio_ibge6" required><option value="">{t("manager.common.select")}</option>{catalogs.municipalities.map((item) => <option key={item.codigo_ibge6} value={item.codigo_ibge6}>{item.nome_municipio} - {item.uf_sigla}</option>)}</select>
+            </FormField>
+            <FormField label={t("manager.registration.fields.address")}><input className={inputClass} name="logradouro" /></FormField>
+            <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone" /></FormField>
+            <FormField label={t("manager.registration.demo.fields.monthlyCapacity")}><input className={inputClass} name="capacidade_producao_mensal" type="number" min="0" step="1" /></FormField>
 
-        {tab === "provider" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/providers")}>
-          <FormField label={t("manager.registration.fields.providerName")}><input className={inputClass} name="nome" required /></FormField>
-          <FormField label={t("manager.registration.fields.cnpj")}><input className={inputClass} name="cnpj" inputMode="numeric" maxLength={14} /></FormField>
-          <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" /></FormField>
-          <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone" /></FormField>
-          <FormField label={t("manager.registration.fields.address")}><input className={inputClass} name="endereco" /></FormField>
-          <FormField label={t("manager.registration.fields.contractNumber")}><input className={inputClass} name="numero_contrato" /></FormField>
-          <FormField label={t("manager.registration.fields.contractValue")}><input className={inputClass} name="valor_total" type="number" min="0" step="0.01" /></FormField>
-          <FormField label={t("manager.registration.fields.sla")}><input className={inputClass} name="sla_percentual" type="number" min="0" max="100" step="0.01" /></FormField>
-          <FormField label={t("manager.registration.fields.startDate")}><input className={inputClass} name="data_inicio" type="date" /></FormField>
-          <FormField label={t("manager.registration.fields.endDate")}><input className={inputClass} name="data_fim" type="date" /></FormField>
-          <FormField label={t("manager.registration.fields.status")}><select className={inputClass} name="status" defaultValue="VIGENTE"><option value="VIGENTE">{translatedStatus(t, "VIGENTE")}</option><option value="EM_RENOVACAO">{translatedStatus(t, "EM_RENOVACAO")}</option><option value="ENCERRADO">{translatedStatus(t, "ENCERRADO")}</option><option value="CANCELADO">{translatedStatus(t, "CANCELADO")}</option></select></FormField>
-          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
-        </form>}
+            <div className="md:col-span-2 mt-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.creResponsible")}</h3></div>
+            <FormField label={t("manager.registration.demo.fields.responsibleName")}><input className={inputClass} name="nome_responsavel" required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.responsibleEmail")}><input className={inputClass} name="email_responsavel" type="email" required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.responsiblePassword")}><input className={inputClass} name="password_responsavel" type="password" minLength={6} required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.responsibleCns")}><input className={inputClass} name="cns_responsavel" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
+            <FormField label={t("manager.registration.demo.fields.responsibleCpf")}><input className={inputClass} name="cpf_responsavel" inputMode="numeric" minLength={11} maxLength={11} /></FormField>
+            <FormField label={t("manager.registration.demo.fields.responsibleCbo")}><input className={inputClass} name="cbo_responsavel" inputMode="numeric" minLength={6} maxLength={6} required /></FormField>
+            <FormField label={t("manager.registration.fields.councilNumber")}><input className={inputClass} name="numero_conselho" /></FormField>
+            <FormField label={t("manager.registration.fields.councilType")}><input className={inputClass} name="tipo_conselho" /></FormField>
+            <FormField label={t("manager.registration.fields.language")}><select className={inputClass} name="idioma_preferido" defaultValue="pt-BR"><option value="pt-BR">Português</option><option value="en-US">English</option><option value="es-419">Español</option></select></FormField>
+            <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitLabel}</button></div>
+          </form>
+        )}
 
-        {tab === "request" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/cre/requests")}>
-          <FormField label={t("manager.registration.fields.patient")}><select className={inputClass} name="paciente_id" required><option value="">{t("manager.common.select")}</option>{catalogs.patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.nome_completo} - {patient.cns}</option>)}</select></FormField>
-          <FormField label={t("manager.registration.fields.procedure")}><select className={inputClass} name="procedimento_sigtap" required><option value="">{t("manager.common.select")}</option>{catalogs.procedures.map((procedure) => <option key={procedure.codigo} value={procedure.codigo}>{procedure.codigo} - {procedure.nome_procedimento}</option>)}</select></FormField>
-          <FormField label={t("manager.registration.fields.diagnosis")}><select className={inputClass} name="cid10_codigo" required><option value="">{t("manager.common.select")}</option>{catalogs.diagnoses.map((diagnosis) => <option key={diagnosis.codigo} value={diagnosis.codigo}>{diagnosis.codigo} - {diagnosis.descricao}</option>)}</select></FormField>
-          <FormField label={t("manager.registration.fields.priority")}><select className={inputClass} name="prioridade_clinica" defaultValue="ROTINA"><option value="ROTINA">{t("manager.registration.values.routine")}</option><option value="PRIORITARIO">{t("manager.registration.values.priority")}</option><option value="URGENTE">{t("manager.registration.values.urgent")}</option></select></FormField>
-          <FormField label={t("manager.registration.fields.distance")}><input className={inputClass} name="distancia_estimada_cre_km" type="number" min="0" step="0.1" /></FormField>
-          <FormField label={t("manager.registration.fields.side")}><select className={inputClass} name="lado_acometido"><option value="">{t("manager.common.select")}</option><option value="DIREITO">{t("manager.registration.values.right")}</option><option value="ESQUERDO">{t("manager.registration.values.left")}</option><option value="BILATERAL">{t("manager.registration.values.bilateral")}</option><option value="NAO_APLICAVEL">{t("manager.registration.values.notApplicable")}</option></select></FormField>
-          <FormField label={t("manager.registration.fields.justification")}><textarea className={`${inputClass} min-h-24 py-2`} name="justificativa_clinica" required /></FormField>
-          <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
-        </form>}
+        {tab === "patient" && (
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/demo/patients")}>
+            <div className="md:col-span-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.patientIdentity")}</h3></div>
+            <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
+            <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" required /></FormField>
+            <FormField label={t("manager.registration.fields.password")}><input className={inputClass} name="password" type="password" minLength={6} required /></FormField>
+            <FormField label={t("manager.registration.fields.cns")}><input className={inputClass} name="cns" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
+            <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} /></FormField>
+            <FormField label={t("manager.registration.fields.birthDate")}><input className={inputClass} name="data_nascimento" type="date" required /></FormField>
+            <FormField label={t("manager.registration.fields.sex")}><select className={inputClass} name="sexo" required><option value="F">{t("manager.registration.values.female")}</option><option value="M">{t("manager.registration.values.male")}</option></select></FormField>
+            <FormField label={t("manager.registration.fields.municipality")}><select className={inputClass} name="municipio_residencia_ibge6"><option value="">{t("manager.common.select")}</option>{catalogs.municipalities.map((item) => <option key={item.codigo_ibge6} value={item.codigo_ibge6}>{item.nome_municipio} - {item.uf_sigla}</option>)}</select></FormField>
+            <FormField label={t("manager.registration.fields.zone")}><select className={inputClass} name="zona_residencia" defaultValue="URBANA"><option value="URBANA">{t("manager.standard.zones.URBANA")}</option><option value="RURAL">{t("manager.standard.zones.RURAL")}</option><option value="RIBEIRINHA">{t("manager.standard.zones.RIBEIRINHA")}</option><option value="REMOTA">{t("manager.standard.zones.REMOTA")}</option></select></FormField>
+            <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone_contato" /></FormField>
+            <FormField label={t("manager.registration.fields.language")}><select className={inputClass} name="idioma_preferido" defaultValue="pt-BR"><option value="pt-BR">Português</option><option value="en-US">English</option><option value="es-419">Español</option></select></FormField>
 
+            <div className="md:col-span-2 mt-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.ubsRequest")}</h3><p className="mt-1 text-xs text-muted-foreground">{t("manager.registration.demo.sections.ubsRequestHelp")}</p></div>
+            <FormField label={t("manager.registration.demo.fields.requestingUbs")}>
+              <select className={inputClass} name="estabelecimento_solicitante_cnes" required value={selectedUbs} onChange={(event) => setSelectedUbs(event.target.value)}>
+                <option value="">{t("manager.common.select")}</option>
+                {visibleUbsUnits.map((unit) => <option key={unit.codigo_cnes} value={unit.codigo_cnes}>{unit.nome_fantasia || unit.razao_social} — {unit.codigo_cnes}</option>)}
+              </select>
+            </FormField>
+            <FormField label={t("manager.registration.demo.fields.requestingProfessional")}>
+              <select className={inputClass} name="profissional_solicitante_id" required disabled={!selectedUbs}>
+                <option value="">{selectedUbs ? t("manager.common.select") : t("manager.registration.demo.values.selectUbsFirst")}</option>
+                {requestingProfessionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.nome_completo} — {professional.cbo}</option>)}
+              </select>
+            </FormField>
+            <FormField label={t("manager.registration.fields.procedure")}><select className={inputClass} name="procedimento_sigtap" required><option value="">{t("manager.common.select")}</option>{catalogs.procedures.map((procedure) => <option key={procedure.codigo} value={procedure.codigo}>{procedure.codigo} - {procedure.nome_procedimento}</option>)}</select></FormField>
+            <FormField label={t("manager.registration.fields.diagnosis")}><select className={inputClass} name="cid10_codigo" required><option value="">{t("manager.common.select")}</option>{catalogs.diagnoses.map((diagnosis) => <option key={diagnosis.codigo} value={diagnosis.codigo}>{diagnosis.codigo} - {diagnosis.descricao}</option>)}</select></FormField>
+            <FormField label={t("manager.registration.fields.priority")}><select className={inputClass} name="prioridade_clinica" defaultValue="ROTINA"><option value="ROTINA">{t("manager.registration.values.routine")}</option><option value="PRIORITARIO">{t("manager.registration.values.priority")}</option><option value="URGENTE">{t("manager.registration.values.urgent")}</option></select></FormField>
+            <FormField label={t("manager.registration.fields.side")}><select className={inputClass} name="lado_acometido"><option value="">{t("manager.common.select")}</option><option value="DIREITO">{t("manager.registration.values.right")}</option><option value="ESQUERDO">{t("manager.registration.values.left")}</option><option value="BILATERAL">{t("manager.registration.values.bilateral")}</option><option value="NAO_APLICAVEL">{t("manager.registration.values.notApplicable")}</option></select></FormField>
+            <div className="md:col-span-2"><FormField label={t("manager.registration.fields.justification")}><textarea className={`${inputClass} min-h-24 py-2`} name="justificativa_clinica" required /></FormField></div>
+            <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">{t("manager.registration.demo.patient.waitingNotice")}</div>
+            <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitLabel}</button></div>
+          </form>
+        )}
+
+        {tab === "sisreg" && (
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/sisreg/authorize")}>
+            {catalogs.pending_requests.length === 0 && <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">{t("manager.registration.demo.sisreg.empty")}</div>}
+            <FormField label={t("manager.registration.demo.fields.pendingRequest")}>
+              <select className={inputClass} name="solicitacao_id" required disabled={catalogs.pending_requests.length === 0}>
+                <option value="">{t("manager.common.select")}</option>
+                {catalogs.pending_requests.map((request) => <option key={request.id} value={request.id}>{request.paciente_nome || `#${request.paciente_id}`} — {request.procedimento_nome || request.procedimento_sigtap} — {request.ubs_nome || request.estabelecimento_solicitante_cnes}</option>)}
+              </select>
+            </FormField>
+            <FormField label={t("manager.registration.demo.fields.destinationCre")}>
+              <select className={inputClass} name="cre_destino_cnes" required><option value="">{t("manager.common.select")}</option>{catalogs.cres.map((cre) => <option key={cre.codigo_cnes} value={cre.codigo_cnes}>{cre.nome} — {cre.codigo_cnes}</option>)}</select>
+            </FormField>
+            <FormField label={t("manager.registration.demo.fields.authorizationNumber")}><input className={inputClass} name="numero_autorizacao" placeholder={t("manager.registration.demo.values.autoGenerated")} /></FormField>
+            <FormField label={t("manager.registration.fields.distance")}><input className={inputClass} name="distancia_estimada_cre_km" type="number" min="0" step="0.1" /></FormField>
+            <div className="md:col-span-2"><FormField label={t("manager.registration.demo.fields.sisregObservation")}><textarea className={`${inputClass} min-h-24 py-2`} name="observacao" /></FormField></div>
+            <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-[#0A4880]">{t("manager.registration.demo.sisreg.effect")}</div>
+            <div className="md:col-span-2"><button type="submit" disabled={submitting || catalogs.pending_requests.length === 0} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.demo.sisreg.authorize")}</button></div>
+          </form>
+        )}
+
+        {tab === "ong" && (
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/partners/ongs")}>
+            <FormField label={t("manager.registration.demo.fields.partnerCre")}>
+              <select className={inputClass} name="oficina_id" required><option value="">{t("manager.common.select")}</option>{catalogs.cres.map((cre) => <option key={cre.oficina_id} value={cre.oficina_id}>{cre.nome} — {cre.codigo_cnes}</option>)}</select>
+            </FormField>
+            <FormField label={t("manager.registration.demo.fields.ongName")}><input className={inputClass} name="nome_ong" required /></FormField>
+            <FormField label={t("manager.registration.fields.cnpj")}><input className={inputClass} name="cnpj" inputMode="numeric" maxLength={14} /></FormField>
+            <FormField label={t("manager.registration.demo.fields.partnershipType")}>
+              <select className={inputClass} name="tipo_parceria" defaultValue="APOIO_SOCIAL" required>
+                <option value="APOIO_SOCIAL">{t("manager.registration.demo.partnershipTypes.social")}</option>
+                <option value="TRANSPORTE">{t("manager.registration.demo.partnershipTypes.transport")}</option>
+                <option value="REABILITACAO">{t("manager.registration.demo.partnershipTypes.rehabilitation")}</option>
+                <option value="CAPACITACAO">{t("manager.registration.demo.partnershipTypes.training")}</option>
+                <option value="DOACAO">{t("manager.registration.demo.partnershipTypes.donation")}</option>
+                <option value="OUTRO">{t("manager.registration.demo.partnershipTypes.other")}</option>
+              </select>
+            </FormField>
+            <FormField label={t("manager.registration.demo.fields.contactPerson")}><input className={inputClass} name="responsavel_contato" /></FormField>
+            <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" /></FormField>
+            <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone" /></FormField>
+            <FormField label={t("manager.registration.fields.startDate")}><input className={inputClass} name="data_inicio" type="date" /></FormField>
+            <FormField label={t("manager.registration.fields.endDate")}><input className={inputClass} name="data_fim" type="date" /></FormField>
+            <div className="md:col-span-2"><FormField label={t("manager.registration.demo.fields.notes")}><textarea className={`${inputClass} min-h-24 py-2`} name="observacoes" /></FormField></div>
+            <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitLabel}</button></div>
+          </form>
+        )}
       </Card>
     </div>
   );

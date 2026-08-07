@@ -502,7 +502,8 @@
       "cre": {
         "label": "Contact my CRE",
         "desc": "Send a message or call the unit responsible for your care"
-      }
+      },
+      "awaitingCre": "Your CRE has not been assigned yet. Pain reporting and direct CRE contact will become available after SISREG authorization and referral to the responsible unit."
     },
     "notif": {
       "title": "Next maintenance in {days} days",
@@ -534,7 +535,8 @@
       "exactModel": "Exact model",
       "manufacturer": "Device manufacturer",
       "manufacturedAt": "Manufacture date",
-      "serialNumber": "Serial number"
+      "serialNumber": "Serial number",
+      "assignedCre": "Assigned CRE"
     },
     "deviceCard": {
       "title": "Digital device card",
@@ -863,7 +865,95 @@
       "successPatient": "Patient and login credentials created successfully.",
       "successStaff": "Professional and login credentials created successfully.",
       "successProvider": "Provider created successfully.",
-      "successRequest": "Request created successfully."
+      "successRequest": "Request created successfully.",
+      "demo": {
+        "pageTitle": "Demonstration access and referral pipeline",
+        "pageSubtitle": "Create system actors and simulate the patient journey from primary care to authorization and linkage with the care network.",
+        "bannerTitle": "Controlled environment for demonstrating the care pathway",
+        "bannerText": "Use this area to present how users and relationships would be created in a real operation. Records are persisted in this demonstration environment: the patient enters through primary care without a CRE, SISREG authorizes and routes the case, and partner organizations can be registered separately.",
+        "tabs": {
+          "manager": "Manager",
+          "cre": "CRE",
+          "patient": "Patient",
+          "sisreg": "SISREG",
+          "ong": "Partner NGO"
+        },
+        "manager": {
+          "title": "Create manager",
+          "subtitle": "Creates a new management credential linked to a health professional and an institutional unit."
+        },
+        "cre": {
+          "title": "Create CRE",
+          "subtitle": "Registers the CNES unit, its orthopedic workshop and the initial credential for the CRE manager in one flow."
+        },
+        "patient": {
+          "title": "Register patient through primary care",
+          "subtitle": "Simulates a new case arriving from primary care: creates the patient, credentials and a request that remains pending SISREG authorization.",
+          "waitingNotice": "The patient will be created without a destination CRE. The request will remain “Awaiting authorization” until it is processed in the SISREG step."
+        },
+        "sisreg": {
+          "title": "Authorize and refer through SISREG",
+          "subtitle": "Select a pending request and destination CRE to simulate regulatory authorization.",
+          "empty": "There are no requests awaiting SISREG authorization. Create a patient through primary care first.",
+          "effect": "When authorized, the system stores the SISREG number, links the CRE, changes the status to “In queue”, creates the CRE queue entry and notifies the patient.",
+          "authorize": "Authorize and link CRE"
+        },
+        "ong": {
+          "title": "Register partner NGO",
+          "subtitle": "Registers a partnership between a civil-society organization and a CRE in the network."
+        },
+        "sections": {
+          "creUnit": "Unit and workshop details",
+          "creResponsible": "CRE responsible professional and initial credential",
+          "patientIdentity": "Patient identification and access",
+          "ubsRequest": "Request originated in primary care",
+          "ubsRequestHelp": "The primary-care unit and requesting professional represent the case origin. The CRE must not be defined at this stage."
+        },
+        "fields": {
+          "institutionalUnit": "Linked institutional unit",
+          "creCnes": "CRE CNES",
+          "legalName": "Legal name",
+          "creName": "CRE name / trade name",
+          "establishmentType": "Facility type",
+          "monthlyCapacity": "Monthly production capacity",
+          "responsibleName": "Technical manager name",
+          "responsibleEmail": "Manager email",
+          "responsiblePassword": "Initial manager password",
+          "responsibleCns": "Manager CNS",
+          "responsibleCpf": "Manager CPF",
+          "responsibleCbo": "Manager CBO",
+          "requestingUbs": "Requesting primary-care unit",
+          "requestingProfessional": "Requesting professional",
+          "pendingRequest": "Request awaiting SISREG",
+          "destinationCre": "Destination CRE",
+          "authorizationNumber": "SISREG authorization number",
+          "sisregObservation": "Authorization note",
+          "partnerCre": "Partner CRE",
+          "ongName": "NGO name",
+          "partnershipType": "Partnership type",
+          "contactPerson": "Contact person",
+          "notes": "Notes"
+        },
+        "values": {
+          "selectUbsFirst": "Select the primary-care unit first",
+          "autoGenerated": "Optional — generated automatically"
+        },
+        "partnershipTypes": {
+          "social": "Social support",
+          "transport": "Transportation",
+          "rehabilitation": "Rehabilitation",
+          "training": "Training",
+          "donation": "Donation",
+          "other": "Other"
+        },
+        "success": {
+          "manager": "Manager and credential created successfully.",
+          "cre": "CRE, workshop and responsible credential created successfully.",
+          "patient": "Patient registered through primary care. The request is awaiting SISREG authorization.",
+          "sisreg": "SISREG authorized: the patient was linked to the CRE and added to the queue.",
+          "ong": "Partner NGO linked to the CRE successfully."
+        }
+      }
     },
     "standard": {
       "brand": "NAADC · SUS",
@@ -882,7 +972,7 @@
         "finance": "Finance and procurement",
         "equity": "Equity analysis",
         "reports": "Reports",
-        "registrations": "Registrations",
+        "registrations": "Demo pipeline",
         "creCenters": "CREs and care network",
         "communications": "Alerts and recalls"
       },
@@ -945,9 +1035,9 @@
           "subtitle": "Filtered exports and recent reports — National Assistive Devices Center"
         },
         "registrations": {
-          "breadcrumb": "Administration",
-          "title": "Registration Center",
-          "subtitle": "Register patients, staff, suppliers, and requests while preserving the dashboard identity"
+          "breadcrumb": "Administration / Demonstration",
+          "title": "Demonstration pipeline",
+          "subtitle": "Simulate actor creation and patient referral from primary care through SISREG to the CRE."
         },
         "creCenters": {
           "breadcrumb": "CREs and care network",

@@ -502,7 +502,8 @@
       "cre": {
         "label": "Contactar a mi CRE",
         "desc": "Envía un mensaje o llama a la unidad responsable"
-      }
+      },
+      "awaitingCre": "Tu CRE todavía no ha sido asignado. Los canales de dolor y contacto con el CRE estarán disponibles después de la autorización del SISREG y la derivación a la unidad responsable."
     },
     "notif": {
       "title": "Próximo mantenimiento en {days} días",
@@ -534,7 +535,8 @@
       "exactModel": "Modelo exacto",
       "manufacturer": "Fabricante de la pieza",
       "manufacturedAt": "Fecha de fabricación",
-      "serialNumber": "Número de serie"
+      "serialNumber": "Número de serie",
+      "assignedCre": "CRE asignado"
     },
     "deviceCard": {
       "title": "Tarjeta digital del dispositivo",
@@ -863,7 +865,95 @@
       "successPatient": "Paciente y credencial registrados correctamente.",
       "successStaff": "Profesional y credencial registrados correctamente.",
       "successProvider": "Proveedor registrado correctamente.",
-      "successRequest": "Solicitud registrada correctamente."
+      "successRequest": "Solicitud registrada correctamente.",
+      "demo": {
+        "pageTitle": "Pipeline demostrativa de acceso y derivación",
+        "pageSubtitle": "Crea actores del sistema y simula el recorrido del paciente desde la atención primaria hasta la autorización y el vínculo con la red asistencial.",
+        "bannerTitle": "Entorno controlado para demostrar el flujo asistencial",
+        "bannerText": "Usa esta área para mostrar cómo se crearían usuarios y vínculos en una operación real. Los registros se guardan en este entorno demostrativo: el paciente ingresa por atención primaria sin CRE, SISREG autoriza y deriva el caso, y las organizaciones asociadas se registran por separado.",
+        "tabs": {
+          "manager": "Gestor",
+          "cre": "CRE",
+          "patient": "Paciente",
+          "sisreg": "SISREG",
+          "ong": "ONG asociada"
+        },
+        "manager": {
+          "title": "Crear gestor",
+          "subtitle": "Crea una nueva credencial de gestión vinculada a un profesional de salud y a una unidad institucional."
+        },
+        "cre": {
+          "title": "Crear CRE",
+          "subtitle": "Registra la unidad CNES, su taller ortopédico y la credencial inicial del responsable del CRE en un solo flujo."
+        },
+        "patient": {
+          "title": "Registrar paciente desde atención primaria",
+          "subtitle": "Simula la llegada de un nuevo caso desde atención primaria: crea al paciente, su credencial y la solicitud que quedará pendiente de autorización SISREG.",
+          "waitingNotice": "El paciente se creará sin CRE de destino. La solicitud permanecerá “Pendiente de autorización” hasta ser procesada en la etapa SISREG."
+        },
+        "sisreg": {
+          "title": "Autorizar y derivar por SISREG",
+          "subtitle": "Selecciona una solicitud pendiente y el CRE de destino para simular la autorización regulatoria.",
+          "empty": "No hay solicitudes pendientes de autorización SISREG. Primero crea un paciente desde atención primaria.",
+          "effect": "Al autorizar, el sistema registra el número SISREG, vincula el CRE, cambia el estado a “En cola”, crea la entrada en la cola del CRE y notifica al paciente.",
+          "authorize": "Autorizar y vincular CRE"
+        },
+        "ong": {
+          "title": "Registrar ONG asociada",
+          "subtitle": "Registra una alianza entre una organización de la sociedad civil y un CRE de la red."
+        },
+        "sections": {
+          "creUnit": "Datos de la unidad y del taller",
+          "creResponsible": "Responsable y credencial inicial del CRE",
+          "patientIdentity": "Identificación y acceso del paciente",
+          "ubsRequest": "Solicitud originada en atención primaria",
+          "ubsRequestHelp": "La unidad de atención primaria y el profesional solicitante representan el origen del caso. El CRE aún no debe definirse en esta etapa."
+        },
+        "fields": {
+          "institutionalUnit": "Unidad institucional vinculada",
+          "creCnes": "CNES del CRE",
+          "legalName": "Razón social",
+          "creName": "Nombre del CRE / nombre comercial",
+          "establishmentType": "Tipo de establecimiento",
+          "monthlyCapacity": "Capacidad mensual de producción",
+          "responsibleName": "Nombre del responsable técnico",
+          "responsibleEmail": "Correo del responsable",
+          "responsiblePassword": "Contraseña inicial del responsable",
+          "responsibleCns": "CNS del responsable",
+          "responsibleCpf": "CPF del responsable",
+          "responsibleCbo": "CBO del responsable",
+          "requestingUbs": "Unidad de atención primaria solicitante",
+          "requestingProfessional": "Profesional solicitante",
+          "pendingRequest": "Solicitud pendiente de SISREG",
+          "destinationCre": "CRE de destino",
+          "authorizationNumber": "Número de autorización SISREG",
+          "sisregObservation": "Observación de la autorización",
+          "partnerCre": "CRE asociado",
+          "ongName": "Nombre de la ONG",
+          "partnershipType": "Tipo de alianza",
+          "contactPerson": "Persona de contacto",
+          "notes": "Observaciones"
+        },
+        "values": {
+          "selectUbsFirst": "Selecciona primero la unidad",
+          "autoGenerated": "Opcional — se genera automáticamente"
+        },
+        "partnershipTypes": {
+          "social": "Apoyo social",
+          "transport": "Transporte",
+          "rehabilitation": "Rehabilitación",
+          "training": "Capacitación",
+          "donation": "Donación",
+          "other": "Otro"
+        },
+        "success": {
+          "manager": "Gestor y credencial creados correctamente.",
+          "cre": "CRE, taller y credencial responsable creados correctamente.",
+          "patient": "Paciente registrado desde atención primaria. La solicitud está pendiente de autorización SISREG.",
+          "sisreg": "SISREG autorizado: el paciente fue vinculado al CRE e ingresado en la cola.",
+          "ong": "ONG asociada vinculada al CRE correctamente."
+        }
+      }
     },
     "standard": {
       "brand": "CNDA · SUS",
@@ -882,7 +972,7 @@
         "finance": "Finanzas y licitaciones",
         "equity": "Análisis de equidad",
         "reports": "Informes",
-        "registrations": "Registros",
+        "registrations": "Pipeline demostrativa",
         "creCenters": "CREs y red asistencial",
         "communications": "Alertas y recalls"
       },
@@ -945,9 +1035,9 @@
           "subtitle": "Exportación filtrada e informes recientes — Centro Nacional de Dispositivos de Asistencia"
         },
         "registrations": {
-          "breadcrumb": "Administración",
-          "title": "Centro de Registros",
-          "subtitle": "Registre pacientes, profesionales, proveedores y solicitudes preservando la identidad del panel"
+          "breadcrumb": "Administración / Demostración",
+          "title": "Pipeline demostrativa",
+          "subtitle": "Simula la creación de actores y la derivación del paciente desde atención primaria hasta SISREG y CRE."
         },
         "creCenters": {
           "breadcrumb": "CREs y red asistencial",
