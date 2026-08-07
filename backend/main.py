@@ -724,12 +724,28 @@ async def patient_orders(identity: Identity = Depends(current_identity)) -> list
     require_roles(identity, "PACIENTE")
     if not identity.paciente_id:
         return []
-    return await db_select(
+    rows = await db_select(
         "fila",
         "vw_pedido_atual",
         filters={"paciente_id": f"eq.{identity.paciente_id}"},
         order="data_solicitacao.desc",
     )
+    # A timeline do paciente precisa saber em que ponto da etapa clínica ele está.
+    # Mantemos isso no backend para não criar polling nem expor tabelas internas ao frontend.
+    for row in rows:
+        request_id = row.get("solicitacao_id")
+        triages = await db_select(
+            "fila",
+            "triagem_clinica",
+            select="id,status,data_hora,solicitacao_id",
+            filters={"solicitacao_id": f"eq.{request_id}"},
+            order="data_hora.desc",
+            limit=1,
+        ) if request_id else []
+        latest = triages[0] if triages else None
+        row["triagem_status"] = latest.get("status") if latest else None
+        row["triagem_data_hora"] = latest.get("data_hora") if latest else None
+    return rows
 
 
 @app.get("/api/patient/orders/{request_id}/history")
@@ -1238,8 +1254,41 @@ async def cre_identity(identity: Identity) -> Identity:
 @app.get("/api/cre/kpis")
 async def cre_kpis(identity: Identity = Depends(current_identity)) -> dict[str, Any]:
     await cre_identity(identity)
-    rows = await db_select("fila", "vw_kpi_dashboard", limit=1)
-    return rows[0] if rows else {"fila_ativa": 0, "estoque_proteses": 0, "em_logistica_reversa": 0, "matchings_mes": 0}
+    if identity.papel != "FISCAL_CRE":
+        rows = await db_select("fila", "vw_kpi_dashboard", limit=1)
+        return rows[0] if rows else {"fila_ativa": 0, "estoque_proteses": 0, "em_logistica_reversa": 0, "matchings_mes": 0}
+    if not identity.cnes_vinculo:
+        raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+
+    requests = await db_select(
+        "fila", "solicitacao_ortese",
+        select="id,status",
+        filters={"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"},
+        limit=5000,
+    )
+    request_ids = {int(row["id"]) for row in requests if row.get("id") is not None}
+    queue_rows = await db_select("fila", "fila_espera", select="solicitacao_id,data_saida_fila", filters={"data_saida_fila": "is.null"}, limit=5000)
+    fila_ativa = sum(1 for row in queue_rows if int(row.get("solicitacao_id") or 0) in request_ids)
+
+    workshops = await db_select("producao", "oficina_ortopedica", select="id", filters={"cnes": f"eq.{identity.cnes_vinculo}", "ativo": "eq.true"}, limit=50)
+    workshop_ids = {int(row["id"]) for row in workshops if row.get("id") is not None}
+    stock_rows = await db_select("producao", "material_estoque", select="id,oficina_id", limit=5000)
+    estoque_proteses = sum(1 for row in stock_rows if int(row.get("oficina_id") or 0) in workshop_ids)
+    shipment_rows = await db_select("producao", "remessa_logistica_reversa", select="oficina_id,status", limit=5000)
+    em_logistica_reversa = sum(1 for row in shipment_rows if int(row.get("oficina_id") or 0) in workshop_ids and row.get("status") != "ENTREGUE")
+
+    orders = await db_select("producao", "ordem_producao", select="solicitacao_id,data_abertura", limit=5000)
+    current_month = datetime.now().strftime("%Y-%m")
+    matchings_mes = sum(
+        1 for row in orders
+        if int(row.get("solicitacao_id") or 0) in request_ids and str(row.get("data_abertura") or "")[:7] == current_month
+    )
+    return {
+        "fila_ativa": fila_ativa,
+        "estoque_proteses": estoque_proteses,
+        "em_logistica_reversa": em_logistica_reversa,
+        "matchings_mes": matchings_mes,
+    }
 
 
 @app.get("/api/cre/alerts")
@@ -1264,17 +1313,40 @@ async def cre_flow(identity: Identity = Depends(current_identity)) -> list[dict[
 @app.get("/api/cre/patients")
 async def cre_patients(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    filters = None
-    if identity.papel == "FISCAL_CRE":
-        if not identity.cnes_vinculo:
-            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
-        filters = {"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"}
-    return await db_select(
-        "fila",
-        "vw_pacientes_aguardando",
-        filters=filters,
-        order="dias_espera_efetivos.desc",
+    rows = await db_select("fila", "vw_pacientes_aguardando", order="dias_espera_efetivos.desc", limit=5000)
+    if identity.papel != "FISCAL_CRE":
+        return rows
+    if not identity.cnes_vinculo:
+        raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+
+    # Não filtramos a VIEW por cre_destino_cnes: instalações que executaram uma
+    # migration antiga podem ter a view sem essa coluna. A fonte de verdade do
+    # vínculo SISREG -> CRE é sempre fila.solicitacao_ortese.
+    linked = await db_select(
+        "fila", "solicitacao_ortese",
+        select="id,cre_destino_cnes,status",
+        filters={"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"},
+        limit=5000,
     )
+    linked_ids = {int(row["id"]) for row in linked if row.get("id") is not None}
+    result = [row for row in rows if int(row.get("solicitacao_id") or 0) in linked_ids]
+    triages = await db_select(
+        "fila", "triagem_clinica",
+        select="id,solicitacao_id,status,data_hora",
+        order="data_hora.desc",
+        limit=5000,
+    )
+    latest_triage_by_request: dict[int, dict[str, Any]] = {}
+    for triage in triages:
+        request_id = int(triage.get("solicitacao_id") or 0)
+        if request_id in linked_ids and request_id not in latest_triage_by_request:
+            latest_triage_by_request[request_id] = triage
+    for row in result:
+        row["cre_destino_cnes"] = identity.cnes_vinculo
+        latest = latest_triage_by_request.get(int(row.get("solicitacao_id") or 0))
+        row["triagem_status"] = latest.get("status") if latest else None
+        row["triagem_data_hora"] = latest.get("data_hora") if latest else None
+    return result
 
 
 @app.get("/api/cre/lots")
@@ -1286,12 +1358,19 @@ async def cre_lots(identity: Identity = Depends(current_identity)) -> list[dict[
 @app.get("/api/cre/triages")
 async def cre_triages(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    filters = None
-    if identity.papel == "FISCAL_CRE":
-        if not identity.cnes_vinculo:
-            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
-        filters = {"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"}
-    return await db_select("fila", "vw_triagens", filters=filters, order="data_hora.desc", limit=200)
+    rows = await db_select("fila", "vw_triagens", order="data_hora.desc", limit=5000)
+    if identity.papel != "FISCAL_CRE":
+        return rows[:200]
+    if not identity.cnes_vinculo:
+        raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+    linked = await db_select("fila", "solicitacao_ortese", select="id", filters={"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"}, limit=5000)
+    request_ids = {int(row["id"]) for row in linked if row.get("id") is not None}
+    triage_links = await db_select("fila", "triagem_clinica", select="id,solicitacao_id", limit=5000)
+    allowed_triage_ids = {
+        int(row["id"]) for row in triage_links
+        if row.get("id") is not None and int(row.get("solicitacao_id") or 0) in request_ids
+    }
+    return [row for row in rows if int(row.get("triagem_id") or 0) in allowed_triage_ids][:200]
 
 
 @app.get("/api/cre/shipments")
@@ -2063,26 +2142,35 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
         payload.paciente_id,
         "O paciente informado não existe.",
     )
+    if identity.papel == "FISCAL_CRE" and not identity.cnes_vinculo:
+        raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
     request_filters: dict[str, Any] = {"paciente_id": f"eq.{payload.paciente_id}"}
-    if identity.cnes_vinculo:
+    if identity.papel == "FISCAL_CRE":
         request_filters["cre_destino_cnes"] = f"eq.{identity.cnes_vinculo}"
     active_requests = await db_select(
         "fila",
         "solicitacao_ortese",
-        select="id,procedimento_sigtap,status,data_solicitacao",
+        select="id,procedimento_sigtap,status,data_solicitacao,cre_destino_cnes",
         filters=request_filters,
         order="data_solicitacao.desc",
-        limit=20,
+        limit=50,
     )
-    current_request = next(
-        (row for row in active_requests if row.get("status") in {"AUTORIZADA", "EM_FILA"}),
-        None,
-    )
-    if identity.papel == "FISCAL_CRE" and not current_request:
+    current_request = next((row for row in active_requests if row.get("status") in {"AUTORIZADA", "EM_FILA"}), None)
+    if not current_request:
         raise HTTPException(
             status_code=409,
-            detail="Este paciente ainda não possui uma solicitação autorizada pelo SISREG e vinculada a este CRE.",
+            detail="Este paciente não possui solicitação autorizada pelo SISREG e vinculada a este CRE para iniciar a triagem.",
         )
+    existing_triages = await db_select(
+        "fila", "triagem_clinica",
+        select="id,status",
+        filters={"solicitacao_id": f"eq.{current_request['id']}"},
+        order="data_hora.desc",
+        limit=20,
+    )
+    active_triage = next((row for row in existing_triages if row.get("status") in {"PENDENTE", "EM_ANDAMENTO"}), None)
+    if active_triage:
+        raise HTTPException(status_code=409, detail="Já existe uma triagem pendente ou em andamento para esta solicitação.")
     procedure = payload.procedimento_sigtap_proposto or (current_request or {}).get("procedimento_sigtap")
     if procedure:
         await ensure_record_exists(
@@ -2096,11 +2184,18 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
     rows = await db_insert("fila", "triagem_clinica", {
         "paciente_id": payload.paciente_id,
         "profissional_id": identity.profissional_saude_id,
-        "solicitacao_id": (current_request or {}).get("id"),
+        "solicitacao_id": current_request["id"],
         "procedimento_sigtap_proposto": procedure or None,
         "status": payload.status,
         "observacao_clinica": payload.observacao_clinica or None,
     })
+    # Marca a convocação sem retirar o paciente da fila; ele só sai quando o
+    # fluxo realmente avançar para produção/cancelamento.
+    await db_update(
+        "fila", "fila_espera",
+        {"solicitacao_id": f"eq.{current_request['id']}"},
+        {"data_convocacao": datetime.now().isoformat()},
+    )
     return rows[0]
 
 

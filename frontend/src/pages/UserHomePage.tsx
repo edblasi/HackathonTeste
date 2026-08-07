@@ -103,6 +103,7 @@ function PedidoStatusCard({ pedido, onOpenTimeline }: { pedido: PedidoAtual; onO
     { label: t("home.pedido.procedureLabel"), value: pedido.nome_procedimento },
     { label: t("home.pedido.productLabel"), value: pedido.nome_produto ?? t("home.pedido.productPending") },
     { label: t("home.pedido.workshopLabel"), value: pedido.oficina_nome ?? t("home.pedido.workshopPending") },
+    ...(!delivered && pedido.cre_destino_cnes ? [{ label: t("home.pedido.assignedCre"), value: pedido.cre_destino_nome ?? pedido.cre_destino_cnes }] : []),
     ...(delivered ? [
       { label: t("home.pedido.exactModel"), value: pedido.modelo_exato ?? "—" },
       { label: t("home.pedido.manufacturer"), value: pedido.fabricante ?? "—" },
@@ -173,51 +174,129 @@ function PedidoStatusCard({ pedido, onOpenTimeline }: { pedido: PedidoAtual; onO
 
 function TimelineCard({ pedido, historico }: { pedido: PedidoAtual; historico: HistoricoStatus[] }) {
   const { t, locale } = useLang();
+  type JourneyState = "completed" | "current" | "future";
 
-  // A trilha de auditoria (fila.historico_status_solicitacao) so registra
-  // MUDANCAS de status; o primeiro evento ("solicitacao criada") e
-  // sintetizado aqui a partir da propria data_solicitacao.
-  const steps = [
-    { key: "created", date: pedido.data_solicitacao, label: t("home.timeline.created") },
-    ...historico.map((h) => ({
-      key: String(h.id),
-      date: h.data_alteracao,
-      label: `${t("home.timeline.statusChangedTo")}: ${t(statusKey(h.status_novo))}`,
-    })),
+  const historyDate = (status: string) => historico.find((item) => item.status_novo === status)?.data_alteracao ?? null;
+  const delivered = pedido.status_solicitacao === "ENTREGUE" || pedido.status_producao === "ENTREGUE" || Boolean(pedido.data_entrega);
+  const hasTriage = Boolean(pedido.triagem_status || pedido.triagem_data_hora);
+  const triageComplete = pedido.triagem_status === "CONCLUIDA" || Boolean(pedido.status_producao) || ["EM_PRODUCAO", "ENTREGUE"].includes(pedido.status_solicitacao);
+  const productionStarted = Boolean(pedido.status_producao || pedido.producao_data_abertura) || ["EM_PRODUCAO", "ENTREGUE"].includes(pedido.status_solicitacao);
+  const productionComplete = delivered || ["CONTROLE_QUALIDADE", "PRONTA_PARA_ENTREGA", "ENTREGUE"].includes(pedido.status_producao ?? "");
+  const qualityComplete = delivered || ["PRONTA_PARA_ENTREGA", "ENTREGUE"].includes(pedido.status_producao ?? "");
+
+  const baseSteps: Array<{ key: string; label: string; completed: boolean; current: boolean; date: string | null }> = [
+    { key: "received", label: t("home.timeline.stages.received"), completed: true, current: false, date: pedido.data_solicitacao },
+    {
+      key: "sisreg",
+      label: t("home.timeline.stages.sisreg"),
+      completed: Boolean(pedido.sisreg_autorizado_em) || pedido.status_solicitacao !== "AGUARDANDO_AUTORIZACAO",
+      current: pedido.status_solicitacao === "AGUARDANDO_AUTORIZACAO",
+      date: pedido.sisreg_autorizado_em ?? historyDate("AUTORIZADA"),
+    },
+    {
+      key: "cre",
+      label: t("home.timeline.stages.cre"),
+      completed: Boolean(pedido.cre_destino_cnes),
+      current: Boolean(pedido.sisreg_autorizado_em) && !pedido.cre_destino_cnes,
+      date: pedido.sisreg_autorizado_em ?? historyDate("AUTORIZADA"),
+    },
+    {
+      key: "queue",
+      label: t("home.timeline.stages.queue"),
+      completed: hasTriage || triageComplete || productionStarted || delivered,
+      current: pedido.status_solicitacao === "EM_FILA" && !hasTriage,
+      date: historyDate("EM_FILA"),
+    },
+    {
+      key: "triage",
+      label: t("home.timeline.stages.triage"),
+      completed: triageComplete,
+      current: hasTriage && !triageComplete && pedido.triagem_status !== "CANCELADA",
+      date: pedido.triagem_data_hora ?? null,
+    },
+    {
+      key: "production",
+      label: t("home.timeline.stages.production"),
+      completed: productionComplete,
+      current: productionStarted && !productionComplete,
+      date: pedido.producao_data_abertura ?? historyDate("EM_PRODUCAO"),
+    },
+    {
+      key: "quality",
+      label: t("home.timeline.stages.quality"),
+      completed: qualityComplete,
+      current: pedido.status_producao === "CONTROLE_QUALIDADE",
+      date: null,
+    },
+    {
+      key: "delivery",
+      label: t("home.timeline.stages.delivery"),
+      completed: delivered,
+      current: !delivered && pedido.status_producao === "PRONTA_PARA_ENTREGA",
+      date: pedido.data_entrega ?? null,
+    },
   ];
+
+  // Se nenhuma regra específica marcou uma etapa atual, a primeira etapa futura
+  // vira a etapa aguardada. Isso mantém sempre uma única bolinha amarela.
+  let currentAssigned = baseSteps.some((step) => step.current);
+  const steps = baseSteps.map((step) => {
+    let state: JourneyState = step.completed ? "completed" : step.current ? "current" : "future";
+    if (!currentAssigned && state === "future") {
+      state = "current";
+      currentAssigned = true;
+    }
+    return { ...step, state };
+  });
+
+  const stateClass: Record<JourneyState, string> = {
+    completed: "bg-emerald-500 border-emerald-500 text-white",
+    current: "bg-amber-400 border-amber-400 text-white ring-4 ring-amber-100",
+    future: "bg-slate-100 border-slate-300 text-slate-400",
+  };
+  const lineClass = (state: JourneyState) => state === "completed" ? "bg-emerald-400" : state === "current" ? "bg-amber-300" : "bg-slate-200";
 
   return (
     <Card>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-5">
+        <div className="mb-6">
           <h2 className="text-base font-bold text-foreground">{t("home.timeline.title")}</h2>
-          <span className="text-xs text-muted-foreground">{t("home.timeline.updated")}</span>
+          <p className="mt-1 text-xs text-muted-foreground">{t("home.timeline.updated")}</p>
         </div>
 
-        {steps.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("home.timeline.noHistory")}</p>
-        ) : (
-          <div className="relative">
-            <div className="absolute left-[18px] top-6 bottom-6 w-px bg-border" aria-hidden="true" />
-            <ol className="space-y-0">
-              {steps.map((step, idx) => (
-                <li key={step.key} className="relative flex gap-4">
-                  <div className="relative z-10 flex-shrink-0 mt-1">
-                    <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center shadow-sm">
-                      <CheckCircle2 className="w-4.5 h-4.5 text-white" aria-hidden="true" />
-                    </div>
+        <div className="relative">
+          <ol className="space-y-0">
+            {steps.map((step, idx) => (
+              <li key={step.key} className="relative flex gap-4">
+                {idx < steps.length - 1 && (
+                  <div className={`absolute left-[17px] top-9 bottom-0 w-0.5 ${lineClass(step.state)}`} aria-hidden="true" />
+                )}
+                <div className="relative z-10 mt-0.5 flex-shrink-0">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors ${stateClass[step.state]}`}>
+                    {step.state === "completed" ? <CheckCircle2 className="h-4.5 w-4.5" aria-hidden="true" /> : <Clock className="h-4 w-4" aria-hidden="true" />}
                   </div>
-                  <div className={`flex-1 ${idx < steps.length - 1 ? "pb-6" : "pb-0"}`}>
-                    <span className="text-sm font-semibold text-foreground">{step.label}</span>
-                    <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                      {new Date(step.date).toLocaleString(locale)}
-                    </p>
+                </div>
+                <div className={`flex-1 ${idx < steps.length - 1 ? "pb-6" : "pb-0"}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-sm font-semibold ${step.state === "future" ? "text-slate-400" : "text-foreground"}`}>{step.label}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      step.state === "completed" ? "bg-emerald-50 text-emerald-700" : step.state === "current" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-400"
+                    }`}>
+                      {t(`home.timeline.state.${step.state}` as TranslationKey)}
+                    </span>
                   </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
+                  {step.date ? (
+                    <p className="mt-1 text-xs font-mono text-muted-foreground">{new Date(step.date).toLocaleString(locale)}</p>
+                  ) : step.state === "current" ? (
+                    <p className="mt-1 text-xs text-amber-700">{t("home.timeline.waiting")}</p>
+                  ) : step.state === "future" ? (
+                    <p className="mt-1 text-xs text-slate-400">{t("home.timeline.future")}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </Card>
   );
@@ -290,25 +369,27 @@ function DigitalIDCard({ device, nomeExibicao, iniciais, onViewHistory }: { devi
   );
 }
 
-function SupportCard({ onPain, onContact }: { onPain: () => void; onContact: () => void }) {
+function SupportCard({ onPain, onContact, hasCre }: { onPain: () => void; onContact: () => void; hasCre: boolean }) {
   const { t } = useLang();
   const links = [
-    {
-      icon: AlertTriangle,
-      label: t("home.support.report.label"),
-      description: t("home.support.report.desc"),
-      color: "text-destructive",
-      bg: "hover:bg-red-50 focus:ring-destructive/30",
-      action: onPain,
-    },
-    {
-      icon: Phone,
-      label: t("home.support.cre.label"),
-      description: t("home.support.cre.desc"),
-      color: "text-primary",
-      bg: "hover:bg-secondary focus:ring-primary/30",
-      action: onContact,
-    },
+    ...(hasCre ? [
+      {
+        icon: AlertTriangle,
+        label: t("home.support.report.label"),
+        description: t("home.support.report.desc"),
+        color: "text-destructive",
+        bg: "hover:bg-red-50 focus:ring-destructive/30",
+        action: onPain,
+      },
+      {
+        icon: Phone,
+        label: t("home.support.cre.label"),
+        description: t("home.support.cre.desc"),
+        color: "text-primary",
+        bg: "hover:bg-secondary focus:ring-primary/30",
+        action: onContact,
+      },
+    ] : []),
     {
       icon: HelpCircle,
       label: t("home.support.contact.label"),
@@ -324,6 +405,11 @@ function SupportCard({ onPain, onContact }: { onPain: () => void; onContact: () 
       <div className="p-5">
         <h2 className="text-sm font-bold text-foreground mb-1">{t("home.support.title")}</h2>
         <p className="text-xs text-muted-foreground mb-4">{t("home.support.subtitle")}</p>
+        {!hasCre && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-800">
+            {t("home.support.awaitingCre")}
+          </div>
+        )}
 
         <ul className="space-y-2" role="list">
           {links.map(({ icon: Icon, label, description, color, bg, action }) => (
@@ -375,6 +461,7 @@ export function UserHomePage() {
   const { data: pedidos, loading: loadingPedidos, error: erroPedidos } = usePedidos();
   const { data: currentDevice, loading: loadingDevice } = useCurrentDevice();
   const pedidoAtivo = pedidos?.find((pedido) => !["ENTREGUE", "CANCELADA", "NEGADA"].includes(pedido.status_solicitacao)) ?? pedidos?.find((pedido) => pedido.status_solicitacao === "ENTREGUE") ?? pedidos?.[0] ?? null;
+  const hasCreSupport = Boolean(currentDevice?.cnes_cre || pedidoAtivo?.cre_destino_cnes);
   const { data: historico } = useHistoricoSolicitacao(pedidoAtivo?.solicitacao_id ?? null);
   const { data: notificacoes, marcarComoLida } = useNotificacoes();
 
@@ -471,7 +558,7 @@ export function UserHomePage() {
               </section>}
               {isVisible("support") && <section id="patient-support-card" aria-labelledby="support-heading" className="scroll-mt-24">
                 <h2 id="support-heading" className="sr-only">{t("home.support.title")}</h2>
-                <SupportCard onPain={() => { setSupportMode("pain"); setSupportOpen(true); }} onContact={() => { setSupportMode("contact"); setSupportOpen(true); }} />
+                <SupportCard hasCre={hasCreSupport} onPain={() => { setSupportMode("pain"); setSupportOpen(true); }} onContact={() => { setSupportMode("contact"); setSupportOpen(true); }} />
               </section>}
             </div>}
           </div>

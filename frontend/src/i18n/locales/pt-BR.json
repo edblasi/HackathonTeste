@@ -116,7 +116,7 @@
   },
   "patients": {
     "title": "Pacientes Aguardados",
-    "sub": "6 encaminhamentos ativos",
+    "sub": "encaminhamentos ativos vinculados a este CRE",
     "all": "Todos",
     "waiting": "Aguardando",
     "inProgress": "Em Atendimento",
@@ -136,6 +136,16 @@
     "badge": {
       "waiting": "Aguardando Chegada",
       "inProgress": "Em Atendimento"
+    },
+    "records": {
+      "title": "Todos os registros de pacientes",
+      "count": "registros vinculados a este CRE",
+      "patient": "PACIENTE",
+      "request": "SOLICITAÇÃO",
+      "priority": "PRIORIDADE",
+      "wait": "TEMPO EM FILA",
+      "days": "dias",
+      "empty": "Nenhum registro vinculado a este CRE."
     }
   },
   "cre": {
@@ -451,8 +461,8 @@
       "verified": "Prótese verificada e certificada pelo Ministério da Saúde"
     },
     "timeline": {
-      "title": "Cronograma de Manutenção",
-      "updated": "Atualizado automaticamente",
+      "title": "Jornada do atendimento",
+      "updated": "Veja o caminho completo da sua solicitação.",
       "implantDate": "Data do Implante",
       "lastReview": "Última Revisão",
       "nextMaintenance": "Próxima Manutenção Preventiva",
@@ -466,7 +476,24 @@
       },
       "created": "Solicitação criada",
       "statusChangedTo": "Status alterado para",
-      "noHistory": "Ainda sem histórico registrado para esta solicitação."
+      "noHistory": "Ainda sem histórico registrado para esta solicitação.",
+      "waiting": "Aguardando esta etapa",
+      "future": "Etapa posterior",
+      "state": {
+        "completed": "Concluído",
+        "current": "Aguardando",
+        "future": "Próximo"
+      },
+      "stages": {
+        "received": "Solicitação recebida pela rede SUS",
+        "sisreg": "Autorização pelo SISREG",
+        "cre": "Vinculação ao CRE",
+        "queue": "Fila para triagem",
+        "triage": "Triagem clínica",
+        "production": "Produção do dispositivo",
+        "quality": "Controle de qualidade",
+        "delivery": "Entrega ao paciente"
+      }
     },
     "id": {
       "title": "Identidade Digital da Prótese",
@@ -970,7 +997,7 @@
         "success": {
           "manager": "Gestor e credencial criados com sucesso.",
           "cre": "CRE, oficina e credencial responsável criados com sucesso.",
-          "patient": "Paciente registrado pela UBS. O primeiro acesso já pode ser feito com CPF e data de nascimento; a solicitação está aguardando autorização do SISREG.",
+          "patient": "Paciente registrado pela UBS com sucesso. O primeiro acesso já pode ser feito com CPF, nome completo e data de nascimento; a solicitação está aguardando autorização do SISREG.",
           "sisreg": "SISREG autorizado: o paciente foi vinculado ao CRE e inserido na fila.",
           "ong": "ONG parceira vinculada ao CRE com sucesso."
         }

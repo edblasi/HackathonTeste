@@ -116,7 +116,7 @@
   },
   "patients": {
     "title": "Awaiting Patients",
-    "sub": "6 active referrals",
+    "sub": "active referrals assigned to this CRE",
     "all": "All",
     "waiting": "Waiting",
     "inProgress": "In Progress",
@@ -136,6 +136,16 @@
     "badge": {
       "waiting": "Awaiting Arrival",
       "inProgress": "In Progress"
+    },
+    "records": {
+      "title": "All patient records",
+      "count": "records assigned to this CRE",
+      "patient": "PATIENT",
+      "request": "REQUEST",
+      "priority": "PRIORITY",
+      "wait": "QUEUE TIME",
+      "days": "days",
+      "empty": "No records assigned to this CRE."
     }
   },
   "cre": {
@@ -451,8 +461,8 @@
       "verified": "Prosthesis verified and certified by the Ministry of Health"
     },
     "timeline": {
-      "title": "Maintenance Timeline",
-      "updated": "Updated automatically",
+      "title": "Care journey",
+      "updated": "See the complete path of your request.",
       "implantDate": "Implant Date",
       "lastReview": "Last Review",
       "nextMaintenance": "Next Preventive Maintenance",
@@ -466,7 +476,24 @@
       },
       "created": "Request created",
       "statusChangedTo": "Status changed to",
-      "noHistory": "No history recorded yet for this request."
+      "noHistory": "No history recorded yet for this request.",
+      "waiting": "Waiting for this stage",
+      "future": "Later stage",
+      "state": {
+        "completed": "Completed",
+        "current": "Waiting",
+        "future": "Next"
+      },
+      "stages": {
+        "received": "Request received by the SUS network",
+        "sisreg": "SISREG authorization",
+        "cre": "CRE assignment",
+        "queue": "Triage queue",
+        "triage": "Clinical triage",
+        "production": "Device production",
+        "quality": "Quality control",
+        "delivery": "Delivery to patient"
+      }
     },
     "id": {
       "title": "Prosthesis Digital Identity",
@@ -970,7 +997,7 @@
         "success": {
           "manager": "Manager and credential created successfully.",
           "cre": "CRE, workshop and responsible credential created successfully.",
-          "patient": "Patient registered through primary care. First access is already available with CPF and date of birth; the request is awaiting SISREG authorization.",
+          "patient": "Patient successfully registered by the primary care unit. First access can now be completed with CPF, full name and date of birth; the request is awaiting SISREG authorization.",
           "sisreg": "SISREG authorized: the patient was linked to the CRE and added to the queue.",
           "ong": "Partner NGO linked to the CRE successfully."
         }

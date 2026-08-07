@@ -1069,9 +1069,10 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
 
   const submit = async (event: FormEvent<HTMLFormElement>, path: string) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setSubmitting(true);
     setMessage(null);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const body: Record<string, unknown> = Object.fromEntries(
       Array.from(form.entries()).map(([key, raw]) => [key, raw === "" ? null : raw]),
     );
@@ -1086,7 +1087,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
     }
     try {
       await apiPost(path, body);
-      event.currentTarget.reset();
+      formElement.reset();
       setSelectedUbs("");
       const successKey: Record<RegistrationTab, TranslationKey> = {
         manager: "manager.registration.demo.success.manager",
@@ -1096,8 +1097,13 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
         ong: "manager.registration.demo.success.ong",
       };
       setMessage({ ok: true, text: t(successKey[tab]) });
-      reload();
-      onSaved();
+      try {
+        reload();
+        onSaved();
+      } catch {
+        // O cadastro já foi persistido. Uma falha local de refresh não deve
+        // transformar uma operação bem-sucedida em mensagem vermelha.
+      }
     } catch (err) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : t("manager.registration.error") });
     } finally {

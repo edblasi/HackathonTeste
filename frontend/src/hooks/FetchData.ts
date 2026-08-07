@@ -77,6 +77,8 @@ export interface PedidoAtual {
   cre_destino_nome?: string | null;
   sisreg_numero_autorizacao?: string | null;
   sisreg_autorizado_em?: string | null;
+  triagem_status?: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA" | null;
+  triagem_data_hora?: string | null;
 }
 
 export interface HistoricoStatus {
@@ -250,6 +252,9 @@ export interface PacienteAguardando {
   status: string;
   dias_espera_efetivos: number;
   paciente_id: number;
+  cre_destino_cnes?: string | null;
+  triagem_status?: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA" | null;
+  triagem_data_hora?: string | null;
 }
 
 export interface LoteRecente {
@@ -334,11 +339,11 @@ export function useNotificacoes() {
   return { ...result, naoLidas, marcarComoLida };
 }
 
-export function useKpiDashboard() { return useApiQuery<KpiDashboard>("/api/cre/kpis"); }
+export function useKpiDashboard(refreshKey = 0) { return useApiQuery<KpiDashboard>("/api/cre/kpis", [refreshKey]); }
 export function useAlertasCriticos() { return useApiQuery<AlertaCritico[]>("/api/cre/alerts"); }
 export function useRecalls() { return useApiQuery<Recall[]>("/api/cre/recalls"); }
 export function useFluxoDispositivosMensal() { return useApiQuery<FluxoMensal[]>("/api/cre/flow"); }
-export function usePacientesAguardando() { return useApiQuery<PacienteAguardando[]>("/api/cre/patients"); }
+export function usePacientesAguardando(refreshKey = 0) { return useApiQuery<PacienteAguardando[]>("/api/cre/patients", [refreshKey]); }
 export function useLotesRecentes() { return useApiQuery<LoteRecente[]>("/api/cre/lots"); }
 export function useTriagens(refreshKey = 0) { return useApiQuery<Triagem[]>("/api/cre/triages", [refreshKey]); }
 export function useRemessasLogistica(refreshKey = 0) { return useApiQuery<RemessaLogistica[]>("/api/cre/shipments", [refreshKey]); }
