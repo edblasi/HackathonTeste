@@ -73,6 +73,10 @@ export interface PedidoAtual {
   data_ativacao?: string | null;
   status_dispositivo?: string | null;
   qr_token?: string | null;
+  cre_destino_cnes?: string | null;
+  cre_destino_nome?: string | null;
+  sisreg_numero_autorizacao?: string | null;
+  sisreg_autorizado_em?: string | null;
 }
 
 export interface HistoricoStatus {
@@ -90,6 +94,7 @@ export interface PacientePerfil {
   cpf: string | null;
   cns: string;
   telefone_contato: string | null;
+  data_nascimento: string;
   idade: number;
   nome_municipio: string | null;
   uf_sigla: string | null;
@@ -107,6 +112,8 @@ export interface UsuarioSistema {
   cnes_vinculo: string | null;
   nome_exibicao: string;
   idioma_preferido: string;
+  primeiro_acesso_concluido: boolean;
+  primeiro_acesso_em?: string | null;
   unidade_nome?: string | null;
 }
 

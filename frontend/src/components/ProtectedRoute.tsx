@@ -50,6 +50,7 @@ export function ProtectedRoute({ children, roles }: { children: React.ReactNode;
   if (!user) return <Navigate to="/login" replace />;
   if (profileError) return <Navigate to="/login" replace />;
   if (roles?.length && profile && !roles.includes(profile.papel)) return <Navigate to={routeForRole(profile.papel)} replace />;
+  if (profile?.papel === "PACIENTE" && !profile.primeiro_acesso_concluido) return <Navigate to="/login" replace />;
 
   return <>{children}</>;
 }

@@ -388,8 +388,7 @@
     },
     "topnav": {
       "back": "Back",
-      "brandFull": "Unified Medical Device Registry",
-      "secureSession": "Secure session"
+      "brandFull": "Unified Medical Device Registry"
     },
     "cards": {
       "customize": "Customize cards",
@@ -642,14 +641,24 @@
       "securityNote2": "Ministry of Health · DATASUS infrastructure.",
       "error": "Invalid email or password. Please try again.",
       "emailPlaceholder": "your.email@example.com",
-      "slideAria": "Show highlight {number}"
+      "slideAria": "Show highlight {number}",
+      "firstAccessQuestion": "Signing in for the first time?",
+      "returningAccess": "I already set up my access",
+      "firstAccessTitle": "First access",
+      "firstAccessHelp": "Confirm your identity using the same information provided by the UBS in your initial registration.",
+      "cpfLabel": "CPF",
+      "cpfPlaceholder": "Numbers only",
+      "firstAccessSubmit": "Validate first access",
+      "firstAccessError": "We could not confirm your first-access information.",
+      "fullNameLabel": "Full name",
+      "fullNamePlaceholder": "As registered by the UBS",
+      "birthDateLabel": "Date of birth",
+      "birthDatePlaceholder": "DD/MM/YYYY"
     },
     "verify": {
       "authenticatedPatient": "Authenticated patient",
       "welcome": "Welcome",
       "confirmInfo": "Confirm your patient information before continuing to your device journey.",
-      "age": "Age",
-      "yearsUnit": "years",
       "cpf": "CPF",
       "phone": "Phone",
       "patientId": "Patient ID",
@@ -658,13 +667,31 @@
       "referralUnit": "Referral Unit",
       "rehabCenter": "Rehabilitation Center",
       "currentRequest": "Current Device Request",
-      "deviceValue": "Left ankle-foot orthosis",
-      "continue": "Continue to device journey",
-      "wrongInfoNote": "If this is not your information, please contact UBS Vila Esperança or your health team immediately."
+      "continue": "Confirm my information and continue",
+      "wrongInfoNote": "If this is not your information, contact {unit} or your healthcare team immediately.",
+      "birthDate": "Date of birth",
+      "attentionTitle": "Check carefully",
+      "healthUnitFallback": "your primary-care unit"
     },
     "stepper": {
       "login": "Log in",
-      "verify": "Verify identity"
+      "verify": "Verify identity",
+      "credentials": "Create access"
+    },
+    "credentials": {
+      "eyebrow": "Final first-access step",
+      "title": "Create your permanent access",
+      "subtitle": "Choose the email and password you will use from now on. After saving, CPF and date of birth will no longer be your login credentials.",
+      "emailLabel": "Your email",
+      "emailPlaceholder": "your.email@example.com",
+      "passwordLabel": "Create a password",
+      "passwordHelp": "Use at least 8 characters.",
+      "confirmPasswordLabel": "Confirm password",
+      "passwordMismatch": "The passwords do not match.",
+      "submit": "Save access and enter",
+      "saving": "Saving access...",
+      "error": "We could not complete your first access.",
+      "oneTimeNote": "This step appears only once. After confirmation, sign in normally with the email and password you chose."
     }
   },
   "manager": {
@@ -880,8 +907,9 @@
         },
         "patient": {
           "title": "Register patient through primary care",
-          "subtitle": "Simulates a new case arriving from primary care: creates the patient, credentials and a request that remains pending SISREG authorization.",
-          "waitingNotice": "The patient will be created without a destination CRE. The request will remain “Awaiting authorization” until it is processed in the SISREG step."
+          "subtitle": "Simulates a new case arriving from primary care: creates the patient, a temporary first-access credential and a request that remains pending SISREG authorization.",
+          "waitingNotice": "The patient will be created without a destination CRE. The request will remain “Awaiting authorization” until it is processed in the SISREG step.",
+          "firstAccessNotice": "The patient does not need to provide an email or password in this registration. On first access, they confirm CPF, full name and date of birth; then they choose permanent credentials."
         },
         "sisreg": {
           "title": "Authorize and refer through SISREG",
@@ -942,7 +970,7 @@
         "success": {
           "manager": "Manager and credential created successfully.",
           "cre": "CRE, workshop and responsible credential created successfully.",
-          "patient": "Patient registered through primary care. The request is awaiting SISREG authorization.",
+          "patient": "Patient registered through primary care. First access is already available with CPF and date of birth; the request is awaiting SISREG authorization.",
           "sisreg": "SISREG authorized: the patient was linked to the CRE and added to the queue.",
           "ong": "Partner NGO linked to the CRE successfully."
         }

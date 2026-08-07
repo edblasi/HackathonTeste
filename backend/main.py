@@ -4,6 +4,8 @@ from collections import Counter, defaultdict
 from datetime import date, datetime
 from decimal import Decimal
 import os
+import secrets
+import unicodedata
 from typing import Any, Literal
 
 import httpx
@@ -51,8 +53,8 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 app = FastAPI(title="UMDR API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -146,8 +148,15 @@ def _friendly_validation_message(error: dict[str, Any]) -> tuple[str, str]:
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    # Pydantic/FastAPI versions differ: older ValidationException.errors() does not
+    # accept include_url. Keep the handler compatible so validation never becomes 500.
+    try:
+        errors = exc.errors(include_url=False)
+    except TypeError:
+        errors = exc.errors()
+
     field_errors = []
-    for error in exc.errors(include_url=False):
+    for error in errors:
         field, message = _friendly_validation_message(error)
         field_errors.append({"field": field, "message": message})
     detail = " ".join(item["message"] for item in field_errors) or "Revise os dados informados."
@@ -298,7 +307,16 @@ async def ensure_unique(
         raise HTTPException(status_code=409, detail=message)
 
 
-async def create_auth_user(email: str, password: str, display_name: str) -> dict[str, Any]:
+async def create_auth_user(
+    email: str,
+    password: str,
+    display_name: str,
+    *,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    user_metadata = {"display_name": display_name}
+    if metadata:
+        user_metadata.update(metadata)
     response = await _request(
         "POST",
         f"{SUPABASE_URL}/auth/v1/admin/users",
@@ -311,7 +329,7 @@ async def create_auth_user(email: str, password: str, display_name: str) -> dict
             "email": email,
             "password": password,
             "email_confirm": True,
-            "user_metadata": {"display_name": display_name},
+            "user_metadata": user_metadata,
         },
     )
     if response.status_code >= 400:
@@ -321,6 +339,39 @@ async def create_auth_user(email: str, password: str, display_name: str) -> dict
         except ValueError:
             pass
         raise HTTPException(status_code=422, detail=f"Não foi possível criar o login: {detail}")
+    return response.json()
+
+
+def temporary_patient_email(cpf: str) -> str:
+    # Endereço técnico interno usado somente até o paciente concluir o primeiro acesso.
+    return f"patient.{cpf}@first-access.example.com"
+
+
+def generate_temporary_patient_password() -> str:
+    # Credencial técnica, aleatória e invisível ao paciente. Ela existe apenas
+    # para o Supabase emitir uma sessão durante o onboarding.
+    return f"{secrets.token_urlsafe(24)}A1!"
+
+
+def normalize_identity_name(value: Any) -> str:
+    text = " ".join(str(value or "").strip().split())
+    normalized = unicodedata.normalize("NFKD", text)
+    without_accents = "".join(char for char in normalized if not unicodedata.combining(char))
+    return without_accents.casefold()
+
+
+async def sign_in_auth_user(email: str, password: str) -> dict[str, Any]:
+    response = await _request(
+        "POST",
+        f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
+        headers={
+            "apikey": SUPABASE_SERVICE_KEY,
+            "Content-Type": "application/json",
+        },
+        json={"email": email, "password": password},
+    )
+    if response.status_code >= 400:
+        raise HTTPException(status_code=401, detail="Não foi possível iniciar a sessão de primeiro acesso.")
     return response.json()
 
 
@@ -357,6 +408,89 @@ async def update_auth_user(user_id: str, body: dict[str, Any]) -> dict[str, Any]
     return response.json()
 
 
+class FirstAccessLogin(BaseModel):
+    cpf: str
+    nome_completo: str = Field(min_length=3, max_length=200)
+    data_nascimento: date
+
+    @field_validator("cpf", mode="before")
+    @classmethod
+    def validate_cpf(cls, value: Any) -> str:
+        result = normalize_cpf(value)
+        if result is None:
+            raise ValueError("CPF inválido.")
+        return result
+
+    @field_validator("nome_completo", mode="before")
+    @classmethod
+    def validate_name(cls, value: Any) -> str:
+        result = clean_text(value, field="Nome completo", required=True, max_length=200)
+        assert result is not None
+        return result
+
+    @field_validator("data_nascimento", mode="before")
+    @classmethod
+    def validate_first_access_birth_date(cls, value: Any) -> date:
+        if isinstance(value, date):
+            return value
+        text = str(value or "").strip()
+        for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+            try:
+                parsed = datetime.strptime(text, fmt).date()
+                if parsed > date.today():
+                    raise ValueError("Data de nascimento inválida.")
+                return parsed
+            except ValueError:
+                continue
+        raise ValueError("Data de nascimento inválida. Use DD/MM/AAAA.")
+
+
+@app.post("/api/auth/first-access")
+async def first_access_login(payload: FirstAccessLogin) -> dict[str, Any]:
+    patients = await db_select(
+        "fila",
+        "paciente",
+        select="id,cpf,nome_completo,data_nascimento",
+        filters={"cpf": f"eq.{payload.cpf}"},
+        limit=1,
+    )
+    if not patients:
+        raise HTTPException(status_code=401, detail="Não foi possível confirmar os dados. Confira CPF, nome completo e data de nascimento.")
+
+    patient = patients[0]
+    try:
+        birth_date = date.fromisoformat(str(patient["data_nascimento"])[:10])
+    except (TypeError, ValueError, KeyError):
+        raise HTTPException(status_code=409, detail="O cadastro deste paciente não possui uma data de nascimento válida.")
+
+    if birth_date != payload.data_nascimento or normalize_identity_name(patient.get("nome_completo")) != normalize_identity_name(payload.nome_completo):
+        raise HTTPException(status_code=401, detail="Não foi possível confirmar os dados. Confira CPF, nome completo e data de nascimento.")
+
+    profiles = await db_select(
+        "app",
+        "usuario_sistema",
+        select="auth_user_id,primeiro_acesso_concluido,ativo",
+        filters={"paciente_id": f"eq.{patient['id']}", "papel": "eq.PACIENTE", "ativo": "eq.true"},
+        limit=1,
+    )
+    if not profiles:
+        raise HTTPException(status_code=409, detail="O paciente existe, mas ainda não possui uma credencial de acesso vinculada.")
+    if profiles[0].get("primeiro_acesso_concluido") is True:
+        raise HTTPException(status_code=409, detail="Seu primeiro acesso já foi concluído. Entre com o e-mail e a senha que você cadastrou.")
+
+    # A senha técnica é regenerada somente após a identidade ser validada e nunca
+    # é exposta ao usuário. Assim, data de nascimento deixa de funcionar como senha.
+    temporary_password = generate_temporary_patient_password()
+    await update_auth_user(profiles[0]["auth_user_id"], {"password": temporary_password})
+    session = await sign_in_auth_user(temporary_patient_email(payload.cpf), temporary_password)
+    return {
+        "access_token": session.get("access_token"),
+        "refresh_token": session.get("refresh_token"),
+        "expires_in": session.get("expires_in"),
+        "token_type": session.get("token_type", "bearer"),
+    }
+
+
 class Identity(BaseModel):
     auth_user_id: str
     email: str | None = None
@@ -367,6 +501,8 @@ class Identity(BaseModel):
     cnes_vinculo: str | None = None
     nome_exibicao: str
     idioma_preferido: str = "pt-BR"
+    primeiro_acesso_concluido: bool = True
+    primeiro_acesso_em: datetime | None = None
 
 
 async def current_identity(
@@ -457,6 +593,44 @@ async def get_me(identity: Identity = Depends(current_identity)) -> dict[str, An
         if units:
             result["unidade_nome"] = units[0].get("nome_fantasia") or units[0].get("razao_social")
     return result
+
+
+class FirstAccessComplete(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+@app.post("/api/auth/first-access/complete")
+async def complete_first_access(payload: FirstAccessComplete, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "PACIENTE")
+    if identity.primeiro_acesso_concluido:
+        raise HTTPException(status_code=409, detail="O primeiro acesso deste paciente já foi concluído.")
+    if not identity.paciente_id:
+        raise HTTPException(status_code=409, detail="Perfil de paciente sem vínculo cadastral.")
+
+    final_email = str(payload.email).strip().lower()
+    await update_auth_user(
+        identity.auth_user_id,
+        {
+            "email": final_email,
+            "password": payload.password,
+            "email_confirm": True,
+            "user_metadata": {"display_name": identity.nome_exibicao, "first_access": False},
+        },
+    )
+    await db_update(
+        "fila",
+        "paciente",
+        {"id": f"eq.{identity.paciente_id}"},
+        {"email_contato": final_email},
+    )
+    await db_update(
+        "app",
+        "usuario_sistema",
+        {"auth_user_id": f"eq.{identity.auth_user_id}"},
+        {"primeiro_acesso_concluido": True, "primeiro_acesso_em": datetime.now().isoformat()},
+    )
+    return {"ok": True, "email": final_email}
 
 
 class ProfileSettingsPatch(BaseModel):
@@ -1215,9 +1389,7 @@ async def admin_users(identity: Identity = Depends(current_identity)) -> list[di
     return await db_select("app", "usuario_sistema", order="nome_exibicao.asc", limit=1000)
 
 
-class PatientCreate(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=6)
+class PatientIdentityCreate(BaseModel):
     nome_completo: str
     cns: str
     cpf: str | None = None
@@ -1261,47 +1433,6 @@ class PatientCreate(BaseModel):
         return validate_birth_date(value)
 
 
-@app.post("/api/admin/patients", status_code=201)
-async def create_patient(payload: PatientCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
-    require_roles(identity, "GESTOR")
-    await ensure_unique("fila", "paciente", "cns", payload.cns, "Já existe um paciente com este CNS.")
-    await ensure_unique("fila", "paciente", "cpf", payload.cpf, "Já existe um paciente com este CPF.")
-    if payload.municipio_residencia_ibge6:
-        await ensure_record_exists(
-            "dominio",
-            "municipio_ibge",
-            "codigo_ibge6",
-            payload.municipio_residencia_ibge6,
-            "O município informado não existe no catálogo IBGE carregado.",
-        )
-    patient_rows = await db_insert("fila", "paciente", {
-        "cns": payload.cns,
-        "cpf": payload.cpf or None,
-        "nome_completo": payload.nome_completo,
-        "data_nascimento": payload.data_nascimento.isoformat(),
-        "sexo": payload.sexo,
-        "municipio_residencia_ibge6": payload.municipio_residencia_ibge6 or None,
-        "zona_residencia": payload.zona_residencia,
-        "telefone_contato": payload.telefone_contato or None,
-        "email_contato": payload.email,
-    })
-    patient = patient_rows[0]
-    auth_user: dict[str, Any] | None = None
-    try:
-        auth_user = await create_auth_user(payload.email, payload.password, payload.nome_completo)
-        profile_rows = await db_insert("app", "usuario_sistema", {
-            "auth_user_id": auth_user["id"],
-            "papel": "PACIENTE",
-            "paciente_id": patient["id"],
-            "nome_exibicao": payload.nome_completo,
-            "idioma_preferido": payload.idioma_preferido,
-        })
-        return {"patient": patient, "profile": profile_rows[0]}
-    except Exception:
-        await db_delete("fila", "paciente", {"id": f"eq.{patient['id']}"})
-        if auth_user:
-            await delete_auth_user(auth_user["id"])
-        raise
 
 
 class StaffCreate(BaseModel):
@@ -1493,7 +1624,8 @@ async def create_provider(payload: ProviderCreate, identity: Identity = Depends(
         raise
 
 
-class DemoPatientCreate(PatientCreate):
+class DemoPatientCreate(PatientIdentityCreate):
+    cpf: str
     estabelecimento_solicitante_cnes: str
     profissional_solicitante_id: int = Field(ge=1)
     procedimento_sigtap: str
@@ -1555,19 +1687,26 @@ async def create_demo_patient(payload: DemoPatientCreate, identity: Identity = D
         "municipio_residencia_ibge6": payload.municipio_residencia_ibge6 or None,
         "zona_residencia": payload.zona_residencia,
         "telefone_contato": payload.telefone_contato or None,
-        "email_contato": payload.email,
+        "email_contato": None,
     })
     patient = patient_rows[0]
     auth_user: dict[str, Any] | None = None
     request_row: dict[str, Any] | None = None
     try:
-        auth_user = await create_auth_user(payload.email, payload.password, payload.nome_completo)
+        auth_user = await create_auth_user(
+            temporary_patient_email(payload.cpf),
+            generate_temporary_patient_password(),
+            payload.nome_completo,
+            metadata={"first_access": True},
+        )
         profile_rows = await db_insert("app", "usuario_sistema", {
             "auth_user_id": auth_user["id"],
             "papel": "PACIENTE",
             "paciente_id": patient["id"],
             "nome_exibicao": payload.nome_completo,
             "idioma_preferido": payload.idioma_preferido,
+            "primeiro_acesso_concluido": False,
+            "primeiro_acesso_em": None,
         })
         requests = await db_insert("fila", "solicitacao_ortese", {
             "paciente_id": patient["id"],

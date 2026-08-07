@@ -388,8 +388,7 @@
     },
     "topnav": {
       "back": "Atrás",
-      "brandFull": "Registro Unificado de Dispositivos Médicos",
-      "secureSession": "Sesión segura"
+      "brandFull": "Registro Unificado de Dispositivos Médicos"
     },
     "cards": {
       "customize": "Personalizar tarjetas",
@@ -642,14 +641,24 @@
       "securityNote2": "Ministerio de Salud · Infraestructura DATASUS.",
       "error": "Correo electrónico o contraseña inválidos. Inténtelo de nuevo.",
       "emailPlaceholder": "tu.correo@ejemplo.com",
-      "slideAria": "Mostrar destaque {number}"
+      "slideAria": "Mostrar destaque {number}",
+      "firstAccessQuestion": "¿Ingresando por primera vez?",
+      "returningAccess": "Ya configuré mi acceso",
+      "firstAccessTitle": "Primer acceso",
+      "firstAccessHelp": "Confirme su identidad con los mismos datos informados por la UBS en el registro inicial.",
+      "cpfLabel": "CPF",
+      "cpfPlaceholder": "Solo números",
+      "firstAccessSubmit": "Validar primer acceso",
+      "firstAccessError": "No fue posible confirmar sus datos de primer acceso.",
+      "fullNameLabel": "Nombre completo",
+      "fullNamePlaceholder": "Como figura en el registro de la UBS",
+      "birthDateLabel": "Fecha de nacimiento",
+      "birthDatePlaceholder": "DD/MM/AAAA"
     },
     "verify": {
       "authenticatedPatient": "Paciente autenticado",
       "welcome": "Bienvenido(a)",
       "confirmInfo": "Confirme su información de paciente antes de continuar con la trayectoria de su dispositivo.",
-      "age": "Edad",
-      "yearsUnit": "años",
       "cpf": "CPF",
       "phone": "Teléfono",
       "patientId": "ID del Paciente",
@@ -658,13 +667,31 @@
       "referralUnit": "Unidad de Derivación",
       "rehabCenter": "Centro de Rehabilitación",
       "currentRequest": "Solicitud de Dispositivo Actual",
-      "deviceValue": "Órtesis tobillo-pie izquierda",
-      "continue": "Continuar con la trayectoria del dispositivo",
-      "wrongInfoNote": "Si esta no es su información, comuníquese de inmediato con la UBS Vila Esperança o su equipo de salud."
+      "continue": "Confirmar mis datos y continuar",
+      "wrongInfoNote": "Si esta no es su información, comuníquese inmediatamente con {unit} o con su equipo de salud.",
+      "birthDate": "Fecha de nacimiento",
+      "attentionTitle": "Revise con atención",
+      "healthUnitFallback": "su unidad de atención primaria"
     },
     "stepper": {
       "login": "Ingresar",
-      "verify": "Verificar identidad"
+      "verify": "Verificar identidad",
+      "credentials": "Crear acceso"
+    },
+    "credentials": {
+      "eyebrow": "Última etapa del primer acceso",
+      "title": "Cree su acceso definitivo",
+      "subtitle": "Elija el correo y la contraseña que usará a partir de ahora. Después de guardar, el CPF y la fecha de nacimiento dejarán de ser sus credenciales de ingreso.",
+      "emailLabel": "Su correo electrónico",
+      "emailPlaceholder": "su.correo@ejemplo.com",
+      "passwordLabel": "Cree una contraseña",
+      "passwordHelp": "Use al menos 8 caracteres.",
+      "confirmPasswordLabel": "Confirme la contraseña",
+      "passwordMismatch": "Las contraseñas no coinciden.",
+      "submit": "Guardar acceso e ingresar",
+      "saving": "Guardando acceso...",
+      "error": "No fue posible completar su primer acceso.",
+      "oneTimeNote": "Esta etapa aparece una sola vez. Después de confirmar, ingrese normalmente con el correo y la contraseña elegidos."
     }
   },
   "manager": {
@@ -880,8 +907,9 @@
         },
         "patient": {
           "title": "Registrar paciente desde atención primaria",
-          "subtitle": "Simula la llegada de un nuevo caso desde atención primaria: crea al paciente, su credencial y la solicitud que quedará pendiente de autorización SISREG.",
-          "waitingNotice": "El paciente se creará sin CRE de destino. La solicitud permanecerá “Pendiente de autorización” hasta ser procesada en la etapa SISREG."
+          "subtitle": "Simula la llegada de un nuevo caso desde atención primaria: crea al paciente, una credencial temporal de primer acceso y la solicitud que quedará pendiente de autorización SISREG.",
+          "waitingNotice": "El paciente se creará sin CRE de destino. La solicitud permanecerá “Pendiente de autorización” hasta ser procesada en la etapa SISREG.",
+          "firstAccessNotice": "El paciente no necesita informar correo ni contraseña en este registro. En el primer acceso confirma CPF, nombre completo y fecha de nacimiento; luego elige sus credenciales definitivas."
         },
         "sisreg": {
           "title": "Autorizar y derivar por SISREG",
@@ -942,7 +970,7 @@
         "success": {
           "manager": "Gestor y credencial creados correctamente.",
           "cre": "CRE, taller y credencial responsable creados correctamente.",
-          "patient": "Paciente registrado desde atención primaria. La solicitud está pendiente de autorización SISREG.",
+          "patient": "Paciente registrado desde atención primaria. El primer acceso ya está disponible con CPF y fecha de nacimiento; la solicitud está pendiente de autorización SISREG.",
           "sisreg": "SISREG autorizado: el paciente fue vinculado al CRE e ingresado en la cola.",
           "ong": "ONG asociada vinculada al CRE correctamente."
         }

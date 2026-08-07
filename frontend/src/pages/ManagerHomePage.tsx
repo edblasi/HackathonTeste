@@ -1169,10 +1169,8 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/staff")}>
             <input type="hidden" name="papel" value="GESTOR" />
             <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
-            <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" required /></FormField>
-            <FormField label={t("manager.registration.fields.password")}><input className={inputClass} name="password" type="password" minLength={6} required /></FormField>
             <FormField label={t("manager.registration.fields.cns")}><input className={inputClass} name="cns" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
-            <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} /></FormField>
+            <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} required /></FormField>
             <FormField label={t("manager.registration.fields.cbo")}><input className={inputClass} name="cbo" inputMode="numeric" minLength={6} maxLength={6} required /></FormField>
             <FormField label={t("manager.registration.demo.fields.institutionalUnit")}>
               <select className={inputClass} name="cnes_vinculo" required>
@@ -1222,10 +1220,8 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/demo/patients")}>
             <div className="md:col-span-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.patientIdentity")}</h3></div>
             <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
-            <FormField label={t("manager.registration.fields.email")}><input className={inputClass} name="email" type="email" required /></FormField>
-            <FormField label={t("manager.registration.fields.password")}><input className={inputClass} name="password" type="password" minLength={6} required /></FormField>
             <FormField label={t("manager.registration.fields.cns")}><input className={inputClass} name="cns" inputMode="numeric" minLength={15} maxLength={15} required /></FormField>
-            <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} /></FormField>
+            <FormField label={t("manager.registration.fields.cpf")}><input className={inputClass} name="cpf" inputMode="numeric" minLength={11} maxLength={11} required /></FormField>
             <FormField label={t("manager.registration.fields.birthDate")}><input className={inputClass} name="data_nascimento" type="date" required /></FormField>
             <FormField label={t("manager.registration.fields.sex")}><select className={inputClass} name="sexo" required><option value="F">{t("manager.registration.values.female")}</option><option value="M">{t("manager.registration.values.male")}</option></select></FormField>
             <FormField label={t("manager.registration.fields.municipality")}><select className={inputClass} name="municipio_residencia_ibge6"><option value="">{t("manager.common.select")}</option>{catalogs.municipalities.map((item) => <option key={item.codigo_ibge6} value={item.codigo_ibge6}>{item.nome_municipio} - {item.uf_sigla}</option>)}</select></FormField>
@@ -1251,6 +1247,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
             <FormField label={t("manager.registration.fields.priority")}><select className={inputClass} name="prioridade_clinica" defaultValue="ROTINA"><option value="ROTINA">{t("manager.registration.values.routine")}</option><option value="PRIORITARIO">{t("manager.registration.values.priority")}</option><option value="URGENTE">{t("manager.registration.values.urgent")}</option></select></FormField>
             <FormField label={t("manager.registration.fields.side")}><select className={inputClass} name="lado_acometido"><option value="">{t("manager.common.select")}</option><option value="DIREITO">{t("manager.registration.values.right")}</option><option value="ESQUERDO">{t("manager.registration.values.left")}</option><option value="BILATERAL">{t("manager.registration.values.bilateral")}</option><option value="NAO_APLICAVEL">{t("manager.registration.values.notApplicable")}</option></select></FormField>
             <div className="md:col-span-2"><FormField label={t("manager.registration.fields.justification")}><textarea className={`${inputClass} min-h-24 py-2`} name="justificativa_clinica" required /></FormField></div>
+            <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-[#0A4880]">{t("manager.registration.demo.patient.firstAccessNotice")}</div>
             <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">{t("manager.registration.demo.patient.waitingNotice")}</div>
             <div className="md:col-span-2"><button type="submit" disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitLabel}</button></div>
           </form>

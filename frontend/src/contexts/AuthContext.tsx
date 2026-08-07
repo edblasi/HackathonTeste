@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
+import { apiPublicPost } from '../lib/api'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -7,6 +8,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
+  signInFirstAccess: (cpf: string, nomeCompleto: string, dataNascimento: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -38,6 +40,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }
 
+  const signInFirstAccess = async (cpf: string, nomeCompleto: string, dataNascimento: string) => {
+    const tokens = await apiPublicPost<{ access_token: string; refresh_token: string }>("/api/auth/first-access", {
+      cpf,
+      nome_completo: nomeCompleto,
+      data_nascimento: dataNascimento,
+    })
+    const { error } = await supabase.auth.setSession({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+    })
+    if (error) throw error
+  }
+
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
@@ -48,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signInFirstAccess, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )

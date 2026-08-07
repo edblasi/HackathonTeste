@@ -12,6 +12,9 @@ import {
   Lock,
   Mail,
   CreditCard,
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
@@ -19,7 +22,7 @@ import { TopNav } from "../components/User/TopNav";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { Stepper } from "../components/Stepper";
 import { usePacientePerfil, usePedidos, type UsuarioSistema } from "../hooks/FetchData";
-import { apiGet } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
 
 // ─── Carousel data (left panel imagery) ────────────────────────────────────
 
@@ -31,15 +34,19 @@ const slidePhotos = [
 
 // ─── Login page (step 1) ────────────────────────────────────────────────────
 
-function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
+function LoginStep() {
   const { t } = useLang();
-  const { signIn } = useAuth();
+  const { signIn, signInFirstAccess } = useAuth();
   const [slide, setSlide] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const [slideDir, setSlideDir] = useState<1 | -1>(1);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstAccessMode, setFirstAccessMode] = useState(false);
+  const [cpf, setCpf] = useState("");
+  const [firstAccessName, setFirstAccessName] = useState("");
+  const [firstAccessBirthDate, setFirstAccessBirthDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,15 +57,25 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
     { photo: slidePhotos[2], tag: t("auth.login.slide3.tag"), headline: t("auth.login.slide3.headline"), sub: t("auth.login.slide3.sub") },
   ];
 
+  const formatBirthDate = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  };
+
   const handleLogin = async () => {
     if (loading) return;
     setError(null);
     setLoading(true);
     try {
-      await signIn(email, password);
-      await onLoggedIn();
-    } catch {
-      setError(t("auth.login.error"));
+      if (firstAccessMode) {
+        await signInFirstAccess(cpf, firstAccessName, firstAccessBirthDate);
+      } else {
+        await signIn(email, password);
+      }
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : t(firstAccessMode ? "auth.login.firstAccessError" : "auth.login.error"));
     } finally {
       setLoading(false);
     }
@@ -185,46 +202,78 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
           </div>
 
           <div className="flex flex-col gap-3.5 mb-5">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {t("auth.login.emailLabel")}
-              </label>
-              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
-                <Mail size={14} className="text-muted-foreground shrink-0" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t("auth.login.emailPlaceholder")}
-                  autoComplete="email"
-                  className="flex-1 bg-transparent text-sm text-foreground outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {t("auth.login.passwordLabel")}
-              </label>
-              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
-                <Lock size={14} className="text-muted-foreground shrink-0" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  autoComplete="current-password"
-                  className="flex-1 bg-transparent text-sm text-foreground outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                </button>
-              </div>
-            </div>
+            {firstAccessMode ? (
+              <>
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-slate-700">
+                  <p className="font-semibold text-[#0B5394]">{t("auth.login.firstAccessTitle")}</p>
+                  <p className="mt-1">{t("auth.login.firstAccessHelp")}</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.login.cpfLabel")}</label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
+                    <CreditCard size={14} className="text-muted-foreground shrink-0" />
+                    <input
+                      inputMode="numeric"
+                      value={cpf}
+                      onChange={(e) => setCpf(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                      placeholder={t("auth.login.cpfPlaceholder")}
+                      autoComplete="username"
+                      className="flex-1 bg-transparent text-sm text-foreground outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.login.fullNameLabel")}</label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
+                    <User size={14} className="text-muted-foreground shrink-0" />
+                    <input
+                      type="text"
+                      value={firstAccessName}
+                      onChange={(e) => setFirstAccessName(e.target.value)}
+                      placeholder={t("auth.login.fullNamePlaceholder")}
+                      autoComplete="name"
+                      className="flex-1 bg-transparent text-sm text-foreground outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.login.birthDateLabel")}</label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
+                    <CalendarDays size={14} className="text-muted-foreground shrink-0" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={firstAccessBirthDate}
+                      onChange={(e) => setFirstAccessBirthDate(formatBirthDate(e.target.value))}
+                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                      placeholder={t("auth.login.birthDatePlaceholder")}
+                      autoComplete="bday"
+                      className="flex-1 bg-transparent text-sm text-foreground outline-none"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.login.emailLabel")}</label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
+                    <Mail size={14} className="text-muted-foreground shrink-0" />
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t("auth.login.emailPlaceholder")} autoComplete="email" className="flex-1 bg-transparent text-sm text-foreground outline-none" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.login.passwordLabel")}</label>
+                  <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-input-background focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)] transition-all duration-200">
+                    <Lock size={14} className="text-muted-foreground shrink-0" />
+                    <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLogin()} autoComplete="current-password" className="flex-1 bg-transparent text-sm text-foreground outline-none" />
+                    <button type="button" onClick={() => setShowPassword((v) => !v)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {error && (
@@ -240,10 +289,19 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
             className="w-full py-3.5 px-6 rounded-xl bg-[#0B5394] text-white font-semibold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-[#0A4880] hover:shadow-lg active:scale-[0.99] transition-all duration-200 mb-5 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ backgroundColor: loading ? "#5F86AD" : "#0B5394", color: "#FFFFFF" }}
           >
-            {loading ? t("auth.login.submitting") : t("auth.login.submit")}
+            {loading ? t("auth.login.submitting") : t(firstAccessMode ? "auth.login.firstAccessSubmit" : "auth.login.submit")}
             {!loading && <ArrowRight size={15} />}
           </button>
 
+          <button
+            type="button"
+            onClick={() => { setFirstAccessMode((value) => !value); setError(null); }}
+            className="mb-5 w-full text-center text-xs font-semibold text-[#0B5394] hover:underline"
+          >
+            {t(firstAccessMode ? "auth.login.returningAccess" : "auth.login.firstAccessQuestion")}
+          </button>
+
+          {!firstAccessMode && (<>
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 h-px bg-border" />
             <span className="text-[11px] text-muted-foreground">{t("auth.login.orSignInWith")}</span>
@@ -277,6 +335,7 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
               gov.br
             </button>
           </div>
+          </>)}
 
           <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
             {t("auth.login.securityNote1")}
@@ -290,16 +349,12 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
 }
 
 // ─── Verify page (step 2) ───────────────────────────────────────────────────
-// Confirma a identidade com o dado real do paciente (fila.vw_paciente_perfil
-// + fila.vw_pedido_atual), no lugar do mock "Ana Luísa Ferreira" que estava
-// hardcoded aqui antes.
 
 function VerifyStep({ onContinue, onBack }: { onContinue: () => void; onBack: () => void }) {
   const { t, locale } = useLang();
   const { data: perfil, loading: loadingPerfil } = usePacientePerfil();
   const { data: pedidos, loading: loadingPedidos } = usePedidos();
   const pedidoAtual = pedidos?.[0] ?? null;
-
   const loading = loadingPerfil || loadingPedidos;
 
   const infoCards = perfil
@@ -325,46 +380,41 @@ function VerifyStep({ onContinue, onBack }: { onContinue: () => void; onBack: ()
 
   const maskedCpf = perfil?.cpf ? `***.${perfil.cpf.slice(3, 6)}.${perfil.cpf.slice(6, 9)}-**` : "—";
   const firstName = perfil?.nome_completo?.split(" ")[0] ?? "";
+  const birthDate = perfil?.data_nascimento
+    ? new Date(`${perfil.data_nascimento.slice(0, 10)}T00:00:00`).toLocaleDateString(locale)
+    : "—";
+  const ubsName = perfil?.unidade_encaminhamento || t("auth.verify.healthUnitFallback");
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "Inter, sans-serif" }}>
-      <TopNav
-        onBack={onBack}
-        rightSlot={
-          <>
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs text-muted-foreground hidden sm:block">
-              {t("shell.topnav.secureSession")}
-              {perfil ? ` · ${perfil.nome_completo}` : ""}
-            </span>
-          </>
-        }
-      />
+      <TopNav onBack={onBack} />
 
       <div className="max-w-xl mx-auto px-6 pt-6">
-        <Stepper steps={[t("auth.stepper.login"), t("auth.stepper.verify")]} currentStep={1} />
+        <Stepper steps={[t("auth.stepper.login"), t("auth.stepper.verify"), t("auth.stepper.credentials")]} currentStep={1} />
       </div>
 
       <main className="max-w-xl mx-auto px-6 py-10">
-        <div className="mb-10">
+        <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-14 h-14 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center">
               <User size={22} className="text-primary" />
             </div>
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">
-                {t("auth.verify.authenticatedPatient")}
-              </div>
-              <h1
-                className="text-[2rem] text-foreground leading-tight"
-                style={{ fontFamily: "Instrument Serif, serif", fontWeight: 400 }}
-              >
-                {t("auth.verify.welcome")}
-                {firstName ? `, ${firstName}` : ""}
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">{t("auth.verify.authenticatedPatient")}</div>
+              <h1 className="text-[2rem] text-foreground leading-tight" style={{ fontFamily: "Instrument Serif, serif", fontWeight: 400 }}>
+                {t("auth.verify.welcome")}{firstName ? `, ${firstName}` : ""}
               </h1>
             </div>
           </div>
           <p className="text-muted-foreground text-sm leading-relaxed">{t("auth.verify.confirmInfo")}</p>
+        </div>
+
+        <div className="mb-7 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-4 text-amber-950">
+          <AlertTriangle size={19} className="mt-0.5 shrink-0 text-amber-700" />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide">{t("auth.verify.attentionTitle")}</p>
+            <p className="mt-1 text-sm font-medium leading-5">{t("auth.verify.wrongInfoNote", { unit: ubsName })}</p>
+          </div>
         </div>
 
         {loading ? (
@@ -373,10 +423,9 @@ function VerifyStep({ onContinue, onBack }: { onContinue: () => void; onBack: ()
           <p className="text-sm text-destructive mb-8">{t("home.pedido.noPedido")}</p>
         ) : (
           <>
-            {/* Quick stats bar */}
             <div className="grid grid-cols-3 gap-3 mb-6">
               {[
-                { label: t("auth.verify.age"), value: `${perfil.idade} ${t("auth.verify.yearsUnit")}` },
+                { label: t("auth.verify.birthDate"), value: birthDate },
                 { label: t("auth.verify.cpf"), value: maskedCpf },
                 { label: t("auth.verify.phone"), value: perfil.telefone_contato || "—" },
               ].map(({ label, value }) => (
@@ -387,22 +436,14 @@ function VerifyStep({ onContinue, onBack }: { onContinue: () => void; onBack: ()
               ))}
             </div>
 
-            {/* Info cards grid */}
             <div className="grid grid-cols-2 gap-3 mb-8">
               {infoCards.map(({ icon: Icon, label, value, highlight }) => (
-                <div
-                  key={label}
-                  className={`p-4 rounded-2xl border transition-all duration-150 hover:shadow-sm ${
-                    highlight ? "bg-primary/5 border-primary/18" : "bg-card border-border"
-                  }`}
-                >
+                <div key={label} className={`p-4 rounded-2xl border transition-all duration-150 hover:shadow-sm ${highlight ? "bg-primary/5 border-primary/18" : "bg-card border-border"}`}>
                   <div className="flex items-center gap-1.5 mb-2">
                     <Icon size={12} className={highlight ? "text-primary" : "text-muted-foreground"} />
                     <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
                   </div>
-                  <div className={`text-sm font-semibold leading-snug ${highlight ? "text-primary" : "text-foreground"}`}>
-                    {value}
-                  </div>
+                  <div className={`text-sm font-semibold leading-snug ${highlight ? "text-primary" : "text-foreground"}`}>{value}</div>
                 </div>
               ))}
             </div>
@@ -412,12 +453,103 @@ function VerifyStep({ onContinue, onBack }: { onContinue: () => void; onBack: ()
         <button
           onClick={onContinue}
           disabled={loading || !perfil}
-          className="w-full py-4 px-6 rounded-xl bg-primary text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#0A4880] hover:shadow-lg hover:shadow-primary/25 active:scale-[0.99] transition-all duration-200 mb-3 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full py-4 px-6 rounded-xl bg-primary text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#0A4880] hover:shadow-lg hover:shadow-primary/25 active:scale-[0.99] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {t("auth.verify.continue")}
           <ArrowRight size={16} />
         </button>
-        <p className="text-center text-[11px] text-muted-foreground leading-relaxed">{t("auth.verify.wrongInfoNote")}</p>
+      </main>
+    </div>
+  );
+}
+
+// ─── Definitive credentials (step 3) ───────────────────────────────────────
+
+function CredentialsStep({ onBack }: { onBack: () => void }) {
+  const { t } = useLang();
+  const { signOut, signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (loading) return;
+    setError(null);
+    if (password !== confirmPassword) {
+      setError(t("auth.credentials.passwordMismatch"));
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiPost<{ ok: boolean; email: string }>("/api/auth/first-access/complete", { email, password });
+      await signOut();
+      await signIn(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.credentials.error"));
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background" style={{ fontFamily: "Inter, sans-serif" }}>
+      <TopNav onBack={onBack} />
+      <div className="max-w-xl mx-auto px-6 pt-6">
+        <Stepper steps={[t("auth.stepper.login"), t("auth.stepper.verify"), t("auth.stepper.credentials")]} currentStep={2} />
+      </div>
+      <main className="max-w-xl mx-auto px-6 py-10">
+        <div className="mb-8 flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center">
+            <CheckCircle2 size={23} className="text-primary" />
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">{t("auth.credentials.eyebrow")}</div>
+            <h1 className="text-[2rem] text-foreground leading-tight" style={{ fontFamily: "Instrument Serif, serif", fontWeight: 400 }}>{t("auth.credentials.title")}</h1>
+          </div>
+        </div>
+        <p className="mb-7 text-sm leading-relaxed text-muted-foreground">{t("auth.credentials.subtitle")}</p>
+
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.credentials.emailLabel")}</span>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-input-background px-4 py-3.5 focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)]">
+                <Mail size={14} className="shrink-0 text-muted-foreground" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder={t("auth.credentials.emailPlaceholder")} className="flex-1 bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.credentials.passwordLabel")}</span>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-input-background px-4 py-3.5 focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)]">
+                <Lock size={14} className="shrink-0 text-muted-foreground" />
+                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} autoComplete="new-password" className="flex-1 bg-transparent text-sm text-foreground outline-none" />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} className="text-muted-foreground hover:text-foreground">{showPassword ? <EyeOff size={13} /> : <Eye size={13} />}</button>
+              </div>
+              <span className="text-[11px] text-muted-foreground">{t("auth.credentials.passwordHelp")}</span>
+            </label>
+
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t("auth.credentials.confirmPasswordLabel")}</span>
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-input-background px-4 py-3.5 focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(11,83,148,0.08)]">
+                <Lock size={14} className="shrink-0 text-muted-foreground" />
+                <input type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void submit()} minLength={8} autoComplete="new-password" className="flex-1 bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            </label>
+          </div>
+
+          {error && <p role="alert" className="mt-4 text-xs font-medium text-destructive">{error}</p>}
+          <button type="button" onClick={() => void submit()} disabled={loading || !email || password.length < 8 || confirmPassword.length < 8} className="mt-5 w-full rounded-xl bg-primary px-6 py-4 text-sm font-semibold text-white transition hover:bg-[#0A4880] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60">
+            {loading ? t("auth.credentials.saving") : t("auth.credentials.submit")}
+          </button>
+        </div>
+
+        <div className="mt-5 flex items-start gap-2 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+          <CalendarDays size={15} className="mt-0.5 shrink-0" />
+          <span>{t("auth.credentials.oneTimeNote")}</span>
+        </div>
       </main>
     </div>
   );
@@ -426,28 +558,35 @@ function VerifyStep({ onContinue, onBack }: { onContinue: () => void; onBack: ()
 // ─── UserLoginPage ───────────────────────────────────────────────────────────
 
 export function UserLoginPage() {
-  const [step, setStep] = useState<"login" | "verify">("login");
+  const [step, setStep] = useState<"login" | "verify" | "credentials">("login");
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
-  const handleLoggedIn = async () => {
-    const profile = await apiGet<UsuarioSistema>("/api/me");
-    if (profile.papel === "GESTOR") {
-      navigate("/manager", { replace: true });
-      return;
-    }
-    if (profile.papel === "FISCAL_CRE") {
-      navigate("/cre", { replace: true });
-      return;
-    }
-    setStep("verify");
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    apiGet<UsuarioSistema>("/api/me")
+      .then((profile) => {
+        if (!active) return;
+        if (profile.papel === "GESTOR") navigate("/manager", { replace: true });
+        else if (profile.papel === "FISCAL_CRE") navigate("/cre", { replace: true });
+        else if (profile.primeiro_acesso_concluido) navigate("/", { replace: true });
+        else setStep((current) => (current === "credentials" ? current : "verify"));
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [user, navigate]);
+
+  const backToLogin = async () => {
+    await signOut();
+    setStep("login");
   };
 
   return (
     <div>
-      {step === "login" && <LoginStep onLoggedIn={handleLoggedIn} />}
-      {step === "verify" && (
-        <VerifyStep onContinue={() => navigate("/", { replace: true })} onBack={() => setStep("login")} />
-      )}
+      {step === "login" && <LoginStep />}
+      {step === "verify" && <VerifyStep onContinue={() => setStep("credentials")} onBack={() => void backToLogin()} />}
+      {step === "credentials" && <CredentialsStep onBack={() => setStep("verify")} />}
     </div>
   );
 }

@@ -388,8 +388,7 @@
     },
     "topnav": {
       "back": "Voltar",
-      "brandFull": "Registro Unificado de Dispositivos Médicos",
-      "secureSession": "Sessão segura"
+      "brandFull": "Registro Unificado de Dispositivos Médicos"
     },
     "cards": {
       "customize": "Personalizar cards",
@@ -642,14 +641,24 @@
       "securityNote2": "Ministério da Saúde · Infraestrutura DATASUS.",
       "error": "E-mail ou senha inválidos. Tente novamente.",
       "emailPlaceholder": "seu.email@exemplo.com",
-      "slideAria": "Mostrar destaque {number}"
+      "slideAria": "Mostrar destaque {number}",
+      "firstAccessQuestion": "Entrando pela primeira vez?",
+      "returningAccess": "Já configurei meu acesso",
+      "firstAccessTitle": "Primeiro acesso",
+      "firstAccessHelp": "Confirme sua identidade com os mesmos dados informados pela UBS no cadastro inicial.",
+      "cpfLabel": "CPF",
+      "cpfPlaceholder": "Somente números",
+      "firstAccessSubmit": "Validar primeiro acesso",
+      "firstAccessError": "Não foi possível confirmar seus dados de primeiro acesso.",
+      "fullNameLabel": "Nome completo",
+      "fullNamePlaceholder": "Como consta no cadastro da UBS",
+      "birthDateLabel": "Data de nascimento",
+      "birthDatePlaceholder": "DD/MM/AAAA"
     },
     "verify": {
       "authenticatedPatient": "Paciente autenticado",
       "welcome": "Bem-vindo(a)",
       "confirmInfo": "Confirme suas informações de paciente antes de continuar para sua jornada do dispositivo.",
-      "age": "Idade",
-      "yearsUnit": "anos",
       "cpf": "CPF",
       "phone": "Telefone",
       "patientId": "ID do Paciente",
@@ -658,13 +667,31 @@
       "referralUnit": "Unidade de Encaminhamento",
       "rehabCenter": "Centro de Reabilitação",
       "currentRequest": "Solicitação de Dispositivo Atual",
-      "deviceValue": "Órtese tornozelo-pé esquerda",
-      "continue": "Continuar para a jornada do dispositivo",
-      "wrongInfoNote": "Se estas não forem suas informações, entre em contato imediatamente com a UBS Vila Esperança ou sua equipe de saúde."
+      "continue": "Confirmar meus dados e continuar",
+      "wrongInfoNote": "Se estas não forem suas informações, entre em contato imediatamente com {unit} ou sua equipe de saúde.",
+      "birthDate": "Data de nascimento",
+      "attentionTitle": "Confira com atenção",
+      "healthUnitFallback": "sua UBS de referência"
     },
     "stepper": {
       "login": "Entrar",
-      "verify": "Verificar identidade"
+      "verify": "Verificar identidade",
+      "credentials": "Criar acesso"
+    },
+    "credentials": {
+      "eyebrow": "Última etapa do primeiro acesso",
+      "title": "Crie seu acesso definitivo",
+      "subtitle": "Agora escolha o e-mail e a senha que você usará nos próximos acessos. Depois de salvar, o CPF e a data de nascimento deixam de ser suas credenciais de entrada.",
+      "emailLabel": "Seu e-mail",
+      "emailPlaceholder": "seu.email@exemplo.com",
+      "passwordLabel": "Crie uma senha",
+      "passwordHelp": "Use pelo menos 8 caracteres.",
+      "confirmPasswordLabel": "Confirme a senha",
+      "passwordMismatch": "As senhas não coincidem.",
+      "submit": "Salvar acesso e entrar",
+      "saving": "Salvando acesso...",
+      "error": "Não foi possível concluir o primeiro acesso.",
+      "oneTimeNote": "Esta etapa aparece somente no primeiro acesso. Depois da confirmação, você entra normalmente com o e-mail e a senha escolhidos."
     }
   },
   "manager": {
@@ -880,8 +907,9 @@
         },
         "patient": {
           "title": "Registrar paciente pela UBS",
-          "subtitle": "Simula a chegada de um novo caso pela atenção básica: cria o paciente, sua credencial e a solicitação que ficará aguardando autorização do SISREG.",
-          "waitingNotice": "O paciente será criado sem CRE de destino. A solicitação permanecerá em “Aguardando autorização” até ser processada na etapa SISREG."
+          "subtitle": "Simula a chegada de um novo caso pela atenção básica: cria o paciente, uma credencial temporária de primeiro acesso e a solicitação que ficará aguardando autorização do SISREG.",
+          "waitingNotice": "O paciente será criado sem CRE de destino. A solicitação permanecerá em “Aguardando autorização” até ser processada na etapa SISREG.",
+          "firstAccessNotice": "O paciente não precisa informar e-mail ou senha neste cadastro. No primeiro acesso, ele confirma CPF, nome completo e data de nascimento; depois escolhe suas credenciais definitivas."
         },
         "sisreg": {
           "title": "Autorizar e encaminhar via SISREG",
@@ -942,7 +970,7 @@
         "success": {
           "manager": "Gestor e credencial criados com sucesso.",
           "cre": "CRE, oficina e credencial responsável criados com sucesso.",
-          "patient": "Paciente registrado pela UBS. A solicitação está aguardando autorização do SISREG.",
+          "patient": "Paciente registrado pela UBS. O primeiro acesso já pode ser feito com CPF e data de nascimento; a solicitação está aguardando autorização do SISREG.",
           "sisreg": "SISREG autorizado: o paciente foi vinculado ao CRE e inserido na fila.",
           "ong": "ONG parceira vinculada ao CRE com sucesso."
         }
