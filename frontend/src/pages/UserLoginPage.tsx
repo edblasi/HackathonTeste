@@ -161,7 +161,10 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
       </div>
 
       {/* ── Right: Form panel ─────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-white px-6 py-12 lg:py-0">
+      <div className="relative flex-1 flex flex-col items-center justify-center bg-white px-6 py-16 lg:py-0">
+        <div className="absolute right-5 top-5 z-30 lg:right-8 lg:top-7">
+          <LanguageToggle />
+        </div>
         <div className="w-full max-w-[400px]">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-5">
@@ -173,7 +176,6 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
                   {t("shell.topnav.brandFull")}
                 </span>
               </div>
-              <LanguageToggle />
             </div>
             <h2
               className="text-[2.1rem] text-foreground mb-2 leading-tight"
@@ -234,9 +236,11 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
           )}
 
           <button
+            type="button"
             onClick={handleLogin}
             disabled={loading}
-            className="w-full py-3.5 px-6 rounded-xl bg-primary text-white font-semibold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-[#0A4880] hover:shadow-lg hover:shadow-primary/25 active:scale-[0.99] transition-all duration-200 mb-5 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-3.5 px-6 rounded-xl bg-[#0B5394] text-white font-semibold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-[#0A4880] hover:shadow-lg active:scale-[0.99] transition-all duration-200 mb-5 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ backgroundColor: loading ? "#5F86AD" : "#0B5394", color: "#FFFFFF" }}
           >
             {loading ? t("auth.login.submitting") : t("auth.login.submit")}
             {!loading && <ArrowRight size={15} />}

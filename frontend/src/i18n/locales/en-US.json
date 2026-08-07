@@ -294,6 +294,13 @@
       "back": "Back",
       "brandFull": "Unified Medical Device Registry",
       "secureSession": "Secure session"
+    },
+    "cards": {
+      "customize": "Customize cards",
+      "title": "Home page cards",
+      "subtitle": "Choose which cards remain visible. Your preference is saved in this browser.",
+      "reset": "Restore default",
+      "close": "Close customization"
     }
   },
   "home": {
@@ -631,7 +638,11 @@
       "save": "Save registration",
       "saving": "Saving...",
       "success": "Registration completed successfully.",
-      "error": "Could not complete the registration."
+      "error": "Could not complete the registration.",
+      "successPatient": "Patient and login credentials created successfully.",
+      "successStaff": "Professional and login credentials created successfully.",
+      "successProvider": "Provider created successfully.",
+      "successRequest": "Request created successfully."
     },
     "standard": {
       "brand": "NAADC · SUS",
@@ -969,6 +980,36 @@
         "RURAL": "Rural",
         "RIBEIRINHA": "Riverside",
         "REMOTA": "Remote"
+      },
+      "accessMatrix": {
+        "title": "Data access matrix",
+        "subtitle": "Consolidated report showing which roles may access each data category and at what scope.",
+        "data": "Data category",
+        "patient": "Patient",
+        "cre": "CRE auditor",
+        "manager": "Manager",
+        "export": "Export matrix CSV",
+        "scope": "Access scope",
+        "categories": {
+          "identity": "Patient identity and registration data",
+          "requests": "Requests and care queue",
+          "clinical": "Triage and operational clinical data",
+          "production": "Device production and lifecycle",
+          "inventory": "Inventory and materials",
+          "logistics": "Logistics and reverse logistics",
+          "finance": "Providers, contracts and financial data",
+          "reports": "Reports, audit and indicators",
+          "users": "Users, roles and administrative registrations"
+        },
+        "permissions": {
+          "NONE": "No access",
+          "OWN_READ": "Read own data only",
+          "OWN_READ_WRITE": "Read and update own data",
+          "UNIT_READ": "Read data linked to the CRE unit",
+          "UNIT_MANAGE": "Read and operate data linked to the CRE unit",
+          "NATIONAL_READ": "National consolidated read access",
+          "NATIONAL_MANAGE": "Full national management"
+        }
       }
     }
   },

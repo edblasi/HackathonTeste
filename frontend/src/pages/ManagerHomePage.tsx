@@ -54,6 +54,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "../components/Card";
+import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataState";
 import { useAuth } from "../contexts/AuthContext";
@@ -62,6 +63,7 @@ import type { TranslationKey } from "../i18n/translations";
 import { apiPost } from "../lib/api";
 import { useApiData } from "../lib/useApiData";
 import type {
+  AccessMatrixResponse,
   AdminCatalogs,
   ManagerAlertRow,
   ManagerComplianceRow,
@@ -84,6 +86,7 @@ type Page =
 type RegistrationTab = "patient" | "staff" | "provider" | "request";
 
 type KpiCardData = {
+  id?: string;
   label: string;
   value: string;
   delta: string;
@@ -91,6 +94,8 @@ type KpiCardData = {
   icon: React.ElementType;
   color: string;
   bg: string;
+  onClick?: () => void;
+  target?: Page;
 };
 
 const PIE_COLORS = ["#1565C0", "#1976D2", "#42A5F5", "#90CAF9", "#6A1B9A", "#546E7A"];
@@ -102,6 +107,9 @@ const REGION_COLORS: Record<string, string> = {
   S: "#00838F",
   "—": "#64748B",
 };
+
+const MANAGER_HOME_CARD_IDS = ["conformity", "efficiency", "recalls", "logistics", "units", "patients"] as const;
+type ManagerHomeCardId = (typeof MANAGER_HOME_CARD_IDS)[number];
 
 function numeric(input: unknown): number {
   const parsed = Number(input ?? 0);
@@ -229,17 +237,27 @@ function ComplianceRow({ item }: { item: ManagerComplianceRow }) {
   );
 }
 
-function KPICard({ label, value, delta, positive, icon: Icon, color, bg }: KpiCardData) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+function KPICard({ label, value, delta, positive, icon: Icon, color, bg, onClick }: KpiCardData) {
+  const content = (
+    <>
       <div className={`inline-flex items-center justify-center w-8 h-8 rounded-md ${bg} mb-3`}>
         <Icon size={15} className={color} />
       </div>
       <p className="text-2xl font-semibold text-foreground tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
       <p className={`text-xs font-medium mt-2 ${positive ? "text-[#2E7D32]" : "text-[#E65100]"}`}>{delta}</p>
-    </div>
+    </>
   );
+
+  const classes = "w-full bg-card border border-border rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left";
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${classes} cursor-pointer hover:border-[#1565C0]/40 focus:outline-none focus:ring-2 focus:ring-[#1565C0]/25`}>
+        {content}
+      </button>
+    );
+  }
+  return <div className={classes}>{content}</div>;
 }
 
 function PageHeader({ breadcrumb, title, subtitle, children }: {
@@ -301,8 +319,9 @@ function describeAlert(alert: ManagerAlertRow, t: (key: TranslationKey, params?:
   };
 }
 
-function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefresh: () => void }) {
+function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardData; onRefresh: () => void; onNavigate: (page: Page) => void }) {
   const { t, locale } = useLang();
+  const { user } = useAuth();
   const healthData = data.health.map((row) => ({ ...row, mes: monthLabel(row.month, locale) }));
   const inventoryData = data.regional.map((row) => ({ ...row, regiao: regionLabel(row.region, t) }));
   const accessData = data.access_distribution.map((row, index) => ({
@@ -313,6 +332,8 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
   const alerts = data.alerts.slice(0, 4);
   const kpiCards: KpiCardData[] = [
     {
+      id: "conformity",
+      target: "politicas",
       label: t("manager.standard.kpi.conformity"),
       value: percent(data.summary.conformity_rate, locale),
       delta: t("manager.standard.kpi.liveDatabase"),
@@ -322,6 +343,8 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       bg: "bg-blue-50",
     },
     {
+      id: "efficiency",
+      target: "relatorios",
       label: t("manager.standard.kpi.efficiency"),
       value: percent(data.summary.efficiency_rate, locale),
       delta: t("manager.standard.kpi.liveDatabase"),
@@ -331,6 +354,8 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       bg: "bg-green-50",
     },
     {
+      id: "recalls",
+      target: "ciclovida",
       label: t("manager.standard.kpi.recalls"),
       value: integer(data.summary.active_recalls, locale),
       delta: t("manager.standard.kpi.openRecords"),
@@ -340,6 +365,8 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       bg: "bg-red-50",
     },
     {
+      id: "logistics",
+      target: "logistica",
       label: t("manager.standard.kpi.logistics"),
       value: integer(data.summary.logistics_alerts, locale),
       delta: t("manager.standard.kpi.requiresAttention"),
@@ -349,6 +376,8 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       bg: "bg-orange-50",
     },
     {
+      id: "units",
+      target: "logistica",
       label: t("manager.standard.kpi.units"),
       value: integer(data.summary.active_units, locale),
       delta: t("manager.standard.kpi.activeNetwork"),
@@ -358,6 +387,8 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       bg: "bg-blue-50",
     },
     {
+      id: "patients",
+      target: "cadastros",
       label: t("manager.standard.kpi.patients"),
       value: integer(data.summary.patients, locale),
       delta: t("manager.standard.kpi.registeredDatabase"),
@@ -367,6 +398,13 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       bg: "bg-green-50",
     },
   ];
+
+  const { visibleIds, toggle, reset } = useDashboardCardPreferences<ManagerHomeCardId>(
+    `umdr:manager:${user?.id ?? "anonymous"}:home-cards`,
+    MANAGER_HOME_CARD_IDS,
+  );
+  const cardOptions = kpiCards.map((item) => ({ id: item.id as ManagerHomeCardId, label: item.label }));
+  const visibleKpiCards = kpiCards.filter((item) => visibleIds.includes(item.id as ManagerHomeCardId));
 
   const exportDashboard = () => {
     downloadCsv("umdr-dashboard.csv", [
@@ -386,10 +424,11 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
         title={t("manager.standard.pages.executive.title")}
         subtitle={t("manager.standard.pages.executive.subtitle")}
       >
+        <DashboardCustomizer options={cardOptions} visibleIds={visibleIds} onToggle={toggle} onReset={reset} />
         <button onClick={onRefresh} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors">
           <RefreshCw size={13} />{t("manager.standard.actions.refresh")}
         </button>
-        <button className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors">
+        <button onClick={() => onNavigate("ciclovida")} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors">
           <Bell size={13} />{t("manager.standard.actions.alertCount", { count: alerts.length })}
         </button>
         <button onClick={exportDashboard} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors">
@@ -398,11 +437,11 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       </PageHeader>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-        {kpiCards.map((item) => <KPICard key={item.label} {...item} />)}
+        {visibleKpiCards.map((item) => <KPICard key={item.id} {...item} onClick={() => item.target && onNavigate(item.target)} />)}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-        <Card className="xl:col-span-2 p-5">
+        <Card className="xl:col-span-2 p-5" onClick={() => onNavigate("relatorios")} ariaLabel={t("manager.standard.executive.trendTitle")}>
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.executive.trendTitle")}</h2>
@@ -440,7 +479,7 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
           ) : <EmptyState message={t("manager.standard.empty.chart")} />}
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-5" onClick={() => onNavigate("equidade")} ariaLabel={t("manager.standard.executive.accessTitle")}>
           <div className="mb-4">
             <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.executive.accessTitle")}</h2>
             <p className="text-xs text-muted-foreground">{t("manager.standard.executive.accessSubtitle")}</p>
@@ -470,7 +509,7 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="xl:col-span-2 p-5">
+        <Card className="xl:col-span-2 p-5" onClick={() => onNavigate("logistica")} ariaLabel={t("manager.standard.executive.inventoryTitle")}>
           <div className="mb-5">
             <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.executive.inventoryTitle")}</h2>
             <p className="text-xs text-muted-foreground">{t("manager.standard.executive.inventorySubtitle")}</p>
@@ -501,7 +540,12 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
               {alerts.map((alert, index) => {
                 const description = describeAlert(alert, t, locale);
                 return (
-                  <div key={`${alert.kind}-${index}`} className="flex gap-3 p-3 rounded-lg bg-muted/50">
+                  <button
+                    type="button"
+                    key={`${alert.kind}-${index}`}
+                    onClick={() => onNavigate(alert.kind === "recall" ? "ciclovida" : alert.kind === "report" ? "relatorios" : "logistica")}
+                    className="w-full flex gap-3 p-3 rounded-lg bg-muted/50 text-left hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-[#1565C0]/20"
+                  >
                     <StatusDot type={alert.severity} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5 gap-2">
@@ -510,7 +554,7 @@ function PaginaInicio({ data, onRefresh }: { data: ManagerDashboardData; onRefre
                       </div>
                       <p className="text-xs text-muted-foreground leading-snug">{description.message}</p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -842,11 +886,23 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
   const { t, locale } = useLang();
   const [filters, setFilters] = useState({ dataInicio: "", dataFim: "", regiao: "ALL", categoria: "ALL", indicador: "ALL" });
   const [preview, setPreview] = useState<ManagerReportRow | null>(null);
+  const accessMatrix = useApiData<AccessMatrixResponse>("/api/manager/access-matrix");
   const reports = data.reports.filter((report) => {
     const day = String(report.gerado_em).slice(0, 10);
     return (!filters.dataInicio || day >= filters.dataInicio) && (!filters.dataFim || day <= filters.dataFim);
   });
   const exportRows = () => downloadCsv("umdr-relatorios.csv", reports.map((report) => ({ ...report, region_filter: filters.regiao, category_filter: filters.categoria, indicator_filter: filters.indicador })));
+  const permissionLabel = (permission: string) => t(`manager.standard.accessMatrix.permissions.${permission}` as TranslationKey);
+  const categoryLabel = (key: string) => t(`manager.standard.accessMatrix.categories.${key}` as TranslationKey);
+  const exportAccessMatrix = () => {
+    const rows = accessMatrix.data?.rows ?? [];
+    downloadCsv("umdr-matriz-de-acesso.csv", rows.map((row) => ({
+      data_category: categoryLabel(row.key),
+      patient: permissionLabel(row.PACIENTE),
+      cre: permissionLabel(row.FISCAL_CRE),
+      manager: permissionLabel(row.GESTOR),
+    })));
+  };
   const shareReport = async (report: ManagerReportRow) => {
     const shareText = `${report.nome} — ${report.tipo} — ${formatDate(report.gerado_em, locale)}`;
     if (navigator.share) await navigator.share({ title: report.nome, text: shareText });
@@ -875,6 +931,53 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
           <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("manager.standard.reports.qualityIndicator")}</label><select value={filters.indicador} onChange={(event) => setFilters((current) => ({ ...current, indicador: event.target.value }))} className="w-full text-xs text-foreground bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-[#1565C0] transition-colors appearance-none"><option value="ALL">{t("manager.standard.reports.all")}</option><option value="CONFORMITY">{t("manager.standard.executive.conformity")}</option><option value="LEAD_TIME">{t("manager.standard.logistics.averageLeadTime")}</option><option value="EQUITY">{t("manager.standard.nav.equity")}</option><option value="SLA">{t("manager.standard.finance.averageSla")}</option></select></div>
         </div>
         <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-border"><button onClick={exportRows} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors"><BarChart3 size={13} />{t("manager.standard.actions.generateFullReport")}</button><button onClick={exportRows} className="flex items-center gap-2 text-xs font-medium text-foreground bg-muted border border-border rounded-lg px-4 py-2 hover:bg-muted/80 transition-colors"><Download size={13} />{t("manager.standard.actions.exportCsv")}</button><button onClick={() => window.print()} className="flex items-center gap-2 text-xs font-medium text-foreground bg-muted border border-border rounded-lg px-4 py-2 hover:bg-muted/80 transition-colors"><Download size={13} />{t("manager.standard.actions.exportPdf")}</button></div>
+      </Card>
+
+      <Card className="overflow-hidden mb-6">
+        <div className="flex flex-col gap-3 px-5 py-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={15} className="text-[#1565C0]" />
+              <h2 className="text-sm font-semibold text-foreground">{t("manager.standard.accessMatrix.title")}</h2>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{t("manager.standard.accessMatrix.subtitle")}</p>
+          </div>
+          <button type="button" onClick={exportAccessMatrix} disabled={!accessMatrix.data?.rows.length} className="flex items-center justify-center gap-2 rounded-lg bg-[#1565C0] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1976D2] disabled:cursor-not-allowed disabled:opacity-50">
+            <Download size={13} />{t("manager.standard.accessMatrix.export")}
+          </button>
+        </div>
+        {accessMatrix.loading && !accessMatrix.data ? (
+          <div className="p-5"><LoadingState message={t("manager.common.loading")} /></div>
+        ) : accessMatrix.error || !accessMatrix.data ? (
+          <div className="p-5"><ErrorState message={accessMatrix.error ?? t("manager.common.error")} retryLabel={t("manager.common.retry")} onRetry={accessMatrix.reload} /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/50 border-b border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wide">{t("manager.standard.accessMatrix.data")}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wide">{t("manager.standard.accessMatrix.patient")}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wide">{t("manager.standard.accessMatrix.cre")}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wide">{t("manager.standard.accessMatrix.manager")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accessMatrix.data.rows.map((row) => (
+                  <tr key={row.key} className="border-b border-border last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-3 font-medium text-foreground">{categoryLabel(row.key)}</td>
+                    {[row.PACIENTE, row.FISCAL_CRE, row.GESTOR].map((permission, index) => (
+                      <td key={`${row.key}-${index}`} className="px-4 py-3 text-muted-foreground">
+                        <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${permission === "NONE" ? "bg-slate-100 text-slate-500" : permission.includes("MANAGE") ? "bg-blue-50 text-[#1565C0]" : "bg-emerald-50 text-emerald-700"}`}>
+                          {permissionLabel(permission)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
@@ -919,7 +1022,13 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
     try {
       await apiPost(path, body);
       event.currentTarget.reset();
-      setMessage({ ok: true, text: t("manager.registration.success") });
+      const successKey: Record<RegistrationTab, TranslationKey> = {
+        patient: "manager.registration.successPatient",
+        staff: "manager.registration.successStaff",
+        provider: "manager.registration.successProvider",
+        request: "manager.registration.successRequest",
+      };
+      setMessage({ ok: true, text: t(successKey[tab]) });
       reload();
       onSaved();
     } catch (err) {
@@ -938,6 +1047,12 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
       <Card className="p-2 mb-5"><div className="grid grid-cols-2 gap-2 md:grid-cols-4">{tabs.map(([id, label]) => <button key={id} onClick={() => { setTab(id); setMessage(null); }} className={`rounded-lg px-3 py-2.5 text-xs font-semibold transition ${tab === id ? "bg-[#1565C0] text-white" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}</div></Card>
       <Card className="p-6">
         <div className="mb-5"><h2 className="text-lg font-semibold text-foreground">{t(`manager.registration.${tab}.title` as TranslationKey)}</h2><p className="mt-1 text-sm text-muted-foreground">{t(`manager.registration.${tab}.subtitle` as TranslationKey)}</p></div>
+        {message && (
+          <div role={message.ok ? "status" : "alert"} aria-live="polite" className={`mb-5 flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm font-medium ${message.ok ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
+            {message.ok ? <CheckCircle2 size={17} className="mt-0.5 shrink-0" /> : <AlertTriangle size={17} className="mt-0.5 shrink-0" />}
+            <span>{message.text}</span>
+          </div>
+        )}
 
         {tab === "patient" && <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/patients")}>
           <FormField label={t("manager.registration.fields.name")}><input className={inputClass} name="nome_completo" required /></FormField>
@@ -993,7 +1108,6 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <div className="md:col-span-2"><button disabled={submitting} className="rounded-lg bg-[#1565C0] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{submitting ? t("manager.registration.saving") : t("manager.registration.save")}</button></div>
         </form>}
 
-        {message && <div className={`mt-5 rounded-lg border px-4 py-3 text-xs font-semibold ${message.ok ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>{message.text}</div>}
       </Card>
     </div>
   );
@@ -1056,7 +1170,7 @@ export function ManagerHomePage() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {activePage === "inicio" && <PaginaInicio data={data} onRefresh={dashboard.reload} />}
+          {activePage === "inicio" && <PaginaInicio data={data} onRefresh={dashboard.reload} onNavigate={setActivePage} />}
           {activePage === "politicas" && <PaginaPoliticas data={data} />}
           {activePage === "ciclovida" && <PaginaCicloVida data={data} onRefresh={dashboard.reload} />}
           {activePage === "logistica" && <PaginaLogistica data={data} />}

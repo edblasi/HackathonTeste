@@ -165,3 +165,24 @@ export interface AdminCatalogs {
   materials: Array<Record<string, string | number | null>>;
   providers: Array<Record<string, string | number | null>>;
 }
+
+export type AccessPermission =
+  | "NONE"
+  | "OWN_READ"
+  | "OWN_READ_WRITE"
+  | "UNIT_READ"
+  | "UNIT_MANAGE"
+  | "NATIONAL_READ"
+  | "NATIONAL_MANAGE";
+
+export interface AccessMatrixRow {
+  key: string;
+  PACIENTE: AccessPermission;
+  FISCAL_CRE: AccessPermission;
+  GESTOR: AccessPermission;
+}
+
+export interface AccessMatrixResponse {
+  generated_at: string;
+  rows: AccessMatrixRow[];
+}

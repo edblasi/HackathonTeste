@@ -294,6 +294,13 @@
       "back": "Voltar",
       "brandFull": "Registro Unificado de Dispositivos Médicos",
       "secureSession": "Sessão segura"
+    },
+    "cards": {
+      "customize": "Personalizar cards",
+      "title": "Cards da página inicial",
+      "subtitle": "Escolha quais cards deseja manter visíveis. Sua preferência fica salva neste navegador.",
+      "reset": "Restaurar padrão",
+      "close": "Fechar personalização"
     }
   },
   "home": {
@@ -631,7 +638,11 @@
       "save": "Salvar cadastro",
       "saving": "Salvando...",
       "success": "Cadastro concluído com sucesso.",
-      "error": "Não foi possível concluir o cadastro."
+      "error": "Não foi possível concluir o cadastro.",
+      "successPatient": "Paciente e credencial cadastrados com sucesso.",
+      "successStaff": "Profissional e credencial cadastrados com sucesso.",
+      "successProvider": "Fornecedor cadastrado com sucesso.",
+      "successRequest": "Solicitação cadastrada com sucesso."
     },
     "standard": {
       "brand": "CNDA · SUS",
@@ -969,6 +980,36 @@
         "RURAL": "Rural",
         "RIBEIRINHA": "Ribeirinha",
         "REMOTA": "Remota"
+      },
+      "accessMatrix": {
+        "title": "Matriz de acesso aos dados",
+        "subtitle": "Relatório consolidado de quais perfis podem acessar cada categoria de dado e em qual escopo.",
+        "data": "Categoria de dado",
+        "patient": "Paciente",
+        "cre": "Fiscal CRE",
+        "manager": "Gestor",
+        "export": "Exportar matriz CSV",
+        "scope": "Escopo de acesso",
+        "categories": {
+          "identity": "Identificação e dados cadastrais do paciente",
+          "requests": "Solicitações e fila assistencial",
+          "clinical": "Triagens e dados clínicos operacionais",
+          "production": "Produção e ciclo de vida do dispositivo",
+          "inventory": "Estoque e materiais",
+          "logistics": "Logística e logística reversa",
+          "finance": "Fornecedores, contratos e dados financeiros",
+          "reports": "Relatórios, auditoria e indicadores",
+          "users": "Usuários, perfis e cadastros administrativos"
+        },
+        "permissions": {
+          "NONE": "Sem acesso",
+          "OWN_READ": "Somente leitura dos próprios dados",
+          "OWN_READ_WRITE": "Leitura e atualização dos próprios dados",
+          "UNIT_READ": "Leitura vinculada à unidade CRE",
+          "UNIT_MANAGE": "Leitura e operação vinculadas à unidade CRE",
+          "NATIONAL_READ": "Leitura nacional consolidada",
+          "NATIONAL_MANAGE": "Gestão nacional completa"
+        }
       }
     }
   },

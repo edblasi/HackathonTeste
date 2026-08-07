@@ -17,6 +17,7 @@ import { useLang } from "../i18n/LanguageContext";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { Card } from "../components/Card";
+import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { Avatar } from "../components/Avatar";
 import { StatusBadge } from "../components/StatusBadge";
 import { QRCodePlaceholder } from "../components/QRCode";
@@ -29,6 +30,9 @@ import {
   type HistoricoStatus,
 } from "../hooks/FetchData";
 import type { TranslationKey } from "../i18n/translations";
+
+const USER_HOME_CARD_IDS = ["request", "timeline", "digitalId", "support"] as const;
+type UserHomeCardId = (typeof USER_HOME_CARD_IDS)[number];
 
 // Devolve a chave de tradução do status (funciona tanto pra status de
 // solicitacao_ortese quanto de ordem_producao — os dois compartilham o
@@ -82,7 +86,7 @@ function WelcomeSection({ nomeExibicao }: { nomeExibicao: string }) {
   );
 }
 
-function PedidoStatusCard({ pedido }: { pedido: PedidoAtual }) {
+function PedidoStatusCard({ pedido, onOpenTimeline }: { pedido: PedidoAtual; onOpenTimeline: () => void }) {
   const { t, locale } = useLang();
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(locale) : null);
 
@@ -94,7 +98,8 @@ function PedidoStatusCard({ pedido }: { pedido: PedidoAtual }) {
   ];
 
   return (
-    <Card>
+    <button type="button" onClick={onOpenTimeline} className="block w-full text-left rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30">
+      <Card className="hover:border-primary/30 hover:shadow-md transition-all">
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -145,7 +150,8 @@ function PedidoStatusCard({ pedido }: { pedido: PedidoAtual }) {
           </div>
         </div>
       </div>
-    </Card>
+      </Card>
+    </button>
   );
 }
 
@@ -201,7 +207,7 @@ function TimelineCard({ pedido, historico }: { pedido: PedidoAtual; historico: H
   );
 }
 
-function DigitalIDCard({ pedido, nomeExibicao, iniciais }: { pedido: PedidoAtual; nomeExibicao: string; iniciais: string }) {
+function DigitalIDCard({ pedido, nomeExibicao, iniciais, onViewHistory }: { pedido: PedidoAtual; nomeExibicao: string; iniciais: string; onViewHistory: () => void }) {
   const { t } = useLang();
   const [copied, setCopied] = useState(false);
   const idValue = `SOL-${pedido.solicitacao_id}`;
@@ -232,11 +238,11 @@ function DigitalIDCard({ pedido, nomeExibicao, iniciais }: { pedido: PedidoAtual
         </div>
 
         <div className="mt-4 space-y-2">
-          <button className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-secondary text-primary text-sm font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
+          <button type="button" onClick={onViewHistory} className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-secondary text-primary text-sm font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
             <History className="w-4 h-4" aria-hidden="true" />
             {t("home.id.viewHistory")}
           </button>
-          <button className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
+          <button type="button" onClick={() => window.print()} className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-[#0B5394] text-white text-sm font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30">
             <FileDown className="w-4 h-4" aria-hidden="true" />
             {t("home.id.exportPdf")}
           </button>
@@ -267,6 +273,7 @@ function SupportCard() {
       description: t("home.support.report.desc"),
       color: "text-destructive",
       bg: "hover:bg-red-50 focus:ring-destructive/30",
+      action: () => { window.location.href = "tel:136"; },
     },
     {
       icon: Phone,
@@ -274,6 +281,7 @@ function SupportCard() {
       description: t("home.support.contact.desc"),
       color: "text-primary",
       bg: "hover:bg-secondary focus:ring-primary/30",
+      action: () => { window.location.href = "tel:136"; },
     },
     {
       icon: HelpCircle,
@@ -281,6 +289,7 @@ function SupportCard() {
       description: t("home.support.faq.desc"),
       color: "text-muted-foreground",
       bg: "hover:bg-secondary focus:ring-primary/30",
+      action: () => window.open("https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/p/pessoa-com-deficiencia", "_blank", "noopener,noreferrer"),
     },
   ];
 
@@ -291,9 +300,11 @@ function SupportCard() {
         <p className="text-xs text-muted-foreground mb-4">{t("home.support.subtitle")}</p>
 
         <ul className="space-y-2" role="list">
-          {links.map(({ icon: Icon, label, description, color, bg }) => (
+          {links.map(({ icon: Icon, label, description, color, bg, action }) => (
             <li key={label}>
               <button
+                type="button"
+                onClick={action}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg border border-border text-left transition-colors focus:outline-none focus:ring-2 ${bg}`}
                 aria-label={label}
               >
@@ -321,9 +332,13 @@ function SupportCard() {
 }
 
 export function UserHomePage() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
+  const { visibleIds, toggle, reset, isVisible } = useDashboardCardPreferences<UserHomeCardId>(
+    `umdr:patient:${user?.id ?? "anonymous"}:home-cards`,
+    USER_HOME_CARD_IDS,
+  );
 
   const { data: usuario, loading: loadingUsuario } = useUsuarioAtual();
   const { data: pedidos, loading: loadingPedidos, error: erroPedidos } = usePedidos();
@@ -349,6 +364,15 @@ export function UserHomePage() {
   const proximaNotificacao = notificacoes?.find((n) => !n.lida) ?? null;
 
   const loading = loadingUsuario || loadingPedidos;
+  const cardOptions = [
+    { id: "request" as const, label: t("home.pedido.title") },
+    { id: "timeline" as const, label: t("home.timeline.title") },
+    { id: "digitalId" as const, label: t("home.id.title") },
+    { id: "support" as const, label: t("home.support.title") },
+  ];
+  const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const hasLeftColumn = isVisible("request") || isVisible("timeline");
+  const hasRightColumn = isVisible("digitalId") || isVisible("support");
 
   return (
     <div className="min-h-screen bg-background font-[Inter,_system-ui,_sans-serif]">
@@ -362,9 +386,12 @@ export function UserHomePage() {
       />
 
       <main className="max-w-[1440px] mx-auto px-8 py-8">
-        <section className="mb-8" aria-labelledby="welcome-heading">
+        <section className="mb-5" aria-labelledby="welcome-heading">
           <WelcomeSection nomeExibicao={nomeExibicao || "—"} />
         </section>
+        <div className="mb-5 flex justify-end">
+          <DashboardCustomizer options={cardOptions} visibleIds={visibleIds} onToggle={toggle} onReset={reset} />
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-24 text-muted-foreground text-sm">…</div>
@@ -377,36 +404,28 @@ export function UserHomePage() {
             <p className="p-6 text-sm text-muted-foreground">{t("home.pedido.noPedido")}</p>
           </Card>
         ) : (
-          <div className="grid gap-5" style={{ gridTemplateColumns: "65fr 35fr" }}>
-            <div className="space-y-5">
-              <section aria-labelledby="pedido-status-heading">
-                <h2 id="pedido-status-heading" className="sr-only">
-                  {t("home.pedido.title")}
-                </h2>
-                <PedidoStatusCard pedido={pedidoAtivo} />
-              </section>
-              <section aria-labelledby="timeline-heading">
-                <h2 id="timeline-heading" className="sr-only">
-                  {t("home.timeline.title")}
-                </h2>
+          <div className={`grid gap-5 ${hasLeftColumn && hasRightColumn ? "lg:grid-cols-[65fr_35fr]" : "grid-cols-1"}`}>
+            {hasLeftColumn && <div className="space-y-5">
+              {isVisible("request") && <section id="patient-request-card" aria-labelledby="pedido-status-heading" className="scroll-mt-24">
+                <h2 id="pedido-status-heading" className="sr-only">{t("home.pedido.title")}</h2>
+                <PedidoStatusCard pedido={pedidoAtivo} onOpenTimeline={() => scrollToSection("patient-timeline-card")} />
+              </section>}
+              {isVisible("timeline") && <section id="patient-timeline-card" aria-labelledby="timeline-heading" className="scroll-mt-24">
+                <h2 id="timeline-heading" className="sr-only">{t("home.timeline.title")}</h2>
                 <TimelineCard pedido={pedidoAtivo} historico={historico ?? []} />
-              </section>
-            </div>
+              </section>}
+            </div>}
 
-            <div className="space-y-5">
-              <section aria-labelledby="digital-id-heading">
-                <h2 id="digital-id-heading" className="sr-only">
-                  {t("home.id.title")}
-                </h2>
-                <DigitalIDCard pedido={pedidoAtivo} nomeExibicao={nomeExibicao || "—"} iniciais={iniciais} />
-              </section>
-              <section aria-labelledby="support-heading">
-                <h2 id="support-heading" className="sr-only">
-                  {t("home.support.title")}
-                </h2>
+            {hasRightColumn && <div className="space-y-5">
+              {isVisible("digitalId") && <section id="patient-digital-id-card" aria-labelledby="digital-id-heading" className="scroll-mt-24">
+                <h2 id="digital-id-heading" className="sr-only">{t("home.id.title")}</h2>
+                <DigitalIDCard pedido={pedidoAtivo} nomeExibicao={nomeExibicao || "—"} iniciais={iniciais} onViewHistory={() => scrollToSection("patient-timeline-card")} />
+              </section>}
+              {isVisible("support") && <section id="patient-support-card" aria-labelledby="support-heading" className="scroll-mt-24">
+                <h2 id="support-heading" className="sr-only">{t("home.support.title")}</h2>
                 <SupportCard />
-              </section>
-            </div>
+              </section>}
+            </div>}
           </div>
         )}
       </main>

@@ -16,3 +16,49 @@ body {
 .font-serif { font-family: 'DM Serif Display', serif; }
 
 select option { background-color: white; }
+/* Fallbacks semânticos: mantêm a paleta do frontend mesmo quando o deploy não carrega a extensão de cores do Tailwind. */
+.bg-background { background-color: #F7FAF8; }
+.bg-card { background-color: #FFFFFF; }
+.bg-primary { background-color: #0056AC; }
+.bg-primary\/10 { background-color: rgba(0, 86, 172, 0.10); }
+.bg-primary\/8 { background-color: rgba(0, 86, 172, 0.08); }
+.bg-primary\/5 { background-color: rgba(0, 86, 172, 0.05); }
+.bg-secondary { background-color: #EEF6FF; }
+.bg-muted { background-color: #F1F5F9; }
+.bg-muted\/80 { background-color: rgba(241, 245, 249, 0.80); }
+.bg-muted\/70 { background-color: rgba(241, 245, 249, 0.70); }
+.bg-muted\/50 { background-color: rgba(241, 245, 249, 0.50); }
+.bg-muted\/40 { background-color: rgba(241, 245, 249, 0.40); }
+.bg-muted\/30 { background-color: rgba(241, 245, 249, 0.30); }
+.bg-accent { background-color: #059669; }
+.bg-destructive { background-color: #C62828; }
+.bg-foreground { background-color: #0F172A; }
+.bg-input-background { background-color: #F8FAFC; }
+.text-foreground { color: #0F172A; }
+.text-muted-foreground { color: #64748B; }
+.text-primary { color: #0056AC; }
+.text-primary-foreground { color: #FFFFFF; }
+.text-secondary-foreground { color: #334155; }
+.text-accent { color: #059669; }
+.text-accent-foreground { color: #FFFFFF; }
+.text-destructive { color: #C62828; }
+.text-destructive-foreground { color: #FFFFFF; }
+.border-border { border-color: #E2E8F0; }
+.border-primary { border-color: #0056AC; }
+.border-primary\/50 { border-color: rgba(0, 86, 172, 0.50); }
+.border-primary\/40 { border-color: rgba(0, 86, 172, 0.40); }
+.border-primary\/30 { border-color: rgba(0, 86, 172, 0.30); }
+.border-primary\/20 { border-color: rgba(0, 86, 172, 0.20); }
+.border-primary\/18 { border-color: rgba(0, 86, 172, 0.18); }
+.border-primary\/15 { border-color: rgba(0, 86, 172, 0.15); }
+.hover\:bg-secondary:hover { background-color: #EEF6FF; }
+.hover\:bg-muted:hover { background-color: #F1F5F9; }
+.hover\:bg-muted\/70:hover { background-color: rgba(241, 245, 249, 0.70); }
+.hover\:bg-muted\/50:hover { background-color: rgba(241, 245, 249, 0.50); }
+.hover\:text-primary:hover { color: #0056AC; }
+.hover\:text-foreground:hover { color: #0F172A; }
+.hover\:border-primary\/40:hover { border-color: rgba(0, 86, 172, 0.40); }
+.hover\:border-primary\/30:hover { border-color: rgba(0, 86, 172, 0.30); }
+.focus\:ring-primary\/30:focus { --tw-ring-color: rgba(0, 86, 172, 0.30); }
+.focus\:ring-primary\/25:focus { --tw-ring-color: rgba(0, 86, 172, 0.25); }
+.focus\:ring-destructive\/30:focus { --tw-ring-color: rgba(198, 40, 40, 0.30); }

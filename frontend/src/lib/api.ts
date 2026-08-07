@@ -37,9 +37,29 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const payload = contentType.includes("application/json") ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const message = typeof payload === "object" && payload && "detail" in payload
-      ? String((payload as { detail: unknown }).detail)
-      : String(payload || "Erro ao comunicar com o servidor.");
+    let message = "Erro ao comunicar com o servidor.";
+    if (typeof payload === "object" && payload) {
+      const structured = payload as { detail?: unknown; field_errors?: Array<{ field?: string; message?: string }> };
+      if (Array.isArray(structured.field_errors) && structured.field_errors.length) {
+        message = structured.field_errors
+          .map((item) => item.message)
+          .filter((item): item is string => Boolean(item))
+          .join(" ");
+      } else if (Array.isArray(structured.detail)) {
+        message = structured.detail
+          .map((item) => {
+            if (typeof item === "string") return item;
+            if (item && typeof item === "object" && "msg" in item) return String((item as { msg: unknown }).msg).replace(/^Value error,\s*/i, "");
+            return "";
+          })
+          .filter(Boolean)
+          .join(" ");
+      } else if (structured.detail) {
+        message = String(structured.detail);
+      }
+    } else if (payload) {
+      message = String(payload);
+    }
     throw new ApiError(message, response.status);
   }
 

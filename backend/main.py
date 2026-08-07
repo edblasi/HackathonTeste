@@ -8,8 +8,10 @@ from typing import Any, Literal
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -30,7 +32,6 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
-CORS_ORIGINS = [item.strip() for item in os.getenv("CORS_ORIGINS", "*").split(",") if item.strip()]
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     raise RuntimeError("Defina SUPABASE_URL e SUPABASE_SERVICE_KEY no arquivo .env do backend.")
@@ -38,13 +39,84 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 app = FastAPI(title="UMDR API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=CORS_ORIGINS != ["*"],
+    allow_origins=["*"],
+    allow_credentials=False
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 security = HTTPBearer(auto_error=False)
+
+
+FIELD_LABELS = {
+    "email": "E-mail",
+    "password": "Senha",
+    "nome_completo": "Nome completo",
+    "nome": "Nome",
+    "cns": "CNS",
+    "cpf": "CPF",
+    "cnpj": "CNPJ",
+    "data_nascimento": "Data de nascimento",
+    "sexo": "Sexo",
+    "municipio_residencia_ibge6": "Município",
+    "telefone_contato": "Telefone",
+    "telefone": "Telefone",
+    "cbo": "CBO",
+    "cnes_vinculo": "Unidade CNES",
+    "papel": "Perfil de acesso",
+    "numero_conselho": "Número do conselho",
+    "tipo_conselho": "Tipo do conselho",
+    "endereco": "Endereço",
+    "numero_contrato": "Número do contrato",
+    "valor_total": "Valor do contrato",
+    "data_inicio": "Data de início",
+    "data_fim": "Data de término",
+    "sla_percentual": "SLA",
+    "paciente_id": "Paciente",
+    "procedimento_sigtap": "Procedimento SIGTAP",
+    "cid10_codigo": "CID-10",
+    "prioridade_clinica": "Prioridade",
+    "lado_acometido": "Lado acometido",
+    "justificativa_clinica": "Justificativa clínica",
+    "distancia_estimada_cre_km": "Distância estimada até o CRE",
+}
+
+
+def _friendly_validation_message(error: dict[str, Any]) -> tuple[str, str]:
+    loc = error.get("loc") or []
+    field = str(loc[-1]) if loc else "dados"
+    label = FIELD_LABELS.get(field, field.replace("_", " ").capitalize())
+    error_type = str(error.get("type") or "")
+    message = str(error.get("msg") or "Valor inválido.")
+    if message.startswith("Value error, "):
+        message = message.removeprefix("Value error, ")
+    if error_type == "missing":
+        message = f'O campo "{label}" é obrigatório.'
+    elif error_type == "string_too_short":
+        minimum = (error.get("ctx") or {}).get("min_length")
+        message = f'O campo "{label}" deve ter pelo menos {minimum} caracteres.' if minimum else f'O campo "{label}" está muito curto.'
+    elif error_type in {"value_error", "string_pattern_mismatch"}:
+        if label.lower() not in message.lower():
+            message = f"{label}: {message}"
+    elif error_type.startswith("literal_error"):
+        message = f'O valor informado em "{label}" não é permitido.'
+    elif error_type in {"date_from_datetime_parsing", "date_type"}:
+        message = f'A data informada em "{label}" é inválida.'
+    elif error_type in {"float_parsing", "int_parsing", "float_type", "int_type"}:
+        message = f'O campo "{label}" deve conter um número válido.'
+    elif error_type == "value_error" and label.lower() not in message.lower():
+        message = f"{label}: {message}"
+    return field, message
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    field_errors = []
+    for error in exc.errors(include_url=False):
+        field, message = _friendly_validation_message(error)
+        field_errors.append({"field": field, "message": message})
+    detail = " ".join(item["message"] for item in field_errors) or "Revise os dados informados."
+    return JSONResponse(status_code=422, content={"detail": detail, "field_errors": field_errors})
 
 
 # -----------------------------------------------------------------------------
@@ -980,6 +1052,28 @@ async def create_request(payload: RequestCreate, identity: Identity = Depends(cu
 # -----------------------------------------------------------------------------
 # Painel gestor. A agregação é feita aqui para o banco continuar simples.
 # -----------------------------------------------------------------------------
+
+ACCESS_MATRIX: list[dict[str, str]] = [
+    {"key": "identity", "PACIENTE": "OWN_READ", "FISCAL_CRE": "UNIT_READ", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "requests", "PACIENTE": "OWN_READ", "FISCAL_CRE": "UNIT_MANAGE", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "clinical", "PACIENTE": "OWN_READ", "FISCAL_CRE": "UNIT_MANAGE", "GESTOR": "NATIONAL_READ"},
+    {"key": "production", "PACIENTE": "OWN_READ", "FISCAL_CRE": "UNIT_MANAGE", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "inventory", "PACIENTE": "NONE", "FISCAL_CRE": "UNIT_MANAGE", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "logistics", "PACIENTE": "OWN_READ", "FISCAL_CRE": "UNIT_MANAGE", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "finance", "PACIENTE": "NONE", "FISCAL_CRE": "UNIT_READ", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "reports", "PACIENTE": "NONE", "FISCAL_CRE": "UNIT_READ", "GESTOR": "NATIONAL_MANAGE"},
+    {"key": "users", "PACIENTE": "NONE", "FISCAL_CRE": "NONE", "GESTOR": "NATIONAL_MANAGE"},
+]
+
+
+@app.get("/api/manager/access-matrix")
+async def manager_access_matrix(identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "GESTOR")
+    return {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "rows": ACCESS_MATRIX,
+    }
+
 
 @app.get("/api/manager/dashboard")
 async def manager_dashboard(identity: Identity = Depends(current_identity)) -> dict[str, Any]:
