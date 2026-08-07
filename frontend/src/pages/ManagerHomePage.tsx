@@ -1329,7 +1329,17 @@ export function ManagerHomePage() {
   ], [t]);
 
   const filteredNavItems = navItems.filter((item) => item.label.toLocaleLowerCase(locale).includes(search.toLocaleLowerCase(locale)));
-  const pageTitles = Object.fromEntries(navItems.map((item) => [item.id, item.label])) as Record<Page, string>;
+  const pageMeta: Record<Page, { title: string; subtitle: string }> = {
+    inicio: { title: t("manager.standard.pages.executive.title"), subtitle: t("manager.standard.pages.executive.subtitle") },
+    cres: { title: t("manager.standard.pages.creCenters.title"), subtitle: t("manager.standard.pages.creCenters.subtitle") },
+    ciclovida: { title: t("manager.standard.pages.lifecycle.title"), subtitle: t("manager.standard.pages.lifecycle.subtitle") },
+    logistica: { title: t("manager.standard.pages.logistics.title"), subtitle: t("manager.standard.pages.logistics.subtitle") },
+    financas: { title: t("manager.standard.pages.finance.title"), subtitle: t("manager.standard.pages.finance.subtitle") },
+    equidade: { title: t("manager.standard.pages.equity.title"), subtitle: t("manager.standard.pages.equity.subtitle") },
+    relatorios: { title: t("manager.standard.pages.reports.title"), subtitle: t("manager.standard.pages.reports.subtitle") },
+    comunicacoes: { title: t("manager.standard.pages.communications.title"), subtitle: t("manager.standard.pages.communications.subtitle") },
+    cadastros: { title: t("manager.standard.pages.registrations.title"), subtitle: t("manager.standard.pages.registrations.subtitle") },
+  };
 
   if (dashboard.loading && !dashboard.data) return <LoadingState message={t("manager.common.loading")} />;
   if (dashboard.error || !dashboard.data) return <ErrorState message={dashboard.error ?? t("manager.common.error")} retryLabel={t("manager.common.retry")} onRetry={dashboard.reload} />;
@@ -1340,7 +1350,7 @@ export function ManagerHomePage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ fontFamily: "Inter, DM Sans, sans-serif", background: "#F8F9FA" }}>
-      <aside className="flex w-60 shrink-0 flex-col h-full bg-white border-r border-slate-200">
+      <aside className="flex w-56 shrink-0 flex-col h-full bg-white border-r border-slate-200">
         <div className="px-5 pt-6 pb-5 border-b border-slate-100">
           <div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-lg bg-[#1565C0] flex items-center justify-center shrink-0"><Activity size={15} className="text-white" /></div><div><p className="text-slate-900 text-xs font-semibold leading-tight">{t("manager.standard.brand")}</p><p className="text-slate-400 text-[10px] leading-tight">{t("manager.standard.brandFull")}</p></div></div>
         </div>
@@ -1351,37 +1361,66 @@ export function ManagerHomePage() {
           <p className="text-[10px] font-semibold tracking-widest text-slate-400 uppercase px-2 py-2">{t("manager.standard.mainMenu")}</p>
           {filteredNavItems.map((item) => {
             const isActive = activePage === item.id;
-            return <button key={item.id} onClick={() => setActivePage(item.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors text-xs font-medium ${isActive ? "bg-blue-50 text-blue-700 font-semibold" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}><item.icon size={14} className={isActive ? "text-blue-600" : "text-slate-400"} /><span className="leading-tight">{item.label}</span>{isActive && <ChevronRight size={11} className="ml-auto text-blue-400" />}</button>;
+            return <button key={item.id} onClick={() => setActivePage(item.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors text-sm font-medium ${isActive ? "bg-blue-50 text-blue-700 font-semibold" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}><item.icon size={16} className={isActive ? "text-blue-600" : "text-slate-400"} /><span className="leading-tight">{item.label}</span>{isActive && <ChevronRight size={14} className="ml-auto text-blue-400" />}</button>;
           })}
         </nav>
 
-        <div className="px-4 py-4 border-t border-slate-100 space-y-3">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-1"><LanguageToggle /></div>
-          <div className="relative">
-            <div className="flex items-center gap-2.5">
-              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="w-7 h-7 rounded-full bg-[#1565C0] flex items-center justify-center shrink-0 text-white text-xs font-semibold hover:ring-2 hover:ring-blue-200 hover:ring-offset-2 hover:ring-offset-white transition-all" aria-expanded={profileOpen}>{initials}</button>
-              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="flex-1 min-w-0 text-left"><p className="text-slate-900 text-xs font-medium truncate">{managerName}</p><p className="text-slate-400 text-[10px] truncate">{t("manager.standard.executiveAccess")}</p></button>
-              <button type="button" onClick={() => setSettingsOpen(true)} title={t("shell.navbar.settings")} className="text-slate-400 hover:text-slate-700 transition"><Settings size={14} /></button>
-              <button onClick={() => void signOut()} title={t("manager.standard.actions.logout")} className="text-slate-400 hover:text-red-600 transition"><LogOut size={14} /></button>
-            </div>
-            {profileOpen && <div className="absolute bottom-10 left-0 z-[100] w-80 overflow-hidden rounded-xl border border-border bg-white shadow-2xl">
-              <div className="bg-gradient-to-br from-[#1565C0] to-[#0A4880] px-5 py-4 text-white"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/40 bg-white/15 text-sm font-bold">{initials}</div><div className="min-w-0"><p className="truncate text-sm font-bold">{managerName}</p><p className="text-xs text-white/75">{t("manager.standard.executiveAccess")}</p></div><button type="button" onClick={() => setProfileOpen(false)} className="ml-auto text-white/70 hover:text-white"><X size={15} /></button></div></div>
-              <div className="divide-y divide-border px-4 py-1">
-                <div className="flex items-start justify-between gap-4 py-2.5"><span className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Mail size={11} />{t("shell.profile.email")}</span><span className="max-w-[62%] break-all text-right text-xs font-medium text-foreground">{user?.email ?? "—"}</span></div>
-                <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.role")}</span><span className="text-right text-xs font-medium text-foreground">{t("manager.standard.manager")}</span></div>
-                <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.access")}</span><span className="text-right text-xs font-medium text-foreground">{t("manager.standard.executiveAccess")}</span></div>
-                <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.lastSignIn")}</span><span className="text-right text-xs font-medium text-foreground">{user?.last_sign_in_at ? formatDateTime(user.last_sign_in_at, locale) : "—"}</span></div>
-              </div>
-              <div className="border-t border-border p-2"><button type="button" onClick={() => { setProfileOpen(false); setSettingsOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted"><Settings size={14} className="text-muted-foreground" />{t("shell.navbar.settings")}</button></div>
-            </div>}
-          </div>
+        <div className="px-3 pb-4 border-t border-slate-100 pt-3 space-y-0.5">
+          <button type="button" onClick={() => setSettingsOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+            <Settings size={16} className="text-slate-400" /> {t("shell.navbar.settings")}
+          </button>
+          <button type="button" onClick={() => void signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+            <LogOut size={16} className="text-slate-400" /> {t("manager.standard.actions.logout")}
+          </button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex items-center gap-2 px-8 py-3.5 bg-card border-b border-border shrink-0 text-xs text-muted-foreground">
-          <span>{t("manager.standard.brand")}</span><ChevronRight size={11} /><span className="text-foreground font-medium">{pageTitles[activePage]}</span>
-        </div>
+        <header className="h-14 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 relative">
+          <div>
+            <h1 className="text-base font-bold text-slate-900">{pageMeta[activePage].title}</h1>
+            <p className="text-xs text-slate-400 font-medium">{pageMeta[activePage].subtitle}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageToggle />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((value) => !value)}
+                className="w-8 h-8 rounded-full bg-[#1565C0] flex items-center justify-center text-xs font-bold text-white hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all"
+                aria-expanded={profileOpen}
+              >
+                {initials}
+              </button>
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-xl border border-border bg-white shadow-2xl">
+                    <div className="bg-gradient-to-br from-[#1565C0] to-[#0A4880] px-5 py-4 text-white">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/40 bg-white/15 text-sm font-bold">{initials}</div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold">{managerName}</p>
+                          <p className="text-xs text-white/75">{t("manager.standard.executiveAccess")}</p>
+                        </div>
+                        <button type="button" onClick={() => setProfileOpen(false)} className="ml-auto text-white/70 hover:text-white"><X size={15} /></button>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-border px-4 py-1">
+                      <div className="flex items-start justify-between gap-4 py-2.5"><span className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Mail size={11} />{t("shell.profile.email")}</span><span className="max-w-[62%] break-all text-right text-xs font-medium text-foreground">{user?.email ?? "—"}</span></div>
+                      <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.role")}</span><span className="text-right text-xs font-medium text-foreground">{t("manager.standard.manager")}</span></div>
+                      <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.access")}</span><span className="text-right text-xs font-medium text-foreground">{t("manager.standard.executiveAccess")}</span></div>
+                      <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.lastSignIn")}</span><span className="text-right text-xs font-medium text-foreground">{user?.last_sign_in_at ? formatDateTime(user.last_sign_in_at, locale) : "—"}</span></div>
+                    </div>
+                    <div className="border-t border-border p-2">
+                      <button type="button" onClick={() => { setProfileOpen(false); setSettingsOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted"><Settings size={14} className="text-muted-foreground" />{t("shell.navbar.settings")}</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
 
         <div className="flex-1 overflow-y-auto">
           {activePage === "inicio" && <PaginaInicio data={data} onRefresh={dashboard.reload} onNavigate={setActivePage} />}

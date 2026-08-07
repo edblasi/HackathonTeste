@@ -834,7 +834,11 @@ async def _notify_cre_support(cnes: str, title: str, message: str, ticket_id: in
         "app",
         "usuario_sistema",
         select="auth_user_id,papel,cnes_vinculo,ativo",
-        filters={"cnes_vinculo": f"eq.{cnes}", "ativo": "eq.true"},
+        filters={
+            "cnes_vinculo": f"eq.{cnes}",
+            "papel": "eq.FISCAL_CRE",
+            "ativo": "eq.true",
+        },
         limit=500,
     )
     rows = [
@@ -848,7 +852,7 @@ async def _notify_cre_support(cnes: str, title: str, message: str, ticket_id: in
             "destino_ui": "cre_support",
         }
         for user in users
-        if user.get("papel") in {"FISCAL_CRE", "GESTOR"}
+        if user.get("papel") == "FISCAL_CRE"
     ]
     if rows:
         await db_insert("app", "notificacao", rows)

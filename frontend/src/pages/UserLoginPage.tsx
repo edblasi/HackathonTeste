@@ -5,12 +5,10 @@ import {
   EyeOff,
   ArrowRight,
   Shield,
-  Activity,
   User,
   MapPin,
   Building2,
   Package,
-  BadgeCheck,
   Lock,
   Mail,
   CreditCard,
@@ -278,19 +276,6 @@ function LoginStep({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
               </span>
               gov.br
             </button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 mb-5">
-            {[
-              { icon: <Shield size={10} />, label: t("auth.login.badge.lgpd") },
-              { icon: <Activity size={10} />, label: t("auth.login.badge.tracking") },
-              { icon: <BadgeCheck size={10} />, label: t("auth.login.badge.deviceId") },
-            ].map(({ icon, label }) => (
-              <div key={label} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted border border-border text-[11px] text-muted-foreground">
-                {icon}
-                {label}
-              </div>
-            ))}
           </div>
 
           <p className="text-[11px] text-muted-foreground text-center leading-relaxed">

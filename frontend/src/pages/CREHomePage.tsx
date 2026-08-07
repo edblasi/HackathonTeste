@@ -189,8 +189,9 @@ interface SidebarProps {
 
 function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps) 
 {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const { signOut } = useAuth();
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const nav: { icon: any; label: string; page: Page | null }[] = [
     { icon: Home,          label: t("nav.home"),      page: "inicio"    },
@@ -207,6 +208,9 @@ function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps)
     navigate("/login", { replace: true });
   };
 
+  const normalizedSearch = search.trim().toLocaleLowerCase(locale);
+  const filteredNav = nav.filter((item) => !normalizedSearch || item.label.toLocaleLowerCase(locale).includes(normalizedSearch));
+
   return (
     <aside
       className="w-56 shrink-0 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0"
@@ -222,19 +226,27 @@ function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps)
             />
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-900 tracking-tight">
-              RE-VITA
-            </p>
-            <p className="text-[10px] text-slate-400 font-medium tracking-widest uppercase">
-              {t("nav.system")}
-            </p>
+            <p className="text-sm font-bold text-slate-900 tracking-tight">REVITA</p>
           </div>
         </div>
       </div>
 
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <Search className="w-3 h-3 text-slate-400" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            type="text"
+            placeholder={t("nav.search")}
+            className="w-full bg-transparent text-xs text-slate-700 placeholder-slate-400 outline-none"
+          />
+        </div>
+      </div>
+
       {/* nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {nav.map(({ icon: Icon, label, page }) => {
+      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+        {filteredNav.map(({ icon: Icon, label, page }) => {
           const active = page !== null && current === page;
           return (
             <button
@@ -402,7 +414,6 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
       </div>
       <div className="flex items-center gap-3">
         <LanguageToggle />
-        <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full font-medium">{t("topbar.date")}</span>
         <div className="relative">
           <button type="button" onClick={() => { setAlertsOpen((value) => !value); setProfileOpen(false); }} className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors" aria-expanded={alertsOpen}>
             <Bell className="w-4 h-4 text-slate-500" />

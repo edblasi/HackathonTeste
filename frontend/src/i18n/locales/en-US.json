@@ -7,14 +7,14 @@
     "reports": "Reports",
     "settings": "Settings",
     "logout": "Log out",
-    "system": "National System",
     "communications": "Alerts and recalls",
-    "supportInbox": "Patient support"
+    "supportInbox": "Patient support",
+    "search": "Search menu..."
   },
   "page": {
     "inicio": {
       "title": "Control Panel",
-      "sub": "System Overview — RE-VITA National"
+      "sub": "System Overview — REVITA Regional"
     },
     "pacientes": {
       "title": "Awaiting Patients",
@@ -40,9 +40,6 @@
       "title": "Patient support",
       "sub": "Read reports, talk to patients and record the team guidance."
     }
-  },
-  "topbar": {
-    "date": "Sun, Jun 22 2025"
   },
   "profile": {
     "role": "CRE Administrator",
@@ -634,18 +631,13 @@
         "headline": "A digital ID\nfor every\nmedical device.",
         "sub": "UMDR assigns a unique identifier to each orthosis — keeping your record complete."
       },
-      "portalTitle": "Patient Access Portal",
-      "portalSubtitle": "Enter your credentials to access your care records.",
+      "portalTitle": "Access Portal",
+      "portalSubtitle": "Enter your credentials to access your portal.",
       "emailLabel": "Email address",
       "passwordLabel": "Password",
       "submit": "Log in",
       "submitting": "Signing in...",
       "orSignInWith": "or sign in with",
-      "badge": {
-        "lgpd": "LGPD protected",
-        "tracking": "SUS journey tracking",
-        "deviceId": "Device identity enabled"
-      },
       "securityNote1": "Secure access for SUS patients and authorized health teams.",
       "securityNote2": "Ministry of Health · DATASUS infrastructure.",
       "error": "Invalid email or password. Please try again.",
@@ -1042,6 +1034,10 @@
           "breadcrumb": "CREs and care network",
           "title": "Regional Specialized Centers (CREs)",
           "subtitle": "Count, location, capacity, and operating status of registered CREs"
+        },
+        "communications": {
+          "title": "Communications and Alerts",
+          "subtitle": "Issue and monitor alerts, recalls, and operational communications"
         }
       },
       "kpi": {

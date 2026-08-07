@@ -7,14 +7,14 @@
     "reports": "Relatórios",
     "settings": "Configurações",
     "logout": "Sair",
-    "system": "Sistema Nacional",
     "communications": "Alertas e recalls",
-    "supportInbox": "Atendimentos"
+    "supportInbox": "Atendimentos",
+    "search": "Buscar no menu..."
   },
   "page": {
     "inicio": {
       "title": "Painel de Controle",
-      "sub": "Visão Geral do Sistema — RE-VITA Nacional"
+      "sub": "Visão Geral do Sistema — REVITA Regional"
     },
     "pacientes": {
       "title": "Pacientes Aguardados",
@@ -40,9 +40,6 @@
       "title": "Atendimentos do paciente",
       "sub": "Leia relatos, converse com pacientes e registre a orientação da equipe."
     }
-  },
-  "topbar": {
-    "date": "Dom, 22 Jun 2025"
   },
   "profile": {
     "role": "Administrador do CRE",
@@ -634,18 +631,13 @@
         "headline": "Uma identidade digital\npara cada\ndispositivo médico.",
         "sub": "O UMDR atribui um identificador único a cada órtese — mantendo seu registro completo."
       },
-      "portalTitle": "Portal de Acesso do Paciente",
-      "portalSubtitle": "Insira suas credenciais para acessar seus registros de cuidado.",
+      "portalTitle": "Portal de Acesso",
+      "portalSubtitle": "Insira suas credenciais para acessar seu portal.",
       "emailLabel": "Endereço de e-mail",
       "passwordLabel": "Senha",
       "submit": "Entrar",
       "submitting": "Entrando...",
       "orSignInWith": "ou entre com",
-      "badge": {
-        "lgpd": "Protegido pela LGPD",
-        "tracking": "Rastreamento da jornada no SUS",
-        "deviceId": "Identidade de dispositivo habilitada"
-      },
       "securityNote1": "Acesso seguro para pacientes do SUS e equipes de saúde autorizadas.",
       "securityNote2": "Ministério da Saúde · Infraestrutura DATASUS.",
       "error": "E-mail ou senha inválidos. Tente novamente.",
@@ -1042,6 +1034,10 @@
           "breadcrumb": "CREs e rede assistencial",
           "title": "Centros Regionais Especializados (CREs)",
           "subtitle": "Quantidade, localização, capacidade e situação operacional dos CREs cadastrados"
+        },
+        "communications": {
+          "title": "Comunicações e Alertas",
+          "subtitle": "Emissão e acompanhamento de alertas, recalls e comunicados operacionais"
         }
       },
       "kpi": {
