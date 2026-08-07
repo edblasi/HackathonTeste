@@ -38,10 +38,8 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 app = FastAPI(title="UMDR API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://hackathon-teste-blush.vercel.app",
-                  "https://edblasi.github.io",
-                  ],
-    allow_credentials=True,
+    allow_origins=[*],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
