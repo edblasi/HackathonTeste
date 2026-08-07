@@ -32,6 +32,18 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+def parse_cors_origins(raw_value: str) -> list[str]:
+    origins: list[str] = []
+    for item in raw_value.split(","):
+        origin = item.strip().strip('"').strip("'")
+        if origin and origin != "*":
+            origin = origin.rstrip("/")
+        if origin:
+            origins.append(origin)
+    return origins or ["*"]
+
+
+CORS_ORIGINS = parse_cors_origins(os.getenv("CORS_ORIGINS", "*"))
 
 if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     raise RuntimeError("Defina SUPABASE_URL e SUPABASE_SERVICE_KEY no arquivo .env do backend.")
@@ -300,6 +312,28 @@ async def delete_auth_user(user_id: str) -> None:
     )
 
 
+async def update_auth_user(user_id: str, body: dict[str, Any]) -> dict[str, Any]:
+    response = await _request(
+        "PUT",
+        f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+        headers={
+            "apikey": SUPABASE_SERVICE_KEY,
+            "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            "Content-Type": "application/json",
+        },
+        json=body,
+    )
+    if response.status_code >= 400:
+        detail = response.text
+        try:
+            payload = response.json()
+            detail = payload.get("msg") or payload.get("message") or detail
+        except ValueError:
+            pass
+        raise HTTPException(status_code=422, detail=f"Não foi possível atualizar a credencial: {detail}")
+    return response.json()
+
+
 class Identity(BaseModel):
     auth_user_id: str
     email: str | None = None
@@ -400,6 +434,74 @@ async def get_me(identity: Identity = Depends(current_identity)) -> dict[str, An
         if units:
             result["unidade_nome"] = units[0].get("nome_fantasia") or units[0].get("razao_social")
     return result
+
+
+class ProfileSettingsPatch(BaseModel):
+    nome_exibicao: str | None = None
+    email: EmailStr | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    idioma_preferido: Literal["pt-BR", "en-US", "es-419"] | None = None
+
+    @field_validator("nome_exibicao", mode="before")
+    @classmethod
+    def validate_display_name(cls, value: Any) -> str | None:
+        return clean_text(value, field="Nome", required=False, max_length=255)
+
+    @model_validator(mode="after")
+    def validate_changes(self) -> "ProfileSettingsPatch":
+        if not any(value is not None for value in (self.nome_exibicao, self.email, self.password, self.idioma_preferido)):
+            raise ValueError("Informe ao menos uma alteração.")
+        return self
+
+
+@app.get("/api/settings/profile")
+async def settings_profile(identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    result = identity.model_dump()
+    result["unidade_nome"] = None
+    if identity.cnes_vinculo:
+        units = await db_select(
+            "dominio",
+            "estabelecimento_cnes",
+            select="nome_fantasia,razao_social",
+            filters={"codigo_cnes": f"eq.{identity.cnes_vinculo}"},
+            limit=1,
+        )
+        if units:
+            result["unidade_nome"] = units[0].get("nome_fantasia") or units[0].get("razao_social")
+    return result
+
+
+@app.patch("/api/settings/profile")
+async def update_settings_profile(payload: ProfileSettingsPatch, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    app_changes: dict[str, Any] = {}
+    auth_changes: dict[str, Any] = {}
+
+    if payload.nome_exibicao is not None:
+        app_changes["nome_exibicao"] = payload.nome_exibicao
+        auth_changes.setdefault("user_metadata", {})["display_name"] = payload.nome_exibicao
+        if identity.paciente_id:
+            await db_update("fila", "paciente", {"id": f"eq.{identity.paciente_id}"}, {"nome_completo": payload.nome_exibicao})
+        elif identity.profissional_saude_id:
+            await db_update("fila", "profissional_saude", {"id": f"eq.{identity.profissional_saude_id}"}, {"nome_completo": payload.nome_exibicao})
+
+    if payload.idioma_preferido is not None:
+        app_changes["idioma_preferido"] = payload.idioma_preferido
+
+    if payload.email is not None and str(payload.email).lower() != str(identity.email or "").lower():
+        auth_changes["email"] = str(payload.email)
+        auth_changes["email_confirm"] = True
+        if identity.paciente_id:
+            await db_update("fila", "paciente", {"id": f"eq.{identity.paciente_id}"}, {"email_contato": str(payload.email)})
+
+    if payload.password:
+        auth_changes["password"] = payload.password
+
+    if auth_changes:
+        await update_auth_user(identity.auth_user_id, auth_changes)
+    if app_changes:
+        await db_update("app", "usuario_sistema", {"auth_user_id": f"eq.{identity.auth_user_id}"}, app_changes)
+
+    return {"ok": True, "message": "Configurações atualizadas com sucesso."}
 
 
 # -----------------------------------------------------------------------------
@@ -506,7 +608,8 @@ async def cre_kpis(identity: Identity = Depends(current_identity)) -> dict[str, 
 @app.get("/api/cre/alerts")
 async def cre_alerts(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    return await db_select("fila", "vw_alertas_criticos", order="gerado_em.desc")
+    rows = await db_select("fila", "vw_alertas_criticos", order="gerado_em.desc")
+    return [{**row, "target": "cre_logistics"} for row in rows]
 
 
 @app.get("/api/cre/recalls")
@@ -901,71 +1004,39 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
         payload.paciente_id,
         "O paciente informado não existe.",
     )
-    if payload.procedimento_sigtap_proposto:
+    request_filters: dict[str, Any] = {"paciente_id": f"eq.{payload.paciente_id}"}
+    if identity.cnes_vinculo:
+        request_filters["estabelecimento_solicitante_cnes"] = f"eq.{identity.cnes_vinculo}"
+    active_requests = await db_select(
+        "fila",
+        "solicitacao_ortese",
+        select="id,procedimento_sigtap,status,data_solicitacao",
+        filters=request_filters,
+        order="data_solicitacao.desc",
+        limit=20,
+    )
+    current_request = next(
+        (row for row in active_requests if row.get("status") not in {"ENTREGUE", "CANCELADA", "NEGADA"}),
+        active_requests[0] if active_requests else None,
+    )
+    procedure = payload.procedimento_sigtap_proposto or (current_request or {}).get("procedimento_sigtap")
+    if procedure:
         await ensure_record_exists(
             "dominio",
             "sigtap_procedimento",
             "codigo",
-            payload.procedimento_sigtap_proposto,
+            procedure,
             "O procedimento SIGTAP informado não existe ou está inativo.",
             extra_filters={"ativo": "eq.true"},
         )
     rows = await db_insert("fila", "triagem_clinica", {
         "paciente_id": payload.paciente_id,
         "profissional_id": identity.profissional_saude_id,
-        "procedimento_sigtap_proposto": payload.procedimento_sigtap_proposto or None,
+        "solicitacao_id": (current_request or {}).get("id"),
+        "procedimento_sigtap_proposto": procedure or None,
         "status": payload.status,
         "observacao_clinica": payload.observacao_clinica or None,
     })
-    return rows[0]
-
-
-class ShipmentCreate(BaseModel):
-    oficina_id: int = Field(ge=1)
-    tipo_dispositivo: str
-    quantidade: int = Field(default=1, ge=1)
-    fabricante_destino: str
-    endereco_destino: str | None = None
-    codigo_rastreio: str | None = None
-    status: Literal["AGUARDANDO_COLETA", "EM_TRANSITO", "ENTREGUE"] = "AGUARDANDO_COLETA"
-
-    @field_validator("tipo_dispositivo", mode="before")
-    @classmethod
-    def validate_device_type(cls, value: Any) -> str:
-        result = clean_text(value, field="Tipo de dispositivo", required=True, max_length=100)
-        assert result is not None
-        return result
-
-    @field_validator("fabricante_destino", mode="before")
-    @classmethod
-    def validate_manufacturer(cls, value: Any) -> str:
-        result = clean_text(value, field="Fabricante de destino", required=True, max_length=255)
-        assert result is not None
-        return result
-
-    @field_validator("endereco_destino", mode="before")
-    @classmethod
-    def validate_destination(cls, value: Any) -> str | None:
-        return clean_text(value, field="Endereço de destino", max_length=500)
-
-    @field_validator("codigo_rastreio", mode="before")
-    @classmethod
-    def validate_tracking(cls, value: Any) -> str | None:
-        return clean_text(value, field="Código de rastreio", max_length=100)
-
-
-@app.post("/api/cre/shipments", status_code=201)
-async def create_shipment(payload: ShipmentCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
-    require_roles(identity, "FISCAL_CRE", "GESTOR")
-    await ensure_record_exists(
-        "producao",
-        "oficina_ortopedica",
-        "id",
-        payload.oficina_id,
-        "A oficina informada não existe ou está inativa.",
-        extra_filters={"ativo": "eq.true"},
-    )
-    rows = await db_insert("producao", "remessa_logistica_reversa", payload.model_dump())
     return rows[0]
 
 
@@ -1047,6 +1118,233 @@ async def create_request(payload: RequestCreate, identity: Identity = Depends(cu
         "observacao": "Solicitação cadastrada pelo portal UMDR.",
     })
     return request_row
+
+
+
+class TriagePatch(BaseModel):
+    status: Literal["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA"] | None = None
+    observacao_clinica: str | None = None
+    procedimento_sigtap_proposto: str | None = None
+
+    @field_validator("procedimento_sigtap_proposto", mode="before")
+    @classmethod
+    def validate_procedure(cls, value: Any) -> str | None:
+        return normalize_sigtap(value, required=False, opm_only=True)
+
+    @field_validator("observacao_clinica", mode="before")
+    @classmethod
+    def validate_notes(cls, value: Any) -> str | None:
+        return clean_text(value, field="Observação clínica")
+
+
+@app.patch("/api/cre/triages/{triage_id}")
+async def update_triage(triage_id: int, payload: TriagePatch, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    changes = payload.model_dump(exclude_none=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="Informe ao menos uma alteração para a triagem.")
+    if payload.procedimento_sigtap_proposto:
+        await ensure_record_exists(
+            "dominio", "sigtap_procedimento", "codigo", payload.procedimento_sigtap_proposto,
+            "O procedimento SIGTAP informado não existe ou está inativo.", extra_filters={"ativo": "eq.true"},
+        )
+    rows = await db_update("fila", "triagem_clinica", {"id": f"eq.{triage_id}"}, changes)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Triagem não encontrada.")
+    return rows[0]
+
+
+class ShipmentCreate(BaseModel):
+    tipo_dispositivo: str
+    quantidade: int = Field(default=1, ge=1, le=10000)
+    fabricante_destino: str
+    endereco_destino: str | None = None
+    codigo_rastreio: str | None = None
+    status: Literal["AGUARDANDO_COLETA", "EM_TRANSITO", "ENTREGUE"] = "AGUARDANDO_COLETA"
+
+    @field_validator("tipo_dispositivo", "fabricante_destino", mode="before")
+    @classmethod
+    def validate_required_text(cls, value: Any, info: Any) -> str:
+        label = "Tipo de dispositivo" if info.field_name == "tipo_dispositivo" else "Fabricante de destino"
+        result = clean_text(value, field=label, required=True, max_length=255)
+        assert result is not None
+        return result
+
+    @field_validator("endereco_destino", "codigo_rastreio", mode="before")
+    @classmethod
+    def validate_optional_text(cls, value: Any, info: Any) -> str | None:
+        label = "Endereço de destino" if info.field_name == "endereco_destino" else "Código de rastreio"
+        return clean_text(value, field=label, required=False, max_length=255)
+
+
+@app.post("/api/cre/shipments", status_code=201)
+async def create_shipment(payload: ShipmentCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    workshop_filters = {"ativo": "eq.true"}
+    if identity.cnes_vinculo:
+        workshop_filters["cnes"] = f"eq.{identity.cnes_vinculo}"
+    workshops = await db_select("producao", "oficina_ortopedica", select="id,cnes,nome", filters=workshop_filters, limit=1)
+    if not workshops:
+        raise HTTPException(status_code=422, detail="O usuário não está vinculado a uma oficina ortopédica ativa.")
+    rows = await db_insert("producao", "remessa_logistica_reversa", {
+        "oficina_id": workshops[0]["id"],
+        "tipo_dispositivo": payload.tipo_dispositivo,
+        "quantidade": payload.quantidade,
+        "fabricante_destino": payload.fabricante_destino,
+        "endereco_destino": payload.endereco_destino,
+        "codigo_rastreio": payload.codigo_rastreio,
+        "status": payload.status,
+    })
+    return rows[0]
+
+
+class AlertCreate(BaseModel):
+    titulo: str
+    mensagem: str
+    tipo: Literal["INFO", "ALERTA", "LEMBRETE", "URGENTE"] = "ALERTA"
+    audiencia: Literal["ALL", "PACIENTES", "FISCAL_CRE", "GESTORES", "UNIT_PATIENTS", "UNIT_STAFF"]
+    target: str = "communications"
+
+    @field_validator("titulo", mode="before")
+    @classmethod
+    def validate_title(cls, value: Any) -> str:
+        result = clean_text(value, field="Título", required=True, max_length=255)
+        assert result is not None
+        return result
+
+    @field_validator("mensagem", mode="before")
+    @classmethod
+    def validate_message(cls, value: Any) -> str:
+        result = clean_text(value, field="Mensagem", required=True, max_length=500)
+        assert result is not None
+        return result
+
+    @field_validator("target", mode="before")
+    @classmethod
+    def validate_target(cls, value: Any) -> str:
+        target = clean_text(value, field="Destino", required=True, max_length=50)
+        assert target is not None
+        allowed = {
+            "communications", "manager_lifecycle", "manager_logistics", "manager_reports", "manager_centers",
+            "manager_finance", "manager_equity", "manager_registrations", "cre_patients", "cre_logistics",
+            "cre_triages", "cre_reports", "patient_orders", "patient_notifications", "patient_support",
+        }
+        if target not in allowed:
+            raise ValueError("Destino de interface inválido.")
+        return target
+
+
+class RecallCreate(BaseModel):
+    codigo_lote: str
+    nome_produto: str
+    motivo: str
+    data_limite: date | None = None
+    affected_devices: int = Field(default=0, ge=0)
+    status: Literal["ABERTO", "EM_ANDAMENTO", "ENCERRADO", "CANCELADO"] = "ABERTO"
+    orgao_notificador: str | None = None
+
+    @field_validator("codigo_lote", mode="before")
+    @classmethod
+    def validate_batch(cls, value: Any) -> str:
+        result = clean_text(value, field="Código do lote", required=True, max_length=100)
+        assert result is not None
+        return result
+
+    @field_validator("nome_produto", mode="before")
+    @classmethod
+    def validate_product(cls, value: Any) -> str:
+        result = clean_text(value, field="Nome do produto", required=True, max_length=255)
+        assert result is not None
+        return result
+
+    @field_validator("motivo", mode="before")
+    @classmethod
+    def validate_reason(cls, value: Any) -> str:
+        result = clean_text(value, field="Motivo", required=True, max_length=1000)
+        assert result is not None
+        return result
+
+    @field_validator("orgao_notificador", mode="before")
+    @classmethod
+    def validate_issuer(cls, value: Any) -> str | None:
+        return clean_text(value, field="Órgão notificador", required=False, max_length=100)
+
+
+def _notification_target_for_role(target: str, role: str) -> str:
+    if target == "communications":
+        return "patient_notifications" if role == "PACIENTE" else "communications"
+    if role == "PACIENTE" and target.startswith(("manager_", "cre_")):
+        return "patient_notifications"
+    if role == "FISCAL_CRE" and target.startswith("manager_"):
+        mapping = {"manager_lifecycle": "cre_logistics", "manager_logistics": "cre_logistics", "manager_reports": "cre_reports", "manager_centers": "cre_logistics"}
+        return mapping.get(target, "communications")
+    if role == "GESTOR" and target.startswith("cre_"):
+        mapping = {"cre_logistics": "manager_logistics", "cre_reports": "manager_reports", "cre_patients": "manager_registrations", "cre_triages": "manager_reports"}
+        return mapping.get(target, "communications")
+    return target
+
+
+async def _alert_recipients(payload: AlertCreate, identity: Identity) -> list[dict[str, Any]]:
+    users = await db_select("app", "usuario_sistema", select="auth_user_id,papel,paciente_id,cnes_vinculo", filters={"ativo": "eq.true"}, limit=5000)
+    if identity.papel == "FISCAL_CRE":
+        if payload.audiencia not in {"UNIT_PATIENTS", "UNIT_STAFF"}:
+            raise HTTPException(status_code=403, detail="O CRE só pode emitir alertas para pacientes ou equipe da própria unidade.")
+        if not identity.cnes_vinculo:
+            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+        if payload.audiencia == "UNIT_STAFF":
+            return [user for user in users if user.get("cnes_vinculo") == identity.cnes_vinculo and user.get("papel") in {"FISCAL_CRE", "GESTOR"}]
+        requests = await db_select("fila", "solicitacao_ortese", select="paciente_id", filters={"estabelecimento_solicitante_cnes": f"eq.{identity.cnes_vinculo}"}, limit=5000)
+        patient_ids = {row.get("paciente_id") for row in requests}
+        return [user for user in users if user.get("papel") == "PACIENTE" and user.get("paciente_id") in patient_ids]
+
+    require_roles(identity, "GESTOR")
+    if payload.audiencia == "ALL":
+        return users
+    role_map = {"PACIENTES": "PACIENTE", "FISCAL_CRE": "FISCAL_CRE", "GESTORES": "GESTOR"}
+    wanted = role_map.get(payload.audiencia)
+    if not wanted:
+        raise HTTPException(status_code=422, detail="Audiência inválida para o gestor.")
+    return [user for user in users if user.get("papel") == wanted]
+
+
+@app.post("/api/communications/alerts", status_code=201)
+async def create_alert(payload: AlertCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    recipients = await _alert_recipients(payload, identity)
+    if not recipients:
+        raise HTTPException(status_code=422, detail="Nenhum usuário corresponde à audiência selecionada.")
+    rows = [{
+        "auth_user_id": recipient["auth_user_id"],
+        "tipo": payload.tipo,
+        "titulo": payload.titulo,
+        "mensagem": payload.mensagem,
+        "destino_ui": _notification_target_for_role(payload.target, str(recipient.get("papel"))),
+        "referencia_tabela": "app.notificacao",
+    } for recipient in recipients]
+    await db_insert("app", "notificacao", rows)
+    return {"ok": True, "recipients": len(rows)}
+
+
+@app.get("/api/communications/recalls")
+async def communications_recalls(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    return await db_select("app", "recall", order="data_abertura.desc", limit=100)
+
+
+@app.post("/api/communications/recalls", status_code=201)
+async def create_recall(payload: RecallCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
+    require_roles(identity, "FISCAL_CRE", "GESTOR")
+    issuer = payload.orgao_notificador or (identity.cnes_vinculo if identity.papel == "FISCAL_CRE" else "UMDR")
+    rows = await db_insert("app", "recall", {
+        "codigo_lote": payload.codigo_lote,
+        "nome_produto": payload.nome_produto,
+        "motivo": payload.motivo,
+        "data_limite": payload.data_limite.isoformat() if payload.data_limite else None,
+        "affected_devices": payload.affected_devices,
+        "status": payload.status,
+        "orgao_notificador": issuer,
+    })
+    return rows[0]
 
 
 # -----------------------------------------------------------------------------
@@ -1381,6 +1679,7 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
             "product": item.get("nome_produto"),
             "date": item.get("data_abertura"),
             "status": item.get("status"),
+            "target": "manager_lifecycle",
         })
     for item in low_stock[:3]:
         alerts.append({
@@ -1389,6 +1688,7 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
             "code": item.get("codigo_catmat"),
             "current": number(item.get("quantidade_atual")),
             "minimum": number(item.get("quantidade_minima")),
+            "target": "manager_logistics",
         })
     if active_shipments:
         alerts.append({
@@ -1396,6 +1696,7 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
             "severity": "warning",
             "count": len(active_shipments),
             "devices": int(sum(number(item.get("quantidade")) for item in active_shipments)),
+            "target": "manager_logistics",
         })
     if reports:
         alerts.append({
@@ -1403,6 +1704,7 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
             "severity": "info",
             "name": reports[0].get("nome"),
             "date": reports[0].get("gerado_em"),
+            "target": "manager_reports",
         })
 
     # Previsão simples de carga para os próximos seis meses, baseada na média real dos seis anteriores.
@@ -1538,5 +1840,6 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
         "equity_points": equity_points,
         "recalls": recalls,
         "reports": reports,
+        "access_matrix": ACCESS_MATRIX,
         "generated_at": datetime.now().isoformat(),
     }
