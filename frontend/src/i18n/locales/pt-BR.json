@@ -867,7 +867,7 @@
       "successProvider": "Fornecedor cadastrado com sucesso.",
       "successRequest": "Solicitação cadastrada com sucesso.",
       "demo": {
-        "pageTitle": "Pipeline demonstrativa de acesso e encaminhamento",
+        "pageTitle": "Cadastro",
         "pageSubtitle": "Crie atores do sistema e simule o percurso do paciente desde a UBS até a autorização e o vínculo com a rede assistencial.",
         "bannerTitle": "Ambiente controlado para demonstração do fluxo assistencial",
         "bannerText": "Use esta área para apresentar como usuários e vínculos seriam criados em uma operação real. Os registros são persistidos neste ambiente demonstrativo: paciente entra pela UBS sem CRE, SISREG autoriza e direciona o caso, e a rede parceira pode ser cadastrada separadamente.",
@@ -900,7 +900,8 @@
         },
         "ong": {
           "title": "Cadastrar ONG parceira",
-          "subtitle": "Registra uma parceria entre uma organização da sociedade civil e um CRE da rede."
+          "subtitle": "Registra uma parceria entre uma organização da sociedade civil e um CRE da rede.",
+          "noPartnerCre": "Sem CRE parceiro (ONG independente)"
         },
         "sections": {
           "creUnit": "Dados da unidade e da oficina",
@@ -928,7 +929,7 @@
           "destinationCre": "CRE de destino",
           "authorizationNumber": "Número de autorização SISREG",
           "sisregObservation": "Observação da autorização",
-          "partnerCre": "CRE parceiro",
+          "partnerCre": "CRE parceiro (opcional)",
           "ongName": "Nome da ONG",
           "partnershipType": "Tipo de parceria",
           "contactPerson": "Responsável de contato",
@@ -962,8 +963,6 @@
       "mainMenu": "Menu principal",
       "manager": "Gestor nacional",
       "executiveAccess": "Acesso executivo · LGPD",
-      "allSystems": "Todos os sistemas operacionais",
-      "updated": "Atualizado: {date}",
       "nav": {
         "executive": "Visão executiva",
         "governance": "Políticas e governança",
@@ -972,7 +971,7 @@
         "finance": "Finanças e licitações",
         "equity": "Análise de equidade",
         "reports": "Relatórios",
-        "registrations": "Pipeline demonstrativa",
+        "registrations": "Cadastro",
         "creCenters": "CREs e rede assistencial",
         "communications": "Alertas e recalls"
       },
@@ -1035,8 +1034,8 @@
           "subtitle": "Exportação filtrada e relatórios recentes — Central Nacional de Dispositivos Assistivos"
         },
         "registrations": {
-          "breadcrumb": "Administração / Demonstração",
-          "title": "Pipeline demonstrativa",
+          "breadcrumb": "Administração / Cadastro",
+          "title": "Cadastro",
           "subtitle": "Simule a criação dos atores e o encaminhamento do paciente desde a UBS até SISREG e CRE."
         },
         "creCenters": {

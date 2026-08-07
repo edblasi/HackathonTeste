@@ -1820,7 +1820,7 @@ async def authorize_sisreg(payload: SisregAuthorize, identity: Identity = Depend
 
 
 class OngPartnerCreate(BaseModel):
-    oficina_id: int = Field(ge=1)
+    oficina_id: int | None = Field(default=None, ge=1)
     nome_ong: str
     cnpj: str | None = None
     tipo_parceria: str
@@ -1867,11 +1867,14 @@ class OngPartnerCreate(BaseModel):
 @app.post("/api/admin/partners/ongs", status_code=201)
 async def create_ong_partner(payload: OngPartnerCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
     require_roles(identity, "GESTOR")
-    await ensure_record_exists("producao", "oficina_ortopedica", "id", payload.oficina_id, "O CRE selecionado não possui oficina ativa.", extra_filters={"ativo": "eq.true"})
+    if payload.oficina_id is not None:
+        await ensure_record_exists("producao", "oficina_ortopedica", "id", payload.oficina_id, "O CRE selecionado não possui oficina ativa.", extra_filters={"ativo": "eq.true"})
     if payload.cnpj:
-        existing = await db_select("app", "parceria_ong", select="id", filters={"oficina_id": f"eq.{payload.oficina_id}", "cnpj": f"eq.{payload.cnpj}"}, limit=1)
+        office_filter = f"eq.{payload.oficina_id}" if payload.oficina_id is not None else "is.null"
+        existing = await db_select("app", "parceria_ong", select="id", filters={"oficina_id": office_filter, "cnpj": f"eq.{payload.cnpj}"}, limit=1)
         if existing:
-            raise HTTPException(status_code=409, detail="Esta ONG já está vinculada a este CRE.")
+            detail = "Esta ONG já está vinculada a este CRE." if payload.oficina_id is not None else "Esta ONG já está cadastrada sem CRE parceiro."
+            raise HTTPException(status_code=409, detail=detail)
     rows = await db_insert("app", "parceria_ong", {
         "oficina_id": payload.oficina_id,
         "nome_ong": payload.nome_ong,

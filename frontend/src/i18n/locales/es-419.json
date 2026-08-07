@@ -867,7 +867,7 @@
       "successProvider": "Proveedor registrado correctamente.",
       "successRequest": "Solicitud registrada correctamente.",
       "demo": {
-        "pageTitle": "Pipeline demostrativa de acceso y derivación",
+        "pageTitle": "Registro",
         "pageSubtitle": "Crea actores del sistema y simula el recorrido del paciente desde la atención primaria hasta la autorización y el vínculo con la red asistencial.",
         "bannerTitle": "Entorno controlado para demostrar el flujo asistencial",
         "bannerText": "Usa esta área para mostrar cómo se crearían usuarios y vínculos en una operación real. Los registros se guardan en este entorno demostrativo: el paciente ingresa por atención primaria sin CRE, SISREG autoriza y deriva el caso, y las organizaciones asociadas se registran por separado.",
@@ -900,7 +900,8 @@
         },
         "ong": {
           "title": "Registrar ONG asociada",
-          "subtitle": "Registra una alianza entre una organización de la sociedad civil y un CRE de la red."
+          "subtitle": "Registra una alianza entre una organización de la sociedad civil y un CRE de la red.",
+          "noPartnerCre": "Sin CRE asociado (organización independiente)"
         },
         "sections": {
           "creUnit": "Datos de la unidad y del taller",
@@ -928,7 +929,7 @@
           "destinationCre": "CRE de destino",
           "authorizationNumber": "Número de autorización SISREG",
           "sisregObservation": "Observación de la autorización",
-          "partnerCre": "CRE asociado",
+          "partnerCre": "CRE asociado (opcional)",
           "ongName": "Nombre de la ONG",
           "partnershipType": "Tipo de alianza",
           "contactPerson": "Persona de contacto",
@@ -962,8 +963,6 @@
       "mainMenu": "Menú principal",
       "manager": "Gestor nacional",
       "executiveAccess": "Acceso ejecutivo · LGPD",
-      "allSystems": "Todos los sistemas operativos",
-      "updated": "Actualizado: {date}",
       "nav": {
         "executive": "Visión ejecutiva",
         "governance": "Políticas y gobernanza",
@@ -972,7 +971,7 @@
         "finance": "Finanzas y licitaciones",
         "equity": "Análisis de equidad",
         "reports": "Informes",
-        "registrations": "Pipeline demostrativa",
+        "registrations": "Registro",
         "creCenters": "CREs y red asistencial",
         "communications": "Alertas y recalls"
       },
@@ -1035,8 +1034,8 @@
           "subtitle": "Exportación filtrada e informes recientes — Centro Nacional de Dispositivos de Asistencia"
         },
         "registrations": {
-          "breadcrumb": "Administración / Demostración",
-          "title": "Pipeline demostrativa",
+          "breadcrumb": "Administración / Registro",
+          "title": "Registro",
           "subtitle": "Simula la creación de actores y la derivación del paciente desde atención primaria hasta SISREG y CRE."
         },
         "creCenters": {

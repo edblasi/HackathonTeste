@@ -1279,7 +1279,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
         {tab === "ong" && (
           <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/partners/ongs")}>
             <FormField label={t("manager.registration.demo.fields.partnerCre")}>
-              <select className={inputClass} name="oficina_id" required><option value="">{t("manager.common.select")}</option>{catalogs.cres.map((cre) => <option key={cre.oficina_id} value={cre.oficina_id}>{cre.nome} — {cre.codigo_cnes}</option>)}</select>
+              <select className={inputClass} name="oficina_id"><option value="">{t("manager.registration.demo.ong.noPartnerCre")}</option>{catalogs.cres.map((cre) => <option key={cre.oficina_id} value={cre.oficina_id}>{cre.nome} — {cre.codigo_cnes}</option>)}</select>
             </FormField>
             <FormField label={t("manager.registration.demo.fields.ongName")}><input className={inputClass} name="nome_ong" required /></FormField>
             <FormField label={t("manager.registration.fields.cnpj")}><input className={inputClass} name="cnpj" inputMode="numeric" maxLength={14} /></FormField>
@@ -1379,9 +1379,8 @@ export function ManagerHomePage() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex flex-col gap-2 px-8 py-3.5 bg-card border-b border-border shrink-0 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>{t("manager.standard.brand")}</span><ChevronRight size={11} /><span className="text-foreground font-medium">{pageTitles[activePage]}</span></div>
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#2E7D32] inline-block" />{t("manager.standard.allSystems")}</span><span>{t("manager.standard.updated", { date: formatDateTime(data.generated_at, locale) })}</span></div>
+        <div className="flex items-center gap-2 px-8 py-3.5 bg-card border-b border-border shrink-0 text-xs text-muted-foreground">
+          <span>{t("manager.standard.brand")}</span><ChevronRight size={11} /><span className="text-foreground font-medium">{pageTitles[activePage]}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto">

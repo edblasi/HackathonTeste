@@ -867,7 +867,7 @@
       "successProvider": "Provider created successfully.",
       "successRequest": "Request created successfully.",
       "demo": {
-        "pageTitle": "Demonstration access and referral pipeline",
+        "pageTitle": "Registration",
         "pageSubtitle": "Create system actors and simulate the patient journey from primary care to authorization and linkage with the care network.",
         "bannerTitle": "Controlled environment for demonstrating the care pathway",
         "bannerText": "Use this area to present how users and relationships would be created in a real operation. Records are persisted in this demonstration environment: the patient enters through primary care without a CRE, SISREG authorizes and routes the case, and partner organizations can be registered separately.",
@@ -900,7 +900,8 @@
         },
         "ong": {
           "title": "Register partner NGO",
-          "subtitle": "Registers a partnership between a civil-society organization and a CRE in the network."
+          "subtitle": "Registers a partnership between a civil-society organization and a CRE in the network.",
+          "noPartnerCre": "No partner CRE (independent organization)"
         },
         "sections": {
           "creUnit": "Unit and workshop details",
@@ -928,7 +929,7 @@
           "destinationCre": "Destination CRE",
           "authorizationNumber": "SISREG authorization number",
           "sisregObservation": "Authorization note",
-          "partnerCre": "Partner CRE",
+          "partnerCre": "Partner CRE (optional)",
           "ongName": "NGO name",
           "partnershipType": "Partnership type",
           "contactPerson": "Contact person",
@@ -962,8 +963,6 @@
       "mainMenu": "Main menu",
       "manager": "National manager",
       "executiveAccess": "Executive access · LGPD",
-      "allSystems": "All systems operational",
-      "updated": "Updated: {date}",
       "nav": {
         "executive": "Executive overview",
         "governance": "Policy and governance",
@@ -972,7 +971,7 @@
         "finance": "Finance and procurement",
         "equity": "Equity analysis",
         "reports": "Reports",
-        "registrations": "Demo pipeline",
+        "registrations": "Registration",
         "creCenters": "CREs and care network",
         "communications": "Alerts and recalls"
       },
@@ -1035,8 +1034,8 @@
           "subtitle": "Filtered exports and recent reports — National Assistive Devices Center"
         },
         "registrations": {
-          "breadcrumb": "Administration / Demonstration",
-          "title": "Demonstration pipeline",
+          "breadcrumb": "Administration / Registration",
+          "title": "Registration",
           "subtitle": "Simulate actor creation and patient referral from primary care through SISREG to the CRE."
         },
         "creCenters": {
