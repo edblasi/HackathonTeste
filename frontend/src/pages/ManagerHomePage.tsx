@@ -20,11 +20,13 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
+  Mail,
   MapPin,
   Package,
   RefreshCw,
   Scale,
   Search,
+  Settings,
   Share2,
   ShieldCheck,
   TrendingUp,
@@ -32,6 +34,7 @@ import {
   UserPlus,
   Users,
   Wrench,
+  X,
   XCircle,
 } from "lucide-react";
 import {
@@ -56,6 +59,7 @@ import {
 import { Card } from "../components/Card";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { SettingsModal } from "../components/SettingsModal";
 import { EmptyState, ErrorState, LoadingState } from "../components/DataState";
 import { useAuth } from "../contexts/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
@@ -321,6 +325,7 @@ function describeAlert(alert: ManagerAlertRow, t: (key: TranslationKey, params?:
 
 function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardData; onRefresh: () => void; onNavigate: (page: Page) => void }) {
   const { t, locale } = useLang();
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const { user } = useAuth();
   const healthData = data.health.map((row) => ({ ...row, mes: monthLabel(row.month, locale) }));
   const inventoryData = data.regional.map((row) => ({ ...row, regiao: regionLabel(row.region, t) }));
@@ -428,9 +433,15 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
         <button onClick={onRefresh} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors">
           <RefreshCw size={13} />{t("manager.standard.actions.refresh")}
         </button>
-        <button onClick={() => onNavigate("ciclovida")} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors">
-          <Bell size={13} />{t("manager.standard.actions.alertCount", { count: alerts.length })}
-        </button>
+        <div className="relative">
+          <button type="button" onClick={() => setAlertsOpen((value) => !value)} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors" aria-expanded={alertsOpen}>
+            <Bell size={13} />{t("manager.standard.actions.alertCount", { count: alerts.length })}
+          </button>
+          {alertsOpen && <div className="absolute right-0 top-11 z-[90] w-96 overflow-hidden rounded-xl border border-border bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3"><div><p className="text-sm font-semibold text-foreground">{t("shell.navbar.recentAlerts")}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{t("shell.navbar.recentAlertsHint")}</p></div><button type="button" onClick={() => setAlertsOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={15} /></button></div>
+            {alerts.length ? <div className="max-h-80 divide-y divide-border overflow-y-auto">{alerts.map((alert, index) => { const described = describeAlert(alert, t, locale); const target: Page = alert.kind === "recall" ? "ciclovida" : alert.kind === "report" ? "relatorios" : "logistica"; return <button key={`${alert.kind}-${index}`} type="button" onClick={() => { setAlertsOpen(false); onNavigate(target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-muted/50"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} /><span className="min-w-0"><span className="block text-xs font-semibold text-foreground">{described.label}</span><span className="mt-0.5 block text-[11px] text-muted-foreground line-clamp-2">{described.message}</span><span className="mt-1 block text-[10px] text-muted-foreground/80">{described.time}</span></span></button>; })}</div> : <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("shell.navbar.noRecentAlerts")}</p>}
+          </div>}
+        </div>
         <button onClick={exportDashboard} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors">
           <Download size={13} />{t("manager.standard.actions.exportReport")}
         </button>
@@ -878,14 +889,24 @@ function PaginaEquidade({ data }: { data: ManagerDashboardData }) {
 
 function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
   const { t, locale } = useLang();
-  const [filters, setFilters] = useState({ dataInicio: "", dataFim: "", regiao: "ALL", categoria: "ALL", indicador: "ALL" });
+  const [filters, setFilters] = useState({ dataInicio: "", dataFim: "", regiao: "ALL", categoria: "ALL", indicador: "ALL", tipoRelatorio: "ALL" });
   const [preview, setPreview] = useState<ManagerReportRow | null>(null);
   const accessMatrix = useApiData<AccessMatrixResponse>("/api/manager/access-matrix");
+  const reportTypeMatches = (report: ManagerReportRow) => {
+    const type = `${report.tipo} ${report.nome}`.toUpperCase();
+    if (filters.tipoRelatorio === "ALL" || filters.tipoRelatorio === "GENERAL") return true;
+    if (filters.tipoRelatorio === "FINANCE") return /FINAN|FATUR|CUST|ORC|ORÇ/.test(type);
+    if (filters.tipoRelatorio === "ACCESS_MATRIX") return /ACESS|MATRIZ|PERMISS/.test(type);
+    if (filters.tipoRelatorio === "LOGISTICS") return /LOG|REMESS|ESTOQUE/.test(type);
+    if (filters.tipoRelatorio === "LIFECYCLE") return /CICLO|RECALL|MANUT/.test(type);
+    if (filters.tipoRelatorio === "EQUITY") return /EQUIT|COBERT|ACESSO/.test(type);
+    if (filters.tipoRelatorio === "NETWORK") return /CRE|REDE|UNIDADE/.test(type);
+    return true;
+  };
   const reports = data.reports.filter((report) => {
     const day = String(report.gerado_em).slice(0, 10);
-    return (!filters.dataInicio || day >= filters.dataInicio) && (!filters.dataFim || day <= filters.dataFim);
+    return (!filters.dataInicio || day >= filters.dataInicio) && (!filters.dataFim || day <= filters.dataFim) && reportTypeMatches(report);
   });
-  const exportRows = () => downloadCsv("umdr-relatorios.csv", reports.map((report) => ({ ...report, region_filter: filters.regiao, category_filter: filters.categoria, indicator_filter: filters.indicador })));
   const permissionLabel = (permission: string) => t(`manager.standard.accessMatrix.permissions.${permission}` as TranslationKey);
   const categoryLabel = (key: string) => t(`manager.standard.accessMatrix.categories.${key}` as TranslationKey);
   const exportAccessMatrix = () => {
@@ -896,6 +917,16 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
       cre: permissionLabel(row.FISCAL_CRE),
       manager: permissionLabel(row.GESTOR),
     })));
+  };
+  const exportRows = () => {
+    const common = { region_filter: filters.regiao, category_filter: filters.categoria, indicator_filter: filters.indicador };
+    if (filters.tipoRelatorio === "ACCESS_MATRIX") return exportAccessMatrix();
+    if (filters.tipoRelatorio === "FINANCE") return downloadCsv("umdr-financeiro.csv", data.finance_monthly.map((row) => ({ ...row, ...common })));
+    if (filters.tipoRelatorio === "LOGISTICS") return downloadCsv("umdr-logistica.csv", data.logistics.map((row) => ({ ...row, ...common })));
+    if (filters.tipoRelatorio === "LIFECYCLE") return downloadCsv("umdr-ciclo-de-vida.csv", [...data.lifecycle_alerts.map((row) => ({ record_type: "alert", ...row, ...common })), ...data.recalls.map((row) => ({ record_type: "recall", ...row, ...common }))]);
+    if (filters.tipoRelatorio === "EQUITY") return downloadCsv("umdr-equidade.csv", data.equity_points.map((row) => ({ ...row, ...common })));
+    if (filters.tipoRelatorio === "NETWORK") return downloadCsv("umdr-rede-cre.csv", data.centers.map((row) => ({ ...row, ...common })));
+    return downloadCsv("umdr-relatorios.csv", reports.map((report) => ({ ...report, ...common })));
   };
   const shareReport = async (report: ManagerReportRow) => {
     const shareText = `${report.nome} — ${report.tipo} — ${formatDate(report.gerado_em, locale)}`;
@@ -917,7 +948,8 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
 
       <Card className="p-5 mb-6">
         <div className="flex items-center gap-2 mb-4"><Filter size={14} className="text-[#1565C0]" /><h2 className="text-sm font-semibold text-foreground">{t("manager.standard.reports.filtersTitle")}</h2></div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("manager.standard.reports.reportType")}</label><select value={filters.tipoRelatorio} onChange={(event) => setFilters((current) => ({ ...current, tipoRelatorio: event.target.value }))} className="w-full text-xs text-foreground bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-[#1565C0] transition-colors appearance-none"><option value="ALL">{t("manager.standard.reports.reportTypes.all")}</option><option value="GENERAL">{t("manager.standard.reports.reportTypes.general")}</option><option value="FINANCE">{t("manager.standard.reports.reportTypes.finance")}</option><option value="ACCESS_MATRIX">{t("manager.standard.reports.reportTypes.accessMatrix")}</option><option value="LOGISTICS">{t("manager.standard.reports.reportTypes.logistics")}</option><option value="LIFECYCLE">{t("manager.standard.reports.reportTypes.lifecycle")}</option><option value="EQUITY">{t("manager.standard.reports.reportTypes.equity")}</option><option value="NETWORK">{t("manager.standard.reports.reportTypes.network")}</option></select></div>
           <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("manager.standard.reports.startDate")}</label><input type="date" value={filters.dataInicio} onChange={(event) => setFilters((current) => ({ ...current, dataInicio: event.target.value }))} className="w-full text-xs text-foreground bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-[#1565C0] transition-colors" /></div>
           <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("manager.standard.reports.endDate")}</label><input type="date" value={filters.dataFim} onChange={(event) => setFilters((current) => ({ ...current, dataFim: event.target.value }))} className="w-full text-xs text-foreground bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-[#1565C0] transition-colors" /></div>
           <div><label className="text-xs font-medium text-muted-foreground mb-1.5 block">{t("manager.standard.reports.region")}</label><select value={filters.regiao} onChange={(event) => setFilters((current) => ({ ...current, regiao: event.target.value }))} className="w-full text-xs text-foreground bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-[#1565C0] transition-colors appearance-none"><option value="ALL">{t("manager.standard.reports.allRegions")}</option>{["N", "NE", "CO", "SE", "S"].map((region) => <option key={region} value={region}>{regionLabel(region, t)}</option>)}</select></div>
@@ -927,7 +959,7 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
         <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-border"><button onClick={exportRows} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors"><BarChart3 size={13} />{t("manager.standard.actions.generateFullReport")}</button><button onClick={exportRows} className="flex items-center gap-2 text-xs font-medium text-foreground bg-muted border border-border rounded-lg px-4 py-2 hover:bg-muted/80 transition-colors"><Download size={13} />{t("manager.standard.actions.exportCsv")}</button><button onClick={() => window.print()} className="flex items-center gap-2 text-xs font-medium text-foreground bg-muted border border-border rounded-lg px-4 py-2 hover:bg-muted/80 transition-colors"><Download size={13} />{t("manager.standard.actions.exportPdf")}</button></div>
       </Card>
 
-      <Card className="overflow-hidden mb-6">
+      {(filters.tipoRelatorio === "ALL" || filters.tipoRelatorio === "ACCESS_MATRIX") && <Card className="overflow-hidden mb-6">
         <div className="flex flex-col gap-3 px-5 py-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -972,7 +1004,7 @@ function PaginaRelatorios({ data }: { data: ManagerDashboardData }) {
             </table>
           </div>
         )}
-      </Card>
+      </Card>}
 
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border"><h2 className="text-sm font-semibold text-foreground">{t("manager.standard.reports.recentTitle")}</h2><div className="flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays size={13} /><span>{t("manager.standard.reports.lastThirtyDays")}</span></div></div>
@@ -1112,6 +1144,8 @@ export function ManagerHomePage() {
   const { signOut, user } = useAuth();
   const [activePage, setActivePage] = useState<Page>("inicio");
   const [search, setSearch] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const dashboard = useApiData<ManagerDashboardData>("/api/manager/dashboard");
 
   const navItems = useMemo(() => [
@@ -1132,7 +1166,8 @@ export function ManagerHomePage() {
   if (dashboard.error || !dashboard.data) return <ErrorState message={dashboard.error ?? t("manager.common.error")} retryLabel={t("manager.common.retry")} onRetry={dashboard.reload} />;
 
   const data = dashboard.data;
-  const initials = (user?.email ?? "GM").slice(0, 2).toUpperCase();
+  const managerName = String(user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? t("manager.standard.manager"));
+  const initials = managerName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "GM";
 
   return (
     <div className="flex h-screen w-full overflow-hidden" style={{ fontFamily: "Inter, DM Sans, sans-serif", background: "#F8F9FA" }}>
@@ -1153,7 +1188,24 @@ export function ManagerHomePage() {
 
         <div className="px-4 py-4 border-t border-white/8 space-y-3">
           <div className="rounded-lg bg-white/5 p-1"><LanguageToggle /></div>
-          <div className="flex items-center gap-2.5"><div className="w-7 h-7 rounded-full bg-[#1565C0] flex items-center justify-center shrink-0 text-white text-xs font-semibold">{initials}</div><div className="flex-1 min-w-0"><p className="text-white text-xs font-medium truncate">{user?.email ?? t("manager.standard.manager")}</p><p className="text-blue-400/60 text-[10px] truncate">{t("manager.standard.executiveAccess")}</p></div><button onClick={() => void signOut()} title={t("manager.standard.actions.logout")} className="text-blue-300/60 hover:text-red-300 transition"><LogOut size={14} /></button></div>
+          <div className="relative">
+            <div className="flex items-center gap-2.5">
+              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="w-7 h-7 rounded-full bg-[#1565C0] flex items-center justify-center shrink-0 text-white text-xs font-semibold hover:ring-2 hover:ring-blue-300/50 hover:ring-offset-2 hover:ring-offset-[#0A1929] transition-all" aria-expanded={profileOpen}>{initials}</button>
+              <button type="button" onClick={() => setProfileOpen((value) => !value)} className="flex-1 min-w-0 text-left"><p className="text-white text-xs font-medium truncate">{managerName}</p><p className="text-blue-400/60 text-[10px] truncate">{t("manager.standard.executiveAccess")}</p></button>
+              <button type="button" onClick={() => setSettingsOpen(true)} title={t("shell.navbar.settings")} className="text-blue-300/60 hover:text-white transition"><Settings size={14} /></button>
+              <button onClick={() => void signOut()} title={t("manager.standard.actions.logout")} className="text-blue-300/60 hover:text-red-300 transition"><LogOut size={14} /></button>
+            </div>
+            {profileOpen && <div className="absolute bottom-10 left-0 z-[100] w-80 overflow-hidden rounded-xl border border-border bg-white shadow-2xl">
+              <div className="bg-gradient-to-br from-[#1565C0] to-[#0A4880] px-5 py-4 text-white"><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/40 bg-white/15 text-sm font-bold">{initials}</div><div className="min-w-0"><p className="truncate text-sm font-bold">{managerName}</p><p className="text-xs text-white/75">{t("manager.standard.executiveAccess")}</p></div><button type="button" onClick={() => setProfileOpen(false)} className="ml-auto text-white/70 hover:text-white"><X size={15} /></button></div></div>
+              <div className="divide-y divide-border px-4 py-1">
+                <div className="flex items-start justify-between gap-4 py-2.5"><span className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Mail size={11} />{t("shell.profile.email")}</span><span className="max-w-[62%] break-all text-right text-xs font-medium text-foreground">{user?.email ?? "—"}</span></div>
+                <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.role")}</span><span className="text-right text-xs font-medium text-foreground">{t("manager.standard.manager")}</span></div>
+                <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.access")}</span><span className="text-right text-xs font-medium text-foreground">{t("manager.standard.executiveAccess")}</span></div>
+                <div className="flex items-start justify-between gap-4 py-2.5"><span className="text-[11px] text-muted-foreground">{t("shell.profile.lastSignIn")}</span><span className="text-right text-xs font-medium text-foreground">{user?.last_sign_in_at ? formatDateTime(user.last_sign_in_at, locale) : "—"}</span></div>
+              </div>
+              <div className="border-t border-border p-2"><button type="button" onClick={() => { setProfileOpen(false); setSettingsOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted"><Settings size={14} className="text-muted-foreground" />{t("shell.navbar.settings")}</button></div>
+            </div>}
+          </div>
         </div>
       </aside>
 
@@ -1174,6 +1226,7 @@ export function ManagerHomePage() {
           {activePage === "cadastros" && <RegistrationCenter onSaved={dashboard.reload} />}
         </div>
       </main>
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

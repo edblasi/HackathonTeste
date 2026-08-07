@@ -284,7 +284,10 @@
       "myProfile": "My Profile",
       "settings": "Settings",
       "signOut": "Sign Out",
-      "userRoleLabel": "SUS Patient"
+      "userRoleLabel": "SUS Patient",
+      "recentAlerts": "Recent alerts",
+      "recentAlertsHint": "Latest events that may require attention",
+      "noRecentAlerts": "No recent alerts."
     },
     "footer": {
       "copyright": "© 2026 Ministry of Health — Unified Health System (SUS)",
@@ -301,6 +304,27 @@
       "subtitle": "Choose which cards remain visible. Your preference is saved in this browser.",
       "reset": "Restore default",
       "close": "Close customization"
+    },
+    "profile": {
+      "email": "Email",
+      "role": "Profile",
+      "cns": "CNS",
+      "cpf": "CPF",
+      "phone": "Phone",
+      "location": "Location",
+      "cnes": "CNES",
+      "access": "Access level",
+      "lastSignIn": "Last sign-in"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Interface and account preferences",
+      "close": "Close settings",
+      "language": "Interface language",
+      "languageHint": "The change is applied immediately and saved in this browser.",
+      "dashboard": "Main dashboard",
+      "dashboardHint": "Dashboard cards remain customizable through the “Customize cards” button on the home page.",
+      "done": "Done"
     }
   },
   "home": {
@@ -954,7 +978,18 @@
         "allRegions": "All",
         "deviceCategory": "Device category",
         "qualityIndicator": "Quality indicator",
-        "lastThirtyDays": "Recent records"
+        "lastThirtyDays": "Recent records",
+        "reportType": "Report type",
+        "reportTypes": {
+          "all": "All reports",
+          "general": "General reports",
+          "finance": "Financial",
+          "accessMatrix": "Access matrix",
+          "logistics": "Logistics",
+          "lifecycle": "Lifecycle and recalls",
+          "equity": "Equity and coverage",
+          "network": "CRE network"
+        }
       },
       "security": {
         "managerLevel": "National Manager access.",

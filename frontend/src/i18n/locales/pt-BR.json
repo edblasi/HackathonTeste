@@ -284,7 +284,10 @@
       "myProfile": "Meu Perfil",
       "settings": "Configurações",
       "signOut": "Sair",
-      "userRoleLabel": "Paciente do SUS"
+      "userRoleLabel": "Paciente do SUS",
+      "recentAlerts": "Alertas recentes",
+      "recentAlertsHint": "Últimas ocorrências que exigem atenção",
+      "noRecentAlerts": "Nenhum alerta recente."
     },
     "footer": {
       "copyright": "© 2026 Ministério da Saúde — Sistema Único de Saúde (SUS)",
@@ -301,6 +304,27 @@
       "subtitle": "Escolha quais cards deseja manter visíveis. Sua preferência fica salva neste navegador.",
       "reset": "Restaurar padrão",
       "close": "Fechar personalização"
+    },
+    "profile": {
+      "email": "E-mail",
+      "role": "Perfil",
+      "cns": "CNS",
+      "cpf": "CPF",
+      "phone": "Telefone",
+      "location": "Localização",
+      "cnes": "CNES",
+      "access": "Nível de acesso",
+      "lastSignIn": "Último acesso"
+    },
+    "settings": {
+      "title": "Configurações",
+      "subtitle": "Preferências da interface e da sua conta",
+      "close": "Fechar configurações",
+      "language": "Idioma da interface",
+      "languageHint": "A alteração é aplicada imediatamente e fica salva neste navegador.",
+      "dashboard": "Painel principal",
+      "dashboardHint": "Os cards do painel continuam personalizáveis pelo botão “Personalizar cards” da página principal.",
+      "done": "Concluir"
     }
   },
   "home": {
@@ -954,7 +978,18 @@
         "allRegions": "Todas",
         "deviceCategory": "Categoria do dispositivo",
         "qualityIndicator": "Indicador de qualidade",
-        "lastThirtyDays": "Registros recentes"
+        "lastThirtyDays": "Registros recentes",
+        "reportType": "Tipo de relatório",
+        "reportTypes": {
+          "all": "Todos os relatórios",
+          "general": "Relatórios gerais",
+          "finance": "Financeiro",
+          "accessMatrix": "Matriz de acesso",
+          "logistics": "Logística",
+          "lifecycle": "Ciclo de vida e recalls",
+          "equity": "Equidade e cobertura",
+          "network": "Rede de CREs"
+        }
       },
       "security": {
         "managerLevel": "Acesso nível Gestor Nacional.",

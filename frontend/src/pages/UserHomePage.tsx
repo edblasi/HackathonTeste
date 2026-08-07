@@ -16,6 +16,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useLang } from "../i18n/LanguageContext";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { SettingsModal } from "../components/SettingsModal";
 import { Card } from "../components/Card";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { Avatar } from "../components/Avatar";
@@ -25,6 +26,7 @@ import {
   usePedidos,
   useHistoricoSolicitacao,
   useUsuarioAtual,
+  usePacientePerfil,
   useNotificacoes,
   type PedidoAtual,
   type HistoricoStatus,
@@ -333,7 +335,8 @@ function SupportCard() {
 
 export function UserHomePage() {
   const { signOut, user } = useAuth();
-  const { t } = useLang();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { t, locale } = useLang();
   const navigate = useNavigate();
   const { visibleIds, toggle, reset, isVisible } = useDashboardCardPreferences<UserHomeCardId>(
     `umdr:patient:${user?.id ?? "anonymous"}:home-cards`,
@@ -341,6 +344,7 @@ export function UserHomePage() {
   );
 
   const { data: usuario, loading: loadingUsuario } = useUsuarioAtual();
+  const { data: perfil } = usePacientePerfil();
   const { data: pedidos, loading: loadingPedidos, error: erroPedidos } = usePedidos();
   const pedidoAtivo = pedidos?.[0] ?? null;
   const { data: historico } = useHistoricoSolicitacao(pedidoAtivo?.solicitacao_id ?? null);
@@ -361,7 +365,13 @@ export function UserHomePage() {
       .join("")
       .toUpperCase() || "?";
 
-  const proximaNotificacao = notificacoes?.find((n) => !n.lida) ?? null;
+  const alertasRecentes = (notificacoes ?? []).slice(0, 5).map((n) => ({
+    id: n.id,
+    title: n.titulo,
+    description: n.mensagem ?? "",
+    time: new Date(n.criado_em).toLocaleString(locale),
+    unread: !n.lida,
+  }));
 
   const loading = loadingUsuario || loadingPedidos;
   const cardOptions = [
@@ -379,9 +389,16 @@ export function UserHomePage() {
       <Navbar
         userName={nomeExibicao || "—"}
         userInitials={iniciais}
-        notification={
-          proximaNotificacao ? { title: proximaNotificacao.titulo, description: proximaNotificacao.mensagem ?? "" } : null
-        }
+        userEmail={user?.email}
+        notifications={alertasRecentes}
+        profileDetails={[
+          { label: t("shell.profile.role"), value: t("shell.navbar.userRoleLabel") },
+          { label: t("shell.profile.cns"), value: perfil?.cns ?? "—" },
+          { label: t("shell.profile.cpf"), value: perfil?.cpf ?? "—" },
+          { label: t("shell.profile.phone"), value: perfil?.telefone_contato ?? "—" },
+          { label: t("shell.profile.location"), value: [perfil?.nome_municipio, perfil?.uf_sigla].filter(Boolean).join(" / ") || "—" },
+        ]}
+        onOpenSettings={() => setSettingsOpen(true)}
         onSignOut={handleSignOut}
       />
 
@@ -431,6 +448,7 @@ export function UserHomePage() {
       </main>
 
       <Footer />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

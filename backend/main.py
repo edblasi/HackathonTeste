@@ -39,8 +39,8 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 app = FastAPI(title="UMDR API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1110,7 +1110,7 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
         db_select(
             "dominio",
             "estabelecimento_cnes",
-            select="codigo_cnes,municipio_ibge6,razao_social,nome_fantasia,tipo_estabelecimento,habilitado_opm,ativo",
+            select="codigo_cnes,municipio_ibge6,razao_social,nome_fantasia,tipo_estabelecimento,logradouro,telefone,habilitado_opm,ativo",
         ),
         db_select("fila", "paciente", select="id,municipio_residencia_ibge6,zona_residencia,data_cadastro,cns"),
         db_select(
@@ -1174,9 +1174,11 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
     }
     region_order = ["N", "NE", "CO", "SE", "S", "—"]
     municipality_to_uf = {item.get("codigo_ibge6"): item.get("uf_sigla") or "—" for item in municipalities}
+    municipality_to_name = {item.get("codigo_ibge6"): item.get("nome_municipio") or "—" for item in municipalities}
     municipality_to_region = {
         code: region_by_uf.get(uf, "—") for code, uf in municipality_to_uf.items()
     }
+    unit_by_cnes = {item.get("codigo_cnes"): item for item in units}
     unit_to_region = {
         item.get("codigo_cnes"): municipality_to_region.get(item.get("municipio_ibge6"), "—")
         for item in units
@@ -1451,7 +1453,7 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
             })
     lifecycle_alerts = lifecycle_alerts[:100]
 
-    # Capacidade das oficinas/CREs e uso atual.
+    # CREs: unidades habilitadas para OPM e/ou vinculadas a uma oficina ortopédica.
     active_orders_by_workshop = Counter(item.get("oficina_id") for item in active_orders)
     queue_by_cnes = Counter()
     for item in queue:
@@ -1461,22 +1463,36 @@ async def manager_dashboard(identity: Identity = Depends(current_identity)) -> d
         queue_by_cnes[request_item.get("estabelecimento_solicitante_cnes")] += 1
     shipments_by_workshop = Counter(item.get("oficina_id") for item in active_shipments)
     ngos_by_workshop = Counter(item.get("oficina_id") for item in partnerships if item.get("ativa") is not False)
+    workshop_by_cnes = {item.get("cnes"): item for item in workshops}
+    cre_cnes = {item.get("codigo_cnes") for item in units if item.get("habilitado_opm") is True}
+    cre_cnes.update(item.get("cnes") for item in workshops if item.get("cnes"))
     centers = []
-    for workshop in workshops:
+    for cnes in sorted(code for code in cre_cnes if code):
+        unit = unit_by_cnes.get(cnes, {})
+        workshop = workshop_by_cnes.get(cnes, {})
+        workshop_id = workshop.get("id")
         capacity = int(number(workshop.get("capacidade_producao_mensal")))
-        active_count = active_orders_by_workshop.get(workshop.get("id"), 0)
+        active_count = active_orders_by_workshop.get(workshop_id, 0) if workshop_id is not None else 0
+        municipality_code = unit.get("municipio_ibge6")
         centers.append({
-            "id": workshop.get("id"),
-            "name": workshop.get("nome"),
-            "cnes": workshop.get("cnes"),
-            "region": workshop_to_region.get(workshop.get("id"), "—"),
+            "id": workshop_id,
+            "name": workshop.get("nome") or unit.get("nome_fantasia") or unit.get("razao_social") or cnes,
+            "cnes": cnes,
+            "region": unit_to_region.get(cnes, "—"),
+            "municipality": municipality_to_name.get(municipality_code, "—"),
+            "uf": municipality_to_uf.get(municipality_code, "—"),
+            "address": unit.get("logradouro"),
+            "phone": unit.get("telefone"),
+            "unit_type": unit.get("tipo_estabelecimento"),
+            "opm_enabled": unit.get("habilitado_opm") is True,
             "capacity": capacity,
             "capacity_used": round(min(100 * active_count / capacity, 100), 1) if capacity else 0,
-            "queue": queue_by_cnes.get(workshop.get("cnes"), 0),
-            "active_shipments": shipments_by_workshop.get(workshop.get("id"), 0),
-            "ngo_partners": ngos_by_workshop.get(workshop.get("id"), 0),
-            "active": workshop.get("ativo") is not False,
+            "queue": queue_by_cnes.get(cnes, 0),
+            "active_shipments": shipments_by_workshop.get(workshop_id, 0) if workshop_id is not None else 0,
+            "ngo_partners": ngos_by_workshop.get(workshop_id, 0) if workshop_id is not None else 0,
+            "active": unit.get("ativo") is not False and workshop.get("ativo", True) is not False,
         })
+    summary["cre_centers"] = len([item for item in centers if item["active"]])
 
     # Série financeira por tipo de tecnologia assistiva, preservando o gráfico padrão.
     finance_months: dict[str, dict[str, Any]] = {}

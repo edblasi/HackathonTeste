@@ -284,7 +284,10 @@
       "myProfile": "Mi Perfil",
       "settings": "Configuración",
       "signOut": "Cerrar sesión",
-      "userRoleLabel": "Paciente del SUS"
+      "userRoleLabel": "Paciente del SUS",
+      "recentAlerts": "Alertas recientes",
+      "recentAlertsHint": "Últimos eventos que pueden requerir atención",
+      "noRecentAlerts": "No hay alertas recientes."
     },
     "footer": {
       "copyright": "© 2026 Ministerio de Salud — Sistema Único de Salud (SUS)",
@@ -301,6 +304,27 @@
       "subtitle": "Elige qué tarjetas deseas mantener visibles. La preferencia se guarda en este navegador.",
       "reset": "Restaurar predeterminado",
       "close": "Cerrar personalización"
+    },
+    "profile": {
+      "email": "Correo electrónico",
+      "role": "Perfil",
+      "cns": "CNS",
+      "cpf": "CPF",
+      "phone": "Teléfono",
+      "location": "Ubicación",
+      "cnes": "CNES",
+      "access": "Nivel de acceso",
+      "lastSignIn": "Último acceso"
+    },
+    "settings": {
+      "title": "Configuración",
+      "subtitle": "Preferencias de la interfaz y de la cuenta",
+      "close": "Cerrar configuración",
+      "language": "Idioma de la interfaz",
+      "languageHint": "El cambio se aplica de inmediato y queda guardado en este navegador.",
+      "dashboard": "Panel principal",
+      "dashboardHint": "Las tarjetas del panel siguen siendo personalizables mediante el botón “Personalizar tarjetas” de la página principal.",
+      "done": "Listo"
     }
   },
   "home": {
@@ -954,7 +978,18 @@
         "allRegions": "Todas",
         "deviceCategory": "Categoría del dispositivo",
         "qualityIndicator": "Indicador de calidad",
-        "lastThirtyDays": "Registros recientes"
+        "lastThirtyDays": "Registros recientes",
+        "reportType": "Tipo de informe",
+        "reportTypes": {
+          "all": "Todos los informes",
+          "general": "Informes generales",
+          "finance": "Financiero",
+          "accessMatrix": "Matriz de acceso",
+          "logistics": "Logística",
+          "lifecycle": "Ciclo de vida y recalls",
+          "equity": "Equidad y cobertura",
+          "network": "Red de CREs"
+        }
       },
       "security": {
         "managerLevel": "Acceso de Gestor Nacional.",

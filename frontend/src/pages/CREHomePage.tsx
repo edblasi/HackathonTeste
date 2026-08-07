@@ -4,6 +4,7 @@ import { useLang } from "../i18n/LanguageContext";
 import { useAuth } from "../contexts/AuthContext";
 import { StatusBadge } from "../components/StatusBadge";
 import { LanguageToggle } from "../components/LanguageToggle";
+import { SettingsModal } from "../components/SettingsModal";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import {
   useKpiDashboard,
@@ -177,9 +178,10 @@ function ChartTooltip({ active, payload, label }: any) {
 interface SidebarProps {
   current: Page;
   onNavigate: (p: Page) => void;
+  onOpenSettings: () => void;
 }
 
-function Sidebar({ current, onNavigate }: SidebarProps) 
+function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps) 
 {
   const { t } = useLang();
   const { signOut } = useAuth();
@@ -255,7 +257,7 @@ function Sidebar({ current, onNavigate }: SidebarProps)
 
       {/* bottom */}
       <div className="px-3 pb-4 border-t border-slate-100 pt-3 space-y-0.5">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
+        <button type="button" onClick={onOpenSettings} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors">
           <Settings className="w-4 h-4 text-slate-400" /> {t("nav.settings")}
         </button>
         <button
@@ -275,9 +277,9 @@ function Sidebar({ current, onNavigate }: SidebarProps)
 
 // PAGE_TITLES is now dynamic — built inside Topbar using t()
 
-function ProfilePopup({ onClose }: { onClose: () => void }) {
+function ProfilePopup({ onClose, onOpenSettings }: { onClose: () => void; onOpenSettings: () => void }) {
   const { t } = useLang();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const { data: usuario } = useUsuarioAtual();
 
@@ -318,8 +320,10 @@ function ProfilePopup({ onClose }: { onClose: () => void }) {
         </div>
         <div className="px-5 py-4 space-y-3 border-b border-slate-100">
           {[
-            { icon: Building2, label: t("profile.unit"),      value: usuario?.unidade_nome ?? t("profile.unitValue") },
-            { icon: Shield,    label: t("profile.profile"),   value: t("profile.roleValue") },
+            { icon: Mail,      label: t("shell.profile.email"), value: user?.email ?? "—" },
+            { icon: Building2, label: t("profile.unit"),        value: usuario?.unidade_nome ?? t("profile.unitValue") },
+            { icon: Shield,    label: t("profile.profile"),     value: t("profile.roleValue") },
+            { icon: BadgeCheck,label: t("shell.profile.cnes"),  value: usuario?.cnes_vinculo ?? "—" },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-start gap-3">
               <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
@@ -333,7 +337,7 @@ function ProfilePopup({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div className="px-4 py-3 flex gap-2">
-          <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+          <button type="button" onClick={() => { onClose(); onOpenSettings(); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
             <Settings className="w-3.5 h-3.5" /> {t("profile.settings")}
           </button>
           <button
@@ -348,10 +352,17 @@ function ProfilePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Topbar({ page }: { page: Page }) {
-  const { t } = useLang();
+function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: (page: Page) => void; onOpenSettings: () => void }) {
+  const { t, locale } = useLang();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const { data: usuario } = useUsuarioAtual();
+  const { data: criticalAlerts } = useAlertasCriticos();
+  const { data: recalls } = useRecalls();
+  const recentAlerts = [
+    ...(criticalAlerts ?? []).map((item, index) => ({ id: `critical-${index}`, title: t("alerts.title"), description: item.mensagem, time: new Date(item.gerado_em).toLocaleString(locale), target: "logistica" as Page })),
+    ...(recalls ?? []).filter((item) => !["ENCERRADO", "CANCELADO"].includes(item.status)).map((item) => ({ id: `recall-${item.id}`, title: t("recalls.title"), description: `${item.codigo_lote} — ${item.nome_produto}`, time: item.data_abertura ? new Date(`${item.data_abertura}T00:00:00`).toLocaleDateString(locale) : "", target: "logistica" as Page })),
+  ].slice(0, 5);
 
   const iniciais =
     (usuario?.nome_exibicao ?? "")
@@ -380,10 +391,16 @@ function Topbar({ page }: { page: Page }) {
       <div className="flex items-center gap-3">
         <LanguageToggle />
         <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full font-medium">{t("topbar.date")}</span>
-        <button className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-          <Bell className="w-4 h-4 text-slate-500" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
-        </button>
+        <div className="relative">
+          <button type="button" onClick={() => { setAlertsOpen((value) => !value); setProfileOpen(false); }} className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors" aria-expanded={alertsOpen}>
+            <Bell className="w-4 h-4 text-slate-500" />
+            {recentAlerts.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />}
+          </button>
+          {alertsOpen && <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-bold text-slate-800">{t("shell.navbar.recentAlerts")}</p><p className="text-[11px] text-slate-400">{t("shell.navbar.recentAlertsHint")}</p></div><button type="button" onClick={() => setAlertsOpen(false)} className="text-slate-400 hover:text-slate-700"><X className="w-4 h-4" /></button></div>
+            {recentAlerts.length ? <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{recentAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { setAlertsOpen(false); onNavigate(alert.target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" /><span className="min-w-0"><span className="block text-xs font-bold text-slate-800">{alert.title}</span><span className="mt-0.5 block text-[11px] text-slate-500 line-clamp-2">{alert.description}</span><span className="mt-1 block text-[10px] text-slate-400">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-400">{t("shell.navbar.noRecentAlerts")}</p>}
+          </div>}
+        </div>
         <div className="relative">
           <button
             onClick={() => setProfileOpen((o) => !o)}
@@ -391,7 +408,7 @@ function Topbar({ page }: { page: Page }) {
           >
             {iniciais}
           </button>
-          {profileOpen && <ProfilePopup onClose={() => setProfileOpen(false)} />}
+          {profileOpen && <ProfilePopup onClose={() => setProfileOpen(false)} onOpenSettings={onOpenSettings} />}
         </div>
       </div>
     </header>
@@ -1509,6 +1526,19 @@ function Triagens() {
 
 const PIE_COLORS = ["#7C3AED", "#D97706", "#0891B2", "#E11D48", "#1D4ED8", "#059669"];
 
+function downloadCreCsv(filename: string, rows: Array<Record<string, string | number>>) {
+  if (!rows.length) return;
+  const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  const escape = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = [columns.map(escape).join(","), ...rows.map((row) => columns.map((column) => escape(row[column])).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { t, locale } = useLang();
   const [exportType, setExportType] = useState<"PDF" | "CSV">("PDF");
@@ -1574,7 +1604,11 @@ function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
               {(["PDF", "CSV"] as const).map((et) => (
                 <button
                   key={et}
-                  onClick={() => setExportType(et)}
+                  onClick={() => {
+                    setExportType(et);
+                    if (et === "CSV") downloadCreCsv("umdr-cre-relatorio-mensal.csv", barData);
+                    else window.print();
+                  }}
                   className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${exportType === et ? "bg-blue-700 text-white border-blue-700" : "text-slate-500 border-slate-200 hover:bg-slate-50"}`}
                 >
                   <Download className="w-3.5 h-3.5" /> {et}
@@ -1686,17 +1720,19 @@ function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
 
 function AppInner() {
   const [page, setPage] = useState<Page>("inicio");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]" style={{ fontFamily: "Inter, sans-serif" }}>
-      <Sidebar current={page} onNavigate={setPage} />
+      <Sidebar current={page} onNavigate={setPage} onOpenSettings={() => setSettingsOpen(true)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Topbar page={page} />
+        <Topbar page={page} onNavigate={setPage} onOpenSettings={() => setSettingsOpen(true)} />
         {page === "inicio"     && <Dashboard onNavigate={setPage} />}
         {page === "pacientes"  && <PacientesAguardados />}
         {page === "logistica"  && <LogisticaReversa />}
         {page === "triagens"   && <Triagens />}
         {page === "relatorios" && <Relatorios onNavigate={setPage} />}
       </div>
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
