@@ -117,7 +117,7 @@ const REGION_COLORS: Record<string, string> = {
   "—": "#64748B",
 };
 
-const MANAGER_HOME_CARD_IDS = ["conformity", "efficiency", "recalls", "logistics", "units", "patients"] as const;
+const MANAGER_HOME_CARD_IDS = ["conformity", "efficiency", "recalls", "logistics", "reuse", "units", "patients"] as const;
 type ManagerHomeCardId = (typeof MANAGER_HOME_CARD_IDS)[number];
 
 function numeric(input: unknown): number {
@@ -321,6 +321,13 @@ function describeAlert(alert: ManagerAlertRow, t: (key: TranslationKey, params?:
       time: t("manager.standard.alerts.current"),
     };
   }
+  if (alert.kind === "matching") {
+    return {
+      label: t("manager.standard.alerts.matching"),
+      message: t("manager.standard.alerts.matchingMessage", { product: text(alert.product), route: text(alert.name) }),
+      time: formatDate(alert.date, locale),
+    };
+  }
   return {
     label: t("manager.standard.alerts.report"),
     message: t("manager.standard.alerts.reportMessage", { name: text(alert.name) }),
@@ -418,6 +425,17 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
       bg: "bg-orange-50",
     },
     {
+      id: "reuse",
+      target: "ciclovida",
+      label: t("manager.standard.kpi.reuse"),
+      value: integer(data.summary.reuse_matches, locale),
+      delta: t("manager.standard.kpi.reuseHint"),
+      positive: true,
+      icon: Share2,
+      color: "text-[#00838F]",
+      bg: "bg-cyan-50",
+    },
+    {
       id: "units",
       target: "cres",
       label: t("manager.standard.kpi.units"),
@@ -454,6 +472,7 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
       { indicator: t("manager.standard.kpi.efficiency"), value: data.summary.efficiency_rate },
       { indicator: t("manager.standard.kpi.recalls"), value: data.summary.active_recalls },
       { indicator: t("manager.standard.kpi.logistics"), value: data.summary.logistics_alerts },
+      { indicator: t("manager.standard.kpi.reuse"), value: data.summary.reuse_matches },
       { indicator: t("manager.standard.kpi.units"), value: data.summary.active_units },
       { indicator: t("manager.standard.kpi.patients"), value: data.summary.patients },
     ]);
@@ -484,7 +503,7 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
         </button>
       </PageHeader>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
         {visibleKpiCards.map((item) => <KPICard key={item.id} {...item} onClick={() => item.target && onNavigate(item.target)} />)}
       </div>
 
@@ -762,12 +781,14 @@ function PaginaCicloVida({ data, onRefresh }: { data: ManagerDashboardData; onRe
   const { t, locale } = useLang();
   const forecast = data.maintenance_forecast.map((row) => ({ ...row, mes: monthLabel(row.month, locale) }));
   const failureRate = numeric(data.summary.active_devices) ? (numeric(data.summary.active_recalls) / numeric(data.summary.active_devices)) * 100 : 0;
-  const overdueCount = data.lifecycle_alerts.filter((row) => row.type === "overdue").length;
+  const damagedExpired = numeric(data.summary.damaged_expired_devices);
+  const reused = numeric(data.summary.reuse_matches);
   const kpis: KpiCardData[] = [
     { label: t("manager.standard.lifecycle.totalActive"), value: integer(data.summary.active_devices, locale), delta: t("manager.standard.kpi.liveDatabase"), positive: true, icon: Activity, color: "text-[#1565C0]", bg: "bg-blue-50" },
     { label: t("manager.standard.lifecycle.preventiveAlerts"), value: integer(data.lifecycle_alerts.length, locale), delta: t("manager.standard.lifecycle.openAlerts"), positive: data.lifecycle_alerts.length === 0, icon: Clock, color: "text-[#E65100]", bg: "bg-orange-50" },
     { label: t("manager.standard.lifecycle.failureRate"), value: percent(failureRate, locale), delta: t("manager.standard.lifecycle.recallBasis"), positive: failureRate < 1, icon: XCircle, color: "text-[#C62828]", bg: "bg-red-50" },
-    { label: t("manager.standard.lifecycle.endOfLife"), value: integer(overdueCount, locale), delta: t("manager.standard.lifecycle.urgentReview"), positive: overdueCount === 0, icon: AlertTriangle, color: "text-[#E65100]", bg: "bg-orange-50" },
+    { label: t("manager.standard.lifecycle.damagedExpired"), value: integer(damagedExpired, locale), delta: t("manager.standard.lifecycle.damagedExpiredHint"), positive: damagedExpired === 0, icon: AlertTriangle, color: "text-[#E65100]", bg: "bg-orange-50" },
+    { label: t("manager.standard.lifecycle.reused"), value: integer(reused, locale), delta: t("manager.standard.lifecycle.reusedHint"), positive: true, icon: Share2, color: "text-[#00838F]", bg: "bg-cyan-50" },
   ];
 
   return (
@@ -776,7 +797,7 @@ function PaginaCicloVida({ data, onRefresh }: { data: ManagerDashboardData; onRe
         <button onClick={onRefresh} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors"><RefreshCw size={13} />{t("manager.standard.actions.refreshData")}</button>
       </PageHeader>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">{kpis.map((item) => <KPICard key={item.label} {...item} />)}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">{kpis.map((item) => <KPICard key={item.label} {...item} />)}</div>
 
       <Card className="p-5 mb-6">
         <div className="flex items-center justify-between mb-5"><div><h2 className="text-sm font-semibold text-foreground">{t("manager.standard.lifecycle.forecastTitle")}</h2><p className="text-xs text-muted-foreground">{t("manager.standard.lifecycle.forecastSubtitle")}</p></div></div>
@@ -812,7 +833,8 @@ function PaginaLogistica({ data }: { data: ManagerDashboardData }) {
   const ngoTotal = data.centers.reduce((sum, row) => sum + row.ngo_partners, 0);
   const kpis: KpiCardData[] = [
     { label: t("manager.standard.logistics.averageLeadTime"), value: t("manager.standard.equity.dayValue", { value: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(averageWait) }), delta: t("manager.standard.kpi.liveDatabase"), positive: averageWait <= 60, icon: Clock, color: "text-[#1565C0]", bg: "bg-blue-50" },
-    { label: t("manager.standard.logistics.queueSisreg"), value: integer(queueTotal, locale), delta: t("manager.standard.logistics.activeQueue"), positive: queueTotal === 0, icon: Users, color: "text-[#E65100]", bg: "bg-orange-50" },
+    { label: t("manager.standard.logistics.activeRequestsQueue"), value: integer(data.summary.active_queue ?? queueTotal, locale), delta: t("manager.standard.logistics.activeQueue"), positive: numeric(data.summary.active_queue ?? queueTotal) === 0, icon: Users, color: "text-[#E65100]", bg: "bg-orange-50" },
+    { label: t("manager.standard.logistics.sisregPatients"), value: integer(data.summary.sisreg_pending, locale), delta: t("manager.standard.logistics.sisregPendingHint"), positive: numeric(data.summary.sisreg_pending) === 0, icon: Clock, color: "text-[#6A1B9A]", bg: "bg-purple-50" },
     { label: t("manager.standard.logistics.devicesTransit"), value: integer(transitTotal, locale), delta: t("manager.standard.logistics.registeredShipments"), positive: true, icon: Truck, color: "text-[#2E7D32]", bg: "bg-green-50" },
     { label: t("manager.standard.logistics.onTimeRate"), value: percent(data.summary.efficiency_rate, locale), delta: t("manager.standard.logistics.deliveryBasis"), positive: numeric(data.summary.efficiency_rate) >= 85, icon: CheckCircle2, color: "text-[#2E7D32]", bg: "bg-green-50" },
   ];
@@ -823,7 +845,7 @@ function PaginaLogistica({ data }: { data: ManagerDashboardData }) {
         <button onClick={() => downloadCsv("umdr-sisreg-logistica.csv", data.regional)} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors"><Download size={13} />{t("manager.standard.actions.exportSisreg")}</button>
       </PageHeader>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">{kpis.map((item) => <KPICard key={item.label} {...item} />)}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">{kpis.map((item) => <KPICard key={item.label} {...item} />)}</div>
 
       <Card className="p-5 mb-6">
         <div className="flex items-center justify-between mb-5"><div><h2 className="text-sm font-semibold text-foreground">{t("manager.standard.logistics.regionalTitle")}</h2><p className="text-xs text-muted-foreground">{t("manager.standard.logistics.regionalSubtitle")}</p></div>{data.regional.some((row) => row.queue > row.stock) && <span className="text-xs font-medium text-[#C62828] bg-red-50 px-2 py-0.5 rounded-full">{t("manager.standard.logistics.criticalRegion")}</span>}</div>
@@ -1064,6 +1086,8 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
   const { t } = useLang();
   const [tab, setTab] = useState<RegistrationTab>("patient");
   const [selectedUbs, setSelectedUbs] = useState("");
+  const [selectedProcedure, setSelectedProcedure] = useState("");
+  const [selectedSisregRequest, setSelectedSisregRequest] = useState("");
   const { data: catalogs, loading, error, reload } = useApiData<AdminCatalogs>("/api/admin/catalogs");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -1091,6 +1115,9 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
       "oficina_id",
       "capacidade_producao_mensal",
       "distancia_estimada_cre_km",
+      "produto_id",
+      "latitude",
+      "longitude",
     ]) {
       if (body[key] !== null && body[key] !== undefined) body[key] = Number(body[key]);
     }
@@ -1098,6 +1125,8 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
       await apiPost(path, body);
       formElement.reset();
       setSelectedUbs("");
+      setSelectedProcedure("");
+      setSelectedSisregRequest("");
       const successKey: Record<RegistrationTab, TranslationKey> = {
         manager: "manager.registration.demo.success.manager",
         cre: "manager.registration.demo.success.cre",
@@ -1131,6 +1160,9 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
   const requestingProfessionals = selectedUbs
     ? catalogs.professionals.filter((professional) => professional.cnes_vinculo === selectedUbs)
     : [];
+  const patientProducts = selectedProcedure ? catalogs.products.filter((product) => product.procedimento_sigtap === selectedProcedure) : [];
+  const sisregRequest = catalogs.pending_requests.find((request) => String(request.id) === selectedSisregRequest);
+  const sisregProducts = sisregRequest ? catalogs.products.filter((product) => product.procedimento_sigtap === sisregRequest.procedimento_sigtap) : [];
 
   const submitLabel = submitting ? t("manager.registration.saving") : t("manager.registration.save");
 
@@ -1215,7 +1247,10 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
             </FormField>
             <FormField label={t("manager.registration.fields.address")}><input className={inputClass} name="logradouro" /></FormField>
             <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone" /></FormField>
+            <FormField label={t("manager.registration.demo.fields.latitude")}><input className={inputClass} name="latitude" type="number" min="-90" max="90" step="0.000001" /></FormField>
+            <FormField label={t("manager.registration.demo.fields.longitude")}><input className={inputClass} name="longitude" type="number" min="-180" max="180" step="0.000001" /></FormField>
             <FormField label={t("manager.registration.demo.fields.monthlyCapacity")}><input className={inputClass} name="capacidade_producao_mensal" type="number" min="0" step="1" /></FormField>
+            <div className="md:col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs leading-5 text-cyan-900">{t("manager.registration.demo.cre.coordinateHint")}</div>
 
             <div className="md:col-span-2 mt-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.creResponsible")}</h3></div>
             <FormField label={t("manager.registration.demo.fields.responsibleName")}><input className={inputClass} name="nome_responsavel" required /></FormField>
@@ -1257,7 +1292,8 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
                 {requestingProfessionals.map((professional) => <option key={professional.id} value={professional.id}>{professional.nome_completo} — {professional.cbo}</option>)}
               </select>
             </FormField>
-            <FormField label={t("manager.registration.fields.procedure")}><select className={inputClass} name="procedimento_sigtap" required><option value="">{t("manager.common.select")}</option>{catalogs.procedures.map((procedure) => <option key={procedure.codigo} value={procedure.codigo}>{procedure.codigo} - {procedure.nome_procedimento}</option>)}</select></FormField>
+            <FormField label={t("manager.registration.fields.procedure")}><select className={inputClass} name="procedimento_sigtap" required value={selectedProcedure} onChange={(event) => setSelectedProcedure(event.target.value)}><option value="">{t("manager.common.select")}</option>{catalogs.procedures.map((procedure) => <option key={procedure.codigo} value={procedure.codigo}>{procedure.codigo} - {procedure.nome_procedimento}</option>)}</select></FormField>
+            <FormField label={t("manager.registration.demo.fields.product")}><select className={inputClass} name="produto_id" required disabled={!selectedProcedure || patientProducts.length === 0}><option value="">{patientProducts.length ? t("manager.common.select") : t("manager.registration.demo.values.noCompatibleProduct")}</option>{patientProducts.map((product) => <option key={product.id} value={product.id}>{product.nome_produto}</option>)}</select></FormField>
             <FormField label={t("manager.registration.fields.diagnosis")}><select className={inputClass} name="cid10_codigo" required><option value="">{t("manager.common.select")}</option>{catalogs.diagnoses.map((diagnosis) => <option key={diagnosis.codigo} value={diagnosis.codigo}>{diagnosis.codigo} - {diagnosis.descricao}</option>)}</select></FormField>
             <FormField label={t("manager.registration.fields.priority")}><select className={inputClass} name="prioridade_clinica" defaultValue="ROTINA"><option value="ROTINA">{t("manager.registration.values.routine")}</option><option value="PRIORITARIO">{t("manager.registration.values.priority")}</option><option value="URGENTE">{t("manager.registration.values.urgent")}</option></select></FormField>
             <FormField label={t("manager.registration.fields.side")}><select className={inputClass} name="lado_acometido"><option value="">{t("manager.common.select")}</option><option value="DIREITO">{t("manager.registration.values.right")}</option><option value="ESQUERDO">{t("manager.registration.values.left")}</option><option value="BILATERAL">{t("manager.registration.values.bilateral")}</option><option value="NAO_APLICAVEL">{t("manager.registration.values.notApplicable")}</option></select></FormField>
@@ -1272,7 +1308,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
           <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event, "/api/admin/sisreg/authorize")}>
             {catalogs.pending_requests.length === 0 && <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">{t("manager.registration.demo.sisreg.empty")}</div>}
             <FormField label={t("manager.registration.demo.fields.pendingRequest")}>
-              <select className={inputClass} name="solicitacao_id" required disabled={catalogs.pending_requests.length === 0}>
+              <select className={inputClass} name="solicitacao_id" required disabled={catalogs.pending_requests.length === 0} value={selectedSisregRequest} onChange={(event) => setSelectedSisregRequest(event.target.value)}>
                 <option value="">{t("manager.common.select")}</option>
                 {catalogs.pending_requests.map((request) => <option key={request.id} value={request.id}>{request.paciente_nome || `#${request.paciente_id}`} — {request.procedimento_nome || request.procedimento_sigtap} — {request.ubs_nome || request.estabelecimento_solicitante_cnes}</option>)}
               </select>
@@ -1280,6 +1316,7 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
             <FormField label={t("manager.registration.demo.fields.destinationCre")}>
               <select className={inputClass} name="cre_destino_cnes" required><option value="">{t("manager.common.select")}</option>{catalogs.cres.map((cre) => <option key={cre.codigo_cnes} value={cre.codigo_cnes}>{cre.nome} — {cre.codigo_cnes}</option>)}</select>
             </FormField>
+            <FormField label={t("manager.registration.demo.fields.product")}><select className={inputClass} name="produto_id" required disabled={!sisregRequest}><option value="">{t("manager.common.select")}</option>{sisregProducts.map((product) => <option key={product.id} value={product.id}>{product.nome_produto}</option>)}</select></FormField>
             <FormField label={t("manager.registration.demo.fields.authorizationNumber")}><input className={inputClass} name="numero_autorizacao" placeholder={t("manager.registration.demo.values.autoGenerated")} /></FormField>
             <FormField label={t("manager.registration.fields.distance")}><input className={inputClass} name="distancia_estimada_cre_km" type="number" min="0" step="0.1" /></FormField>
             <div className="md:col-span-2"><FormField label={t("manager.registration.demo.fields.sisregObservation")}><textarea className={`${inputClass} min-h-24 py-2`} name="observacao" /></FormField></div>

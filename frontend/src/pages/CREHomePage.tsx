@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useLang } from "../i18n/LanguageContext";
 import { useAuth } from "../contexts/AuthContext";
 import { StatusBadge } from "../components/StatusBadge";
+import { Card } from "../components/Card";
+import { ErrorState, LoadingState } from "../components/DataState";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { SettingsModal } from "../components/SettingsModal";
 import { CommunicationsCenter } from "../components/CommunicationsCenter";
@@ -11,6 +13,7 @@ import { ShipmentModal, TriageModal } from "../components/CreActionModals";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { crePageForAlert } from "../lib/alertRouting";
 import { patientFirstName } from "../lib/patientPrivacy";
+import { apiPatch, apiPost } from "../lib/api";
 import { useSeenAlerts } from "../hooks/useSeenAlerts";
 import {
   useKpiDashboard,
@@ -23,6 +26,7 @@ import {
   useTriagens,
   useRemessasLogistica,
   useRelatorioMensal,
+  useCreMatching,
   useNotificacoes,
   type Triagem,
   type TriageWorkflowStatus,
@@ -90,7 +94,7 @@ import {
 // TYPES & DATA
 // ═══════════════════════════════════════════════════════════════
 
-type Page = "inicio" | "pacientes" | "logistica" | "triagens" | "relatorios" | "atendimentos" | "comunicacoes";
+type Page = "inicio" | "pacientes" | "logistica" | "matching" | "triagens" | "relatorios" | "atendimentos" | "comunicacoes";
 
 const CRE_HOME_CARD_IDS = ["queue", "stock", "logistics", "matchings"] as const;
 type CreHomeCardId = (typeof CRE_HOME_CARD_IDS)[number];
@@ -204,6 +208,7 @@ function Sidebar({ current, onNavigate, onOpenSettings }: SidebarProps)
     { icon: Home,          label: t("nav.home"),      page: "inicio"    },
     { icon: Users,         label: t("nav.patients"),  page: "pacientes" },
     { icon: RefreshCw,     label: t("nav.logistics"), page: "logistica" },
+    { icon: Zap,           label: t("nav.matching"),  page: "matching" },
     { icon: ClipboardList, label: t("nav.triage"),    page: "triagens"  },
     { icon: Activity,      label: t("nav.reports"),   page: "relatorios"},
     { icon: MessageSquare, label: t("nav.supportInbox"), page: "atendimentos"},
@@ -418,6 +423,7 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
     inicio:     { title: t("page.inicio.title"),     sub: t("page.inicio.sub")     },
     pacientes:  { title: t("page.pacientes.title"),  sub: t("page.pacientes.sub")  },
     logistica:  { title: t("page.logistica.title"),  sub: t("page.logistica.sub")  },
+    matching:   { title: t("page.matching.title"),   sub: t("page.matching.sub")   },
     triagens:   { title: t("page.triagens.title"),   sub: t("page.triagens.sub")   },
     relatorios: { title: t("page.relatorios.title"), sub: t("page.relatorios.sub") },
     atendimentos: { title: t("page.atendimentos.title"), sub: t("page.atendimentos.sub") },
@@ -469,7 +475,7 @@ function KpiCards({ onNavigate, visibleIds }: { onNavigate: (page: Page) => void
     { id: "queue" as const, target: "pacientes" as const, label: t("kpi.queue"), value: kpi?.fila_ativa, icon: Users, iconBg: "bg-blue-50", iconColor: "text-blue-600" },
     { id: "stock" as const, target: "logistica" as const, label: t("kpi.stock"), value: kpi?.estoque_proteses, icon: Package, iconBg: "bg-violet-50", iconColor: "text-violet-600" },
     { id: "logistics" as const, target: "logistica" as const, label: t("kpi.logistics"), value: kpi?.em_logistica_reversa, icon: RefreshCw, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
-    { id: "matchings" as const, target: "relatorios" as const, label: t("kpi.matchings"), value: kpi?.matchings_mes, icon: Zap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
+    { id: "matchings" as const, target: "matching" as const, label: t("kpi.matchings"), value: kpi?.matchings_mes, icon: Zap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
   ].filter((card) => visibleIds.includes(card.id));
   return (
     <div className="grid grid-cols-4 gap-5">
@@ -1259,6 +1265,162 @@ function PacientesAguardados({ onStartTriage, refreshKey }: { onStartTriage: (pa
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// MATCHING NACIONAL + ESTOQUE DE DISPOSITIVOS FÍSICOS
+// ═══════════════════════════════════════════════════════════════
+
+function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged: () => void }) {
+  const { t, locale } = useLang();
+  const { data, loading, error, refetch } = useCreMatching(refreshKey);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const refreshAll = () => { refetch(); onChanged(); };
+
+  const submitInventory = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    setSubmitting(true);
+    setMessage(null);
+    const form = new FormData(formElement);
+    const body: Record<string, unknown> = Object.fromEntries(Array.from(form.entries()).map(([key, value]) => [key, value === "" ? null : value]));
+    if (body.produto_id) body.produto_id = Number(body.produto_id);
+    body.apto_reuso = form.get("apto_reuso") === "on";
+    try {
+      const result = await apiPost<{ new_matches?: unknown[] }>("/api/cre/inventory/devices", body);
+      formElement.reset();
+      setSelectedProduct("");
+      setMessage({ ok: true, text: t("matching.messages.deviceSaved", { count: result.new_matches?.length ?? 0 }) });
+      refreshAll();
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const recalculate = async () => {
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const result = await apiPost<{ created: number }>("/api/cre/matching/recalculate", {});
+      setMessage({ ok: true, text: t("matching.messages.recalculated", { count: result.created }) });
+      refreshAll();
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const saveLocation = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const result = await apiPatch<{ new_matches?: unknown[] }>("/api/cre/matching/location", {
+        latitude: Number(form.get("latitude")),
+        longitude: Number(form.get("longitude")),
+      });
+      setMessage({ ok: true, text: t("matching.messages.locationSaved", { count: result.new_matches?.length ?? 0 }) });
+      refreshAll();
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const decide = async (matchingId: number, action: "ACCEPT" | "REJECT") => {
+    const reason = action === "REJECT" ? window.prompt(t("matching.rejectPrompt")) : null;
+    if (action === "REJECT" && !reason?.trim()) return;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      await apiPatch(`/api/cre/matching/${matchingId}`, { action, motivo: reason });
+      setMessage({ ok: true, text: action === "ACCEPT" ? t("matching.messages.accepted") : t("matching.messages.rejected") });
+      refreshAll();
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) return <main className="flex-1 p-8"><LoadingState message={t("matching.loading")} /></main>;
+  if (error || !data) return <main className="flex-1 p-8"><ErrorState message={error ?? t("matching.messages.genericError")} retryLabel={t("matching.retry")} onRetry={refetch} /></main>;
+
+  const coordinatesReady = data.unit?.latitude !== null && data.unit?.latitude !== undefined && data.unit?.longitude !== null && data.unit?.longitude !== undefined;
+  const proposed = data.outgoing.filter((item) => item.status === "PROPOSTO");
+  const accepted = data.outgoing.filter((item) => ["ACEITO", "EM_TRANSITO", "CONCLUIDO"].includes(item.status));
+  const available = data.inventory.filter((item) => item.status === "DISPONIVEL" && item.apto_reuso).length;
+  const blocked = data.inventory.filter((item) => item.status === "BLOQUEADO" || ["DANIFICADO", "VENCIDO"].includes(item.condicao)).length;
+
+  const statusClass = (status: string) => status === "PROPOSTO" ? "bg-amber-50 text-amber-700 border-amber-200" : status === "ACEITO" || status === "CONCLUIDO" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : status === "RECUSADO" || status === "CANCELADO" ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200";
+
+  return (
+    <main className="flex-1 p-8 overflow-auto">
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div><h2 className="text-xl font-bold text-slate-900">{t("matching.title")}</h2><p className="mt-1 text-sm text-slate-500">{t("matching.subtitle")}</p></div>
+        <button type="button" disabled={submitting} onClick={() => void recalculate()} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50"><Zap className="w-4 h-4" />{t("matching.recalculate")}</button>
+      </div>
+
+      <Card className={`mb-5 p-4 ${coordinatesReady ? "border-emerald-200" : "border-amber-200"}`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl">
+            <p className={`text-sm font-bold ${coordinatesReady ? "text-emerald-800" : "text-amber-900"}`}>{coordinatesReady ? t("matching.locationReadyTitle") : t("matching.coordinateWarningTitle")}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{coordinatesReady ? t("matching.locationReady") : t("matching.coordinateWarning")}</p>
+          </div>
+          <form onSubmit={(event) => void saveLocation(event)} className="grid w-full max-w-xl grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+            <input aria-label={t("matching.latitude")} name="latitude" type="number" min="-90" max="90" step="0.000001" defaultValue={data.unit?.latitude ?? ""} placeholder={t("matching.latitude")} required className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" />
+            <input aria-label={t("matching.longitude")} name="longitude" type="number" min="-180" max="180" step="0.000001" defaultValue={data.unit?.longitude ?? ""} placeholder={t("matching.longitude")} required className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" />
+            <button type="submit" disabled={submitting} className="col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 disabled:opacity-50 sm:col-span-1">{t("matching.saveLocation")}</button>
+          </form>
+        </div>
+      </Card>
+      <div className="mb-5 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs leading-5 text-cyan-900"><strong>{t("matching.priorityTitle")}</strong> {t("matching.priorityCurrent")}</div>
+      {message && <div className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${message.ok ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div>}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: t("matching.kpi.available"), value: available, icon: Package, tone: "bg-blue-50 text-blue-700" },
+          { label: t("matching.kpi.pending"), value: proposed.length, icon: Zap, tone: "bg-amber-50 text-amber-700" },
+          { label: t("matching.kpi.accepted"), value: accepted.length, icon: PackageCheck, tone: "bg-emerald-50 text-emerald-700" },
+          { label: t("matching.kpi.blocked"), value: blocked, icon: AlertTriangle, tone: "bg-red-50 text-red-700" },
+        ].map(({ label, value, icon: Icon, tone }) => <Card key={label} className="p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}><Icon className="w-4 h-4" /></div><p className="text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs font-semibold text-slate-500">{label}</p></Card>)}
+      </div>
+
+      <Card className="p-5 mb-6">
+        <div className="mb-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.inventoryForm.title")}</h3><p className="mt-1 text-xs text-slate-500">{t("matching.inventoryForm.subtitle")}</p></div>
+        <form className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" onSubmit={(event) => void submitInventory(event)}>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.existingProduct")}<select name="produto_id" value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">{t("matching.inventoryForm.newProduct")}</option>{data.products.map((item) => <option key={item.id} value={item.id}>{item.nome_produto}</option>)}</select></label>
+          {!selectedProduct && <><label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.procedure")}<select name="procedimento_sigtap" required className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">—</option>{data.procedures.map((item) => <option key={item.codigo} value={item.codigo}>{item.codigo} — {item.nome_procedimento}</option>)}</select></label><label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.productName")}<input name="nome_produto" required className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label></>}
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.serial")}<input name="numero_serie" required className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.model")}<input name="modelo_exato" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.manufacturer")}<input name="fabricante" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.condition")}<select name="condicao" defaultValue="OCIOSO" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"><option value="NOVO">{t("matching.conditions.NOVO")}</option><option value="OCIOSO">{t("matching.conditions.OCIOSO")}</option><option value="RECONDICIONADO">{t("matching.conditions.RECONDICIONADO")}</option><option value="DANIFICADO">{t("matching.conditions.DANIFICADO")}</option><option value="VENCIDO">{t("matching.conditions.VENCIDO")}</option></select></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.manufactureDate")}<input name="data_fabricacao" type="date" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.expiry")}<input name="data_validade" type="date" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
+          <label className="flex items-center gap-2 self-end pb-2 text-xs font-semibold text-slate-700"><input name="apto_reuso" type="checkbox" defaultChecked className="h-4 w-4" />{t("matching.inventoryForm.reusable")}</label>
+          <div className="md:col-span-2 xl:col-span-3"><label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.notes")}<textarea name="observacao" className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" /></label></div>
+          <div className="md:col-span-2 xl:col-span-3"><button disabled={submitting} className="rounded-lg bg-blue-700 px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50">{t("matching.inventoryForm.save")}</button></div>
+        </form>
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-2 mb-6">
+        <Card className="overflow-hidden"><div className="border-b border-slate-100 px-5 py-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.outgoing.title")}</h3><p className="mt-1 text-xs text-slate-500">{t("matching.outgoing.subtitle")}</p></div>{data.outgoing.length ? <div className="divide-y divide-slate-100">{data.outgoing.map((item) => <div key={item.matching_id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">{item.nome_produto}</p><p className="mt-1 text-xs text-slate-500">{t("matching.route", { from: item.cre_origem_nome || item.cre_origem_cnes, to: item.cre_destino_nome || item.cre_destino_cnes })}</p><p className="mt-1 text-xs text-slate-400">{item.numero_serie} · {item.distancia_km === null ? t("matching.distanceUnknown") : t("matching.distanceKm", { value: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(item.distancia_km) })}</p></div><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status}</span></div>{item.status === "PROPOSTO" && <div className="mt-3 flex gap-2"><button disabled={submitting} onClick={() => void decide(item.matching_id, "ACCEPT")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">{t("matching.accept")}</button><button disabled={submitting} onClick={() => void decide(item.matching_id, "REJECT")} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{t("matching.reject")}</button></div>}</div>)}</div> : <p className="p-6 text-center text-xs text-slate-400">{t("matching.emptyOutgoing")}</p>}</Card>
+        <Card className="overflow-hidden"><div className="border-b border-slate-100 px-5 py-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.incoming.title")}</h3><p className="mt-1 text-xs text-slate-500">{t("matching.incoming.subtitle")}</p></div>{data.incoming.length ? <div className="divide-y divide-slate-100">{data.incoming.map((item) => <div key={item.matching_id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">{item.nome_produto}</p><p className="mt-1 text-xs text-slate-500">{t("matching.patientRequest", { patient: item.paciente_primeiro_nome, request: item.solicitacao_id })}</p><p className="mt-1 text-xs text-slate-400">{item.cre_origem_nome || item.cre_origem_cnes} · {item.distancia_km === null ? t("matching.distanceUnknown") : t("matching.distanceKm", { value: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(item.distancia_km) })}</p></div><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status}</span></div></div>)}</div> : <p className="p-6 text-center text-xs text-slate-400">{t("matching.emptyIncoming")}</p>}</Card>
+      </div>
+
+      <Card className="overflow-hidden"><div className="border-b border-slate-100 px-5 py-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.inventory.title")}</h3></div>{data.inventory.length ? <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50 text-left text-slate-500"><th className="px-4 py-3">{t("matching.inventory.product")}</th><th className="px-4 py-3">{t("matching.inventory.serial")}</th><th className="px-4 py-3">{t("matching.inventory.condition")}</th><th className="px-4 py-3">{t("matching.inventory.status")}</th><th className="px-4 py-3">{t("matching.inventory.reusable")}</th></tr></thead><tbody>{data.inventory.map((item) => <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="px-4 py-3 font-semibold text-slate-800">{item.nome_produto}</td><td className="px-4 py-3 font-mono text-slate-500">{item.numero_serie}</td><td className="px-4 py-3">{t(`matching.conditions.${item.condicao}` as any)}</td><td className="px-4 py-3">{item.status}</td><td className="px-4 py-3">{item.apto_reuso ? t("matching.yes") : t("matching.no")}</td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-slate-400">{t("matching.emptyInventory")}</p>}</Card>
+    </main>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════
@@ -1893,6 +2055,7 @@ function AppInner() {
         {page === "inicio"     && <Dashboard onNavigate={setPage} />}
         {page === "pacientes"  && <PacientesAguardados onStartTriage={(patientId) => openNewTriage(patientId)} refreshKey={refreshKey} />}
         {page === "logistica"  && <LogisticaReversa onNewReturn={() => setShipmentOpen(true)} refreshKey={refreshKey} />}
+        {page === "matching"   && <MatchingPage refreshKey={refreshKey} onChanged={refreshData} />}
         {page === "triagens"   && <Triagens onNewTriage={() => openNewTriage()} onEditTriage={openEditTriage} refreshKey={refreshKey} />}
         {page === "relatorios" && <Relatorios onNavigate={setPage} />}
         {page === "atendimentos" && <CreSupportInbox />}

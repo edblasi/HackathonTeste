@@ -79,6 +79,8 @@ export interface PedidoAtual {
   sisreg_autorizado_em?: string | null;
   triagem_status?: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA" | null;
   triagem_data_hora?: string | null;
+  produto_solicitado_id?: number | null;
+  produto_solicitado_nome?: string | null;
 }
 
 export interface HistoricoStatus {
@@ -298,6 +300,29 @@ export interface RemessaLogistica {
 
 export interface RelatorioMensal { mes: string; triagens: number; matchings: number; devolucoes: number; }
 
+export interface CreInventoryDevice {
+  id: number; oficina_id: number; cnes: string; oficina_nome: string; produto_id: number; nome_produto: string; procedimento_sigtap: string;
+  numero_serie: string; modelo_exato: string | null; fabricante: string | null; data_fabricacao: string | null; data_validade: string | null;
+  condicao: "NOVO" | "OCIOSO" | "RECONDICIONADO" | "DANIFICADO" | "VENCIDO";
+  status: "DISPONIVEL" | "RESERVADO" | "EM_TRANSFERENCIA" | "UTILIZADO" | "BLOQUEADO"; apto_reuso: boolean; observacao: string | null; cadastrado_em: string;
+}
+
+export interface CreMatchingRow {
+  matching_id: number; status: "PROPOSTO" | "ACEITO" | "RECUSADO" | "CANCELADO" | "EM_TRANSITO" | "CONCLUIDO"; distancia_km: number | null;
+  regra_prioridade: string; criado_em: string; respondido_em: string | null; cre_origem_cnes: string; cre_origem_nome: string | null;
+  cre_destino_cnes: string; cre_destino_nome: string | null; solicitacao_id: number; paciente_id: number; paciente_primeiro_nome: string;
+  prioridade_clinica: string; status_solicitacao: string; produto_id: number; nome_produto: string; procedimento_sigtap: string;
+  estoque_dispositivo_id: number; numero_serie: string; modelo_exato: string | null; fabricante: string | null; condicao: string; status_estoque: string;
+}
+
+export interface CreMatchingData {
+  inventory: CreInventoryDevice[]; outgoing: CreMatchingRow[]; incoming: CreMatchingRow[];
+  products: Array<{ id: number; procedimento_sigtap: string; nome_produto: string; especificacao_tecnica: string | null; ativo: boolean }>;
+  procedures: Array<{ codigo: string; nome_procedimento: string }>;
+  unit: { codigo_cnes: string; nome_fantasia: string | null; latitude: number | null; longitude: number | null } | null;
+  priority_rules: string[];
+}
+
 export function useUsuarioAtual() {
   const result = useApiQuery<UsuarioSistema>("/api/me");
   useEffect(() => {
@@ -352,3 +377,4 @@ export function useLotesRecentes() { return useApiQuery<LoteRecente[]>("/api/cre
 export function useTriagens(refreshKey = 0) { return useApiQuery<Triagem[]>("/api/cre/triages", [refreshKey]); }
 export function useRemessasLogistica(refreshKey = 0) { return useApiQuery<RemessaLogistica[]>("/api/cre/shipments", [refreshKey]); }
 export function useRelatorioMensal() { return useApiQuery<RelatorioMensal[]>("/api/cre/reports"); }
+export function useCreMatching(refreshKey = 0) { return useApiQuery<CreMatchingData>("/api/cre/matching", [refreshKey]); }

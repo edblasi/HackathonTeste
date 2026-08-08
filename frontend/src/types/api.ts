@@ -140,6 +140,20 @@ export interface ManagerReportRow {
   gerado_em: string;
 }
 
+export interface ManagerMatchingRow {
+  matching_id: number;
+  status: string;
+  distancia_km: number | null;
+  criado_em: string;
+  cre_origem_cnes: string;
+  cre_origem_nome: string | null;
+  cre_destino_cnes: string;
+  cre_destino_nome: string | null;
+  solicitacao_id: number;
+  paciente_id: number;
+  nome_produto: string;
+}
+
 export interface ManagerDashboardData {
   summary: Record<string, number>;
   monthly: ManagerMonthlyRow[];
@@ -159,6 +173,7 @@ export interface ManagerDashboardData {
   recalls: ManagerRecallRow[];
   reports: ManagerReportRow[];
   access_matrix?: AccessMatrixRow[];
+  matches?: ManagerMatchingRow[];
   generated_at: string;
 }
 
@@ -183,12 +198,14 @@ export interface AdminCatalogs {
   workshops: Array<{ id: number; cnes: string; nome: string; capacidade_producao_mensal?: number | null; responsavel_tecnico_id?: number | null; ativo?: boolean }>;
   materials: Array<Record<string, string | number | null>>;
   providers: Array<Record<string, string | number | null>>;
+  products: Array<{ id: number; procedimento_sigtap: string; nome_produto: string; especificacao_tecnica?: string | null; tempo_producao_estimado_dias?: number | null; ativo?: boolean }>;
   pending_requests: Array<{
     id: number;
     paciente_id: number;
     paciente_nome?: string | null;
     paciente_cns?: string | null;
     procedimento_sigtap: string;
+    produto_id?: number | null;
     procedimento_nome?: string | null;
     estabelecimento_solicitante_cnes: string;
     ubs_nome?: string | null;
