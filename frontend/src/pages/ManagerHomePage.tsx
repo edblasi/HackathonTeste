@@ -1247,7 +1247,6 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
             <FormField label={t("manager.registration.fields.address")}><input className={inputClass} name="logradouro" required /></FormField>
             <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone" /></FormField>
             <FormField label={t("manager.registration.demo.fields.monthlyCapacity")}><input className={inputClass} name="capacidade_producao_mensal" type="number" min="0" step="1" /></FormField>
-            <div className="md:col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs leading-5 text-cyan-900">{t("manager.registration.demo.cre.locationHint")}</div>
 
             <div className="md:col-span-2 mt-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.creResponsible")}</h3></div>
             <FormField label={t("manager.registration.demo.fields.responsibleName")}><input className={inputClass} name="nome_responsavel" required /></FormField>

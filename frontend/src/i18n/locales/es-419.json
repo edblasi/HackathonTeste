@@ -946,8 +946,7 @@
         },
         "cre": {
           "title": "Crear CRE",
-          "subtitle": "Registra la unidad CNES, su taller ortopédico y la credencial inicial del responsable del CRE en un solo flujo.",
-          "locationHint": "La ubicación usada en el matching se calcula automáticamente a partir de la dirección y del municipio registrados. No es necesario informar latitud o longitud."
+          "subtitle": "Registra la unidad CNES, su taller ortopédico y la credencial inicial del responsable del CRE en un solo flujo."
         },
         "patient": {
           "title": "Registrar paciente desde atención primaria",
@@ -1556,9 +1555,6 @@
   "matching": {
     "title": "Matching nacional de dispositivos",
     "subtitle": "Gestiona dispositivos físicos ociosos, reservas automáticas y transferencias entre centros.",
-    "recalculate": "Recalcular matching",
-    "coordinateWarningTitle": "Dirección aún no localizada",
-    "coordinateWarning": "El matching entre centros usa la dirección ya registrada. Actualiza la ubicación desde la dirección o revisa el registro en Manager.",
     "rejectPrompt": "Indica el motivo del rechazo de este matching:",
     "loading": "Cargando matching...",
     "yes": "Sí",
@@ -1581,10 +1577,8 @@
     "messages": {
       "deviceSaved": "Dispositivo guardado. Se crearon {{count}} nuevo(s) matching(s).",
       "genericError": "No fue posible completar la operación.",
-      "recalculated": "Matching recalculado. {{count}} nueva(s) propuesta(s).",
       "accepted": "Envío aceptado. Manager y el centro destino fueron notificados.",
       "rejected": "Matching rechazado. El dispositivo fue liberado para la siguiente solicitud elegible.",
-      "locationResolved": "Ubicación actualizada desde la dirección. Se encontraron {count} nuevo(s) matching(s).",
       "routeSaved": "Destino de reutilización actualizado. Se encontraron {count} nuevo(s) matching(s) clínico(s)."
     },
     "inventoryForm": {
@@ -1629,11 +1623,6 @@
       "destination": "Destino"
     },
     "retry": "Intentar de nuevo",
-    "locationReadyTitle": "Dirección localizada",
-    "locationReady": "La dirección registrada está lista para calcular la distancia entre centros.",
-    "addressMissing": "No hay dirección registrada.",
-    "resolveAddress": "Actualizar ubicación desde la dirección",
-    "locationAttribution": "Ubicación: © OpenStreetMap contributors, vía Nominatim.",
     "materialOnlyWarning": "En este estado el dispositivo no puede volver al uso clínico. Puede destinarse a fundición, recuperación de piezas/componentes o descarte.",
     "nonClinicalHint": "Este destino recupera materiales o componentes sin disponibilizar el dispositivo para un paciente.",
     "reuseRoutes": {

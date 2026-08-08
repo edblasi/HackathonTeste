@@ -1305,34 +1305,6 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
     }
   };
 
-  const recalculate = async () => {
-    setSubmitting(true);
-    setMessage(null);
-    try {
-      const result = await apiPost<{ created: number }>("/api/cre/matching/recalculate", {});
-      setMessage({ ok: true, text: t("matching.messages.recalculated", { count: result.created }) });
-      refreshAll();
-    } catch (err) {
-      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const refreshLocationFromAddress = async () => {
-    setSubmitting(true);
-    setMessage(null);
-    try {
-      const result = await apiPost<{ new_matches?: unknown[] }>("/api/cre/matching/geocode", {});
-      setMessage({ ok: true, text: t("matching.messages.locationResolved", { count: result.new_matches?.length ?? 0 }) });
-      refreshAll();
-    } catch (err) {
-      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const updateReuseRoute = async (deviceId: number, route: string) => {
     setSubmitting(true);
     setMessage(null);
@@ -1366,7 +1338,6 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
   if (loading) return <main className="flex-1 p-8"><LoadingState message={t("matching.loading")} /></main>;
   if (error || !data) return <main className="flex-1 p-8"><ErrorState message={error ?? t("matching.messages.genericError")} retryLabel={t("matching.retry")} onRetry={refetch} /></main>;
 
-  const coordinatesReady = data.unit?.latitude !== null && data.unit?.latitude !== undefined && data.unit?.longitude !== null && data.unit?.longitude !== undefined;
   const proposed = data.outgoing.filter((item) => item.status === "PROPOSTO");
   const accepted = data.outgoing.filter((item) => ["ACEITO", "EM_TRANSITO", "CONCLUIDO"].includes(item.status));
   const available = data.inventory.filter((item) => item.status === "DISPONIVEL" && item.apto_reuso && item.destino_reaproveitamento === "CLINICO").length;
@@ -1377,22 +1348,10 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
 
   return (
     <main className="flex-1 p-8 overflow-auto">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div><h2 className="text-xl font-bold text-slate-900">{t("matching.title")}</h2><p className="mt-1 text-sm text-slate-500">{t("matching.subtitle")}</p></div>
-        <button type="button" disabled={submitting} onClick={() => void recalculate()} className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50"><Zap className="w-4 h-4" />{t("matching.recalculate")}</button>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-slate-900">{t("matching.title")}</h2>
+        <p className="mt-1 text-sm text-slate-500">{t("matching.subtitle")}</p>
       </div>
-
-      <Card className={`mb-5 p-4 ${coordinatesReady ? "border-emerald-200" : "border-amber-200"}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <p className={`text-sm font-bold ${coordinatesReady ? "text-emerald-800" : "text-amber-900"}`}>{coordinatesReady ? t("matching.locationReadyTitle") : t("matching.coordinateWarningTitle")}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{coordinatesReady ? t("matching.locationReady") : t("matching.coordinateWarning")}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">{data.unit?.logradouro || t("matching.addressMissing")}</p>
-            <p className="mt-1 text-[10px] text-slate-400">{t("matching.locationAttribution")}</p>
-          </div>
-          <button type="button" disabled={submitting || !data.unit?.logradouro} onClick={() => void refreshLocationFromAddress()} className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-bold text-blue-700 disabled:opacity-50">{t("matching.resolveAddress")}</button>
-        </div>
-      </Card>
       {message && <div className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${message.ok ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

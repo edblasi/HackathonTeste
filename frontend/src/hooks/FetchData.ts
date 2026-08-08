@@ -320,7 +320,6 @@ export interface CreMatchingData {
   inventory: CreInventoryDevice[]; outgoing: CreMatchingRow[]; incoming: CreMatchingRow[];
   products: Array<{ id: number; procedimento_sigtap: string; nome_produto: string; especificacao_tecnica: string | null; ativo: boolean }>;
   procedures: Array<{ codigo: string; nome_procedimento: string }>;
-  unit: { codigo_cnes: string; nome_fantasia: string | null; logradouro: string | null; municipio_ibge6: string | null; latitude: number | null; longitude: number | null } | null;
 }
 
 export function useUsuarioAtual() {
