@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
@@ -1116,8 +1117,6 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
       "capacidade_producao_mensal",
       "distancia_estimada_cre_km",
       "produto_id",
-      "latitude",
-      "longitude",
     ]) {
       if (body[key] !== null && body[key] !== undefined) body[key] = Number(body[key]);
     }
@@ -1245,12 +1244,10 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
             <FormField label={t("manager.registration.fields.municipality")}>
               <select className={inputClass} name="municipio_ibge6" required><option value="">{t("manager.common.select")}</option>{catalogs.municipalities.map((item) => <option key={item.codigo_ibge6} value={item.codigo_ibge6}>{item.nome_municipio} - {item.uf_sigla}</option>)}</select>
             </FormField>
-            <FormField label={t("manager.registration.fields.address")}><input className={inputClass} name="logradouro" /></FormField>
+            <FormField label={t("manager.registration.fields.address")}><input className={inputClass} name="logradouro" required /></FormField>
             <FormField label={t("manager.registration.fields.phone")}><input className={inputClass} name="telefone" /></FormField>
-            <FormField label={t("manager.registration.demo.fields.latitude")}><input className={inputClass} name="latitude" type="number" min="-90" max="90" step="0.000001" /></FormField>
-            <FormField label={t("manager.registration.demo.fields.longitude")}><input className={inputClass} name="longitude" type="number" min="-180" max="180" step="0.000001" /></FormField>
             <FormField label={t("manager.registration.demo.fields.monthlyCapacity")}><input className={inputClass} name="capacidade_producao_mensal" type="number" min="0" step="1" /></FormField>
-            <div className="md:col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs leading-5 text-cyan-900">{t("manager.registration.demo.cre.coordinateHint")}</div>
+            <div className="md:col-span-2 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs leading-5 text-cyan-900">{t("manager.registration.demo.cre.locationHint")}</div>
 
             <div className="md:col-span-2 mt-2 border-b border-border pb-2"><h3 className="text-sm font-semibold text-foreground">{t("manager.registration.demo.sections.creResponsible")}</h3></div>
             <FormField label={t("manager.registration.demo.fields.responsibleName")}><input className={inputClass} name="nome_responsavel" required /></FormField>
@@ -1359,11 +1356,17 @@ function RegistrationCenter({ onSaved }: { onSaved: () => void }) {
 export function ManagerHomePage() {
   const { t, locale } = useLang();
   const { signOut, user } = useAuth();
+  const navigate = useNavigate();
   const [activePage, setActivePage] = useState<Page>("inicio");
   const [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const dashboard = useApiData<ManagerDashboardData>("/api/manager/dashboard");
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   const navItems = useMemo(() => [
     { id: "inicio" as const, label: t("manager.standard.nav.executive"), icon: LayoutDashboard },
@@ -1463,6 +1466,7 @@ export function ManagerHomePage() {
                     </div>
                     <div className="border-t border-border p-2">
                       <button type="button" onClick={() => { setProfileOpen(false); setSettingsOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-muted"><Settings size={14} className="text-muted-foreground" />{t("shell.navbar.settings")}</button>
+                      <button type="button" onClick={() => void handleLogout()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-50"><LogOut size={14} />{t("shell.navbar.signOut")}</button>
                     </div>
                   </div>
                 </>

@@ -304,7 +304,8 @@ export interface CreInventoryDevice {
   id: number; oficina_id: number; cnes: string; oficina_nome: string; produto_id: number; nome_produto: string; procedimento_sigtap: string;
   numero_serie: string; modelo_exato: string | null; fabricante: string | null; data_fabricacao: string | null; data_validade: string | null;
   condicao: "NOVO" | "OCIOSO" | "RECONDICIONADO" | "DANIFICADO" | "VENCIDO";
-  status: "DISPONIVEL" | "RESERVADO" | "EM_TRANSFERENCIA" | "UTILIZADO" | "BLOQUEADO"; apto_reuso: boolean; observacao: string | null; cadastrado_em: string;
+  status: "DISPONIVEL" | "RESERVADO" | "EM_TRANSFERENCIA" | "UTILIZADO" | "BLOQUEADO"; apto_reuso: boolean;
+  destino_reaproveitamento: "CLINICO" | "FUNDICAO" | "PECAS_COMPONENTES" | "DESCARTE"; observacao: string | null; cadastrado_em: string;
 }
 
 export interface CreMatchingRow {
@@ -319,8 +320,7 @@ export interface CreMatchingData {
   inventory: CreInventoryDevice[]; outgoing: CreMatchingRow[]; incoming: CreMatchingRow[];
   products: Array<{ id: number; procedimento_sigtap: string; nome_produto: string; especificacao_tecnica: string | null; ativo: boolean }>;
   procedures: Array<{ codigo: string; nome_procedimento: string }>;
-  unit: { codigo_cnes: string; nome_fantasia: string | null; latitude: number | null; longitude: number | null } | null;
-  priority_rules: string[];
+  unit: { codigo_cnes: string; nome_fantasia: string | null; logradouro: string | null; municipio_ibge6: string | null; latitude: number | null; longitude: number | null } | null;
 }
 
 export function useUsuarioAtual() {

@@ -947,7 +947,7 @@
         "cre": {
           "title": "Criar CRE",
           "subtitle": "Cadastra a unidade CNES, sua oficina ortopédica e a credencial inicial do responsável pelo CRE em um único fluxo.",
-          "coordinateHint": "Latitude e longitude são usadas somente para calcular a prioridade por distância no matching automático."
+          "locationHint": "A localização usada no matching é calculada automaticamente a partir do endereço e do município cadastrados. Não é necessário informar latitude ou longitude."
         },
         "patient": {
           "title": "Registrar paciente pela UBS",
@@ -998,9 +998,7 @@
           "partnershipType": "Tipo de parceria",
           "contactPerson": "Responsável de contato",
           "notes": "Observações",
-          "product": "Produto OPM",
-          "latitude": "Latitude",
-          "longitude": "Longitude"
+          "product": "Produto OPM"
         },
         "values": {
           "selectUbsFirst": "Selecione a UBS primeiro",
@@ -1559,10 +1557,8 @@
     "title": "Matching nacional de dispositivos",
     "subtitle": "Gerencie peças físicas paradas, reservas automáticas e transferências entre CREs.",
     "recalculate": "Recalcular matching",
-    "coordinateWarningTitle": "Distância indisponível.",
-    "coordinateWarning": "Cadastre latitude e longitude deste CRE no Manager para participar de matchings entre unidades diferentes. Matchings dentro do próprio CRE continuam possíveis.",
-    "priorityTitle": "Prioridade atual:",
-    "priorityCurrent": "somente distância em quilômetros entre o CRE que possui a peça e o CRE do paciente. A regra está isolada no backend/banco para receber novas prioridades depois.",
+    "coordinateWarningTitle": "Endereço ainda não localizado",
+    "coordinateWarning": "O matching entre CREs usa o endereço já cadastrado. Atualize a localização pelo endereço ou revise o cadastro no Manager.",
     "rejectPrompt": "Informe o motivo da recusa deste matching:",
     "loading": "Carregando matching...",
     "yes": "Sim",
@@ -1580,7 +1576,7 @@
       "available": "Disponíveis para reaproveitamento",
       "pending": "Matchings aguardando decisão",
       "accepted": "Reaproveitamentos aceitos",
-      "blocked": "Danificados ou vencidos"
+      "materialRecovery": "Para fundição ou peças"
     },
     "messages": {
       "deviceSaved": "Dispositivo salvo. {{count}} novo(s) matching(s) criado(s).",
@@ -1588,7 +1584,8 @@
       "recalculated": "Matching recalculado. {{count}} nova(s) proposta(s).",
       "accepted": "Envio aceito. O Manager e o CRE de destino foram avisados.",
       "rejected": "Matching recusado. A peça foi liberada para o próximo pedido elegível.",
-      "locationSaved": "Localização salva. {count} novo(s) matching(s) encontrado(s)."
+      "locationResolved": "Localização atualizada pelo endereço. {count} novo(s) matching(s) encontrado(s).",
+      "routeSaved": "Destino de reaproveitamento atualizado. {count} novo(s) matching(s) clínico(s) encontrado(s)."
     },
     "inventoryForm": {
       "title": "Cadastrar dispositivo no estoque",
@@ -1605,7 +1602,8 @@
       "reusable": "Apto para reaproveitamento",
       "notes": "Observações",
       "save": "Salvar dispositivo",
-      "manufactureDate": "Data de fabricação"
+      "manufactureDate": "Data de fabricação",
+      "reuseRoute": "Destino de reaproveitamento"
     },
     "conditions": {
       "NOVO": "Novo",
@@ -1628,13 +1626,21 @@
       "serial": "Série",
       "condition": "Condição",
       "status": "Status",
-      "reusable": "Apto ao reuso"
+      "destination": "Destino"
     },
     "retry": "Tentar novamente",
-    "locationReadyTitle": "Localização configurada",
-    "locationReady": "A distância entre CREs pode ser usada no matching. Ajuste as coordenadas se a localização operacional mudar.",
-    "latitude": "Latitude",
-    "longitude": "Longitude",
-    "saveLocation": "Salvar localização"
+    "locationReadyTitle": "Endereço localizado",
+    "locationReady": "O endereço cadastrado está pronto para o cálculo de distância entre CREs.",
+    "addressMissing": "Endereço não cadastrado.",
+    "resolveAddress": "Atualizar localização pelo endereço",
+    "locationAttribution": "Localização: © OpenStreetMap contributors, via Nominatim.",
+    "materialOnlyWarning": "Neste estado o dispositivo não pode voltar ao uso clínico. Ele pode ser destinado à fundição, ao aproveitamento de peças/componentes ou ao descarte.",
+    "nonClinicalHint": "Este destino reaproveita materiais ou componentes, sem disponibilizar o dispositivo para um paciente.",
+    "reuseRoutes": {
+      "CLINICO": "Reutilização clínica",
+      "FUNDICAO": "Fundição / recuperação de material",
+      "PECAS_COMPONENTES": "Aproveitamento de peças/componentes",
+      "DESCARTE": "Descarte"
+    }
   }
 }

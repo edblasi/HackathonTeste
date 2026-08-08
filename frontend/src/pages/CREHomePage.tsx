@@ -1275,6 +1275,8 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
   const { data, loading, error, refetch } = useCreMatching(refreshKey);
   const [submitting, setSubmitting] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("");
+  const [selectedCondition, setSelectedCondition] = useState("OCIOSO");
+  const [selectedReuseRoute, setSelectedReuseRoute] = useState("CLINICO");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const refreshAll = () => { refetch(); onChanged(); };
@@ -1292,6 +1294,8 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
       const result = await apiPost<{ new_matches?: unknown[] }>("/api/cre/inventory/devices", body);
       formElement.reset();
       setSelectedProduct("");
+      setSelectedCondition("OCIOSO");
+      setSelectedReuseRoute("CLINICO");
       setMessage({ ok: true, text: t("matching.messages.deviceSaved", { count: result.new_matches?.length ?? 0 }) });
       refreshAll();
     } catch (err) {
@@ -1315,18 +1319,26 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
     }
   };
 
-  const saveLocation = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
+  const refreshLocationFromAddress = async () => {
     setSubmitting(true);
     setMessage(null);
     try {
-      const result = await apiPatch<{ new_matches?: unknown[] }>("/api/cre/matching/location", {
-        latitude: Number(form.get("latitude")),
-        longitude: Number(form.get("longitude")),
-      });
-      setMessage({ ok: true, text: t("matching.messages.locationSaved", { count: result.new_matches?.length ?? 0 }) });
+      const result = await apiPost<{ new_matches?: unknown[] }>("/api/cre/matching/geocode", {});
+      setMessage({ ok: true, text: t("matching.messages.locationResolved", { count: result.new_matches?.length ?? 0 }) });
+      refreshAll();
+    } catch (err) {
+      setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const updateReuseRoute = async (deviceId: number, route: string) => {
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const result = await apiPatch<{ new_matches?: unknown[] }>(`/api/cre/inventory/devices/${deviceId}/reuse-route`, { destino_reaproveitamento: route });
+      setMessage({ ok: true, text: t("matching.messages.routeSaved", { count: result.new_matches?.length ?? 0 }) });
       refreshAll();
     } catch (err) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : t("matching.messages.genericError") });
@@ -1357,8 +1369,9 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
   const coordinatesReady = data.unit?.latitude !== null && data.unit?.latitude !== undefined && data.unit?.longitude !== null && data.unit?.longitude !== undefined;
   const proposed = data.outgoing.filter((item) => item.status === "PROPOSTO");
   const accepted = data.outgoing.filter((item) => ["ACEITO", "EM_TRANSITO", "CONCLUIDO"].includes(item.status));
-  const available = data.inventory.filter((item) => item.status === "DISPONIVEL" && item.apto_reuso).length;
-  const blocked = data.inventory.filter((item) => item.status === "BLOQUEADO" || ["DANIFICADO", "VENCIDO"].includes(item.condicao)).length;
+  const available = data.inventory.filter((item) => item.status === "DISPONIVEL" && item.apto_reuso && item.destino_reaproveitamento === "CLINICO").length;
+  const materialRecovery = data.inventory.filter((item) => item.status === "DISPONIVEL" && ["FUNDICAO", "PECAS_COMPONENTES"].includes(item.destino_reaproveitamento)).length;
+  const unsafeSelected = ["DANIFICADO", "VENCIDO"].includes(selectedCondition);
 
   const statusClass = (status: string) => status === "PROPOSTO" ? "bg-amber-50 text-amber-700 border-amber-200" : status === "ACEITO" || status === "CONCLUIDO" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : status === "RECUSADO" || status === "CANCELADO" ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200";
 
@@ -1370,19 +1383,16 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
       </div>
 
       <Card className={`mb-5 p-4 ${coordinatesReady ? "border-emerald-200" : "border-amber-200"}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-xl">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
             <p className={`text-sm font-bold ${coordinatesReady ? "text-emerald-800" : "text-amber-900"}`}>{coordinatesReady ? t("matching.locationReadyTitle") : t("matching.coordinateWarningTitle")}</p>
             <p className="mt-1 text-xs leading-5 text-slate-600">{coordinatesReady ? t("matching.locationReady") : t("matching.coordinateWarning")}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">{data.unit?.logradouro || t("matching.addressMissing")}</p>
+            <p className="mt-1 text-[10px] text-slate-400">{t("matching.locationAttribution")}</p>
           </div>
-          <form onSubmit={(event) => void saveLocation(event)} className="grid w-full max-w-xl grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <input aria-label={t("matching.latitude")} name="latitude" type="number" min="-90" max="90" step="0.000001" defaultValue={data.unit?.latitude ?? ""} placeholder={t("matching.latitude")} required className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" />
-            <input aria-label={t("matching.longitude")} name="longitude" type="number" min="-180" max="180" step="0.000001" defaultValue={data.unit?.longitude ?? ""} placeholder={t("matching.longitude")} required className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" />
-            <button type="submit" disabled={submitting} className="col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 disabled:opacity-50 sm:col-span-1">{t("matching.saveLocation")}</button>
-          </form>
+          <button type="button" disabled={submitting || !data.unit?.logradouro} onClick={() => void refreshLocationFromAddress()} className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-bold text-blue-700 disabled:opacity-50">{t("matching.resolveAddress")}</button>
         </div>
       </Card>
-      <div className="mb-5 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-xs leading-5 text-cyan-900"><strong>{t("matching.priorityTitle")}</strong> {t("matching.priorityCurrent")}</div>
       {message && <div className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${message.ok ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div>}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -1390,7 +1400,7 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
           { label: t("matching.kpi.available"), value: available, icon: Package, tone: "bg-blue-50 text-blue-700" },
           { label: t("matching.kpi.pending"), value: proposed.length, icon: Zap, tone: "bg-amber-50 text-amber-700" },
           { label: t("matching.kpi.accepted"), value: accepted.length, icon: PackageCheck, tone: "bg-emerald-50 text-emerald-700" },
-          { label: t("matching.kpi.blocked"), value: blocked, icon: AlertTriangle, tone: "bg-red-50 text-red-700" },
+          { label: t("matching.kpi.materialRecovery"), value: materialRecovery, icon: RefreshCw, tone: "bg-violet-50 text-violet-700" },
         ].map(({ label, value, icon: Icon, tone }) => <Card key={label} className="p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}><Icon className="w-4 h-4" /></div><p className="text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs font-semibold text-slate-500">{label}</p></Card>)}
       </div>
 
@@ -1402,10 +1412,11 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
           <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.serial")}<input name="numero_serie" required className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
           <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.model")}<input name="modelo_exato" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
           <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.manufacturer")}<input name="fabricante" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
-          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.condition")}<select name="condicao" defaultValue="OCIOSO" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"><option value="NOVO">{t("matching.conditions.NOVO")}</option><option value="OCIOSO">{t("matching.conditions.OCIOSO")}</option><option value="RECONDICIONADO">{t("matching.conditions.RECONDICIONADO")}</option><option value="DANIFICADO">{t("matching.conditions.DANIFICADO")}</option><option value="VENCIDO">{t("matching.conditions.VENCIDO")}</option></select></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.condition")}<select name="condicao" value={selectedCondition} onChange={(event) => { const value = event.target.value; setSelectedCondition(value); if (["DANIFICADO", "VENCIDO"].includes(value) && selectedReuseRoute === "CLINICO") setSelectedReuseRoute("FUNDICAO"); }} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"><option value="NOVO">{t("matching.conditions.NOVO")}</option><option value="OCIOSO">{t("matching.conditions.OCIOSO")}</option><option value="RECONDICIONADO">{t("matching.conditions.RECONDICIONADO")}</option><option value="DANIFICADO">{t("matching.conditions.DANIFICADO")}</option><option value="VENCIDO">{t("matching.conditions.VENCIDO")}</option></select></label>
+          <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.reuseRoute")}<select name="destino_reaproveitamento" value={selectedReuseRoute} onChange={(event) => setSelectedReuseRoute(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm"><option value="CLINICO" disabled={unsafeSelected}>{t("matching.reuseRoutes.CLINICO")}</option><option value="FUNDICAO">{t("matching.reuseRoutes.FUNDICAO")}</option><option value="PECAS_COMPONENTES">{t("matching.reuseRoutes.PECAS_COMPONENTES")}</option><option value="DESCARTE">{t("matching.reuseRoutes.DESCARTE")}</option></select></label>
           <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.manufactureDate")}<input name="data_fabricacao" type="date" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
           <label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.expiry")}<input name="data_validade" type="date" className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm" /></label>
-          <label className="flex items-center gap-2 self-end pb-2 text-xs font-semibold text-slate-700"><input name="apto_reuso" type="checkbox" defaultChecked className="h-4 w-4" />{t("matching.inventoryForm.reusable")}</label>
+          {selectedReuseRoute === "CLINICO" && !unsafeSelected ? <label className="flex items-center gap-2 self-end pb-2 text-xs font-semibold text-slate-700"><input name="apto_reuso" type="checkbox" defaultChecked className="h-4 w-4" />{t("matching.inventoryForm.reusable")}</label> : <div className="self-end rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">{unsafeSelected ? t("matching.materialOnlyWarning") : t("matching.nonClinicalHint")}</div>}
           <div className="md:col-span-2 xl:col-span-3"><label className="text-xs font-semibold text-slate-600">{t("matching.inventoryForm.notes")}<textarea name="observacao" className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm" /></label></div>
           <div className="md:col-span-2 xl:col-span-3"><button disabled={submitting} className="rounded-lg bg-blue-700 px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50">{t("matching.inventoryForm.save")}</button></div>
         </form>
@@ -1416,7 +1427,7 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
         <Card className="overflow-hidden"><div className="border-b border-slate-100 px-5 py-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.incoming.title")}</h3><p className="mt-1 text-xs text-slate-500">{t("matching.incoming.subtitle")}</p></div>{data.incoming.length ? <div className="divide-y divide-slate-100">{data.incoming.map((item) => <div key={item.matching_id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-slate-800">{item.nome_produto}</p><p className="mt-1 text-xs text-slate-500">{t("matching.patientRequest", { patient: item.paciente_primeiro_nome, request: item.solicitacao_id })}</p><p className="mt-1 text-xs text-slate-400">{item.cre_origem_nome || item.cre_origem_cnes} · {item.distancia_km === null ? t("matching.distanceUnknown") : t("matching.distanceKm", { value: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(item.distancia_km) })}</p></div><span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusClass(item.status)}`}>{item.status}</span></div></div>)}</div> : <p className="p-6 text-center text-xs text-slate-400">{t("matching.emptyIncoming")}</p>}</Card>
       </div>
 
-      <Card className="overflow-hidden"><div className="border-b border-slate-100 px-5 py-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.inventory.title")}</h3></div>{data.inventory.length ? <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50 text-left text-slate-500"><th className="px-4 py-3">{t("matching.inventory.product")}</th><th className="px-4 py-3">{t("matching.inventory.serial")}</th><th className="px-4 py-3">{t("matching.inventory.condition")}</th><th className="px-4 py-3">{t("matching.inventory.status")}</th><th className="px-4 py-3">{t("matching.inventory.reusable")}</th></tr></thead><tbody>{data.inventory.map((item) => <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="px-4 py-3 font-semibold text-slate-800">{item.nome_produto}</td><td className="px-4 py-3 font-mono text-slate-500">{item.numero_serie}</td><td className="px-4 py-3">{t(`matching.conditions.${item.condicao}` as any)}</td><td className="px-4 py-3">{item.status}</td><td className="px-4 py-3">{item.apto_reuso ? t("matching.yes") : t("matching.no")}</td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-xs text-slate-400">{t("matching.emptyInventory")}</p>}</Card>
+      <Card className="overflow-hidden"><div className="border-b border-slate-100 px-5 py-4"><h3 className="text-sm font-bold text-slate-900">{t("matching.inventory.title")}</h3></div>{data.inventory.length ? <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50 text-left text-slate-500"><th className="px-4 py-3">{t("matching.inventory.product")}</th><th className="px-4 py-3">{t("matching.inventory.serial")}</th><th className="px-4 py-3">{t("matching.inventory.condition")}</th><th className="px-4 py-3">{t("matching.inventory.status")}</th><th className="px-4 py-3">{t("matching.inventory.destination")}</th></tr></thead><tbody>{data.inventory.map((item) => { const unsafe = ["DANIFICADO", "VENCIDO"].includes(item.condicao) || Boolean(item.data_validade && item.data_validade < new Date().toISOString().slice(0, 10)); const locked = ["RESERVADO", "EM_TRANSFERENCIA", "UTILIZADO"].includes(item.status); return <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="px-4 py-3 font-semibold text-slate-800">{item.nome_produto}</td><td className="px-4 py-3 font-mono text-slate-500">{item.numero_serie}</td><td className="px-4 py-3">{t(`matching.conditions.${item.condicao}` as any)}</td><td className="px-4 py-3">{item.status}</td><td className="px-4 py-3"><select aria-label={t("matching.inventory.destination")} value={item.destino_reaproveitamento} disabled={submitting || locked} onChange={(event) => void updateReuseRoute(item.id, event.target.value)} className="h-9 min-w-44 rounded-lg border border-slate-200 bg-white px-2 text-xs"><option value="CLINICO" disabled={unsafe}>{t("matching.reuseRoutes.CLINICO")}</option><option value="FUNDICAO">{t("matching.reuseRoutes.FUNDICAO")}</option><option value="PECAS_COMPONENTES">{t("matching.reuseRoutes.PECAS_COMPONENTES")}</option><option value="DESCARTE">{t("matching.reuseRoutes.DESCARTE")}</option></select></td></tr>; })}</tbody></table></div> : <p className="p-6 text-center text-xs text-slate-400">{t("matching.emptyInventory")}</p>}</Card>
     </main>
   );
 }

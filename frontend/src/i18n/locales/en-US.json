@@ -947,7 +947,7 @@
         "cre": {
           "title": "Create CRE",
           "subtitle": "Registers the CNES unit, its orthopedic workshop and the initial credential for the CRE manager in one flow.",
-          "coordinateHint": "Latitude and longitude are used only to calculate distance priority in automatic matching."
+          "locationHint": "Matching location is calculated automatically from the registered address and municipality. Latitude and longitude do not need to be entered manually."
         },
         "patient": {
           "title": "Register patient through primary care",
@@ -998,9 +998,7 @@
           "partnershipType": "Partnership type",
           "contactPerson": "Contact person",
           "notes": "Notes",
-          "product": "OPM product",
-          "latitude": "Latitude",
-          "longitude": "Longitude"
+          "product": "OPM product"
         },
         "values": {
           "selectUbsFirst": "Select the primary-care unit first",
@@ -1559,10 +1557,8 @@
     "title": "National device matching",
     "subtitle": "Manage idle physical devices, automatic reservations, and transfers between centers.",
     "recalculate": "Recalculate matching",
-    "coordinateWarningTitle": "Distance unavailable.",
-    "coordinateWarning": "Add this center’s latitude and longitude in Manager to participate in cross-center matching. Matches within the same center still work.",
-    "priorityTitle": "Current priority:",
-    "priorityCurrent": "distance only, measured in kilometers between the center holding the device and the patient’s destination center. The rule is isolated in the backend/database for future priorities.",
+    "coordinateWarningTitle": "Address not located yet",
+    "coordinateWarning": "Cross-center matching uses the address already registered. Update the location from the address or review the Manager record.",
     "rejectPrompt": "Enter the reason for rejecting this match:",
     "loading": "Loading matching...",
     "yes": "Yes",
@@ -1580,7 +1576,7 @@
       "available": "Available for reuse",
       "pending": "Matches awaiting decision",
       "accepted": "Accepted reuses",
-      "blocked": "Damaged or expired"
+      "materialRecovery": "For material or parts"
     },
     "messages": {
       "deviceSaved": "Device saved. {{count}} new match(es) created.",
@@ -1588,7 +1584,8 @@
       "recalculated": "Matching recalculated. {{count}} new proposal(s).",
       "accepted": "Shipment accepted. Manager and the destination center were notified.",
       "rejected": "Match rejected. The device was released to the next eligible request.",
-      "locationSaved": "Location saved. {count} new match(es) found."
+      "locationResolved": "Location updated from the address. {count} new match(es) found.",
+      "routeSaved": "Reuse destination updated. {count} new clinical match(es) found."
     },
     "inventoryForm": {
       "title": "Register inventory device",
@@ -1605,7 +1602,8 @@
       "reusable": "Eligible for reuse",
       "notes": "Notes",
       "save": "Save device",
-      "manufactureDate": "Manufacturing date"
+      "manufactureDate": "Manufacturing date",
+      "reuseRoute": "Reuse destination"
     },
     "conditions": {
       "NOVO": "New",
@@ -1628,13 +1626,21 @@
       "serial": "Serial",
       "condition": "Condition",
       "status": "Status",
-      "reusable": "Reusable"
+      "destination": "Destination"
     },
     "retry": "Try again",
-    "locationReadyTitle": "Location configured",
-    "locationReady": "Distance between CREs can be used for matching. Update the coordinates if the operational location changes.",
-    "latitude": "Latitude",
-    "longitude": "Longitude",
-    "saveLocation": "Save location"
+    "locationReadyTitle": "Address located",
+    "locationReady": "The registered address is ready for distance calculation between centers.",
+    "addressMissing": "No address registered.",
+    "resolveAddress": "Update location from address",
+    "locationAttribution": "Location: © OpenStreetMap contributors, via Nominatim.",
+    "materialOnlyWarning": "In this condition the device cannot return to clinical use. It may be sent to material recovery, component recovery, or disposal.",
+    "nonClinicalHint": "This route recovers materials or components without making the device available to a patient.",
+    "reuseRoutes": {
+      "CLINICO": "Clinical reuse",
+      "FUNDICAO": "Melting / material recovery",
+      "PECAS_COMPONENTES": "Parts/components recovery",
+      "DESCARTE": "Disposal"
+    }
   }
 }
