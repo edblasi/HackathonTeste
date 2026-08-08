@@ -1569,7 +1569,7 @@
     "emptyIncoming": "Nenhum matching destinado a este CRE.",
     "emptyInventory": "Nenhum dispositivo físico cadastrado neste estoque.",
     "kpi": {
-      "available": "Disponíveis para reaproveitamento",
+      "available": "Dispositivos no estoque físico",
       "pending": "Matchings aguardando decisão",
       "accepted": "Reaproveitamentos aceitos",
       "materialRecovery": "Para fundição ou peças"

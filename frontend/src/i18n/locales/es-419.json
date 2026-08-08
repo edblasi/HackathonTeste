@@ -1569,7 +1569,7 @@
     "emptyIncoming": "No hay matchings destinados a este centro.",
     "emptyInventory": "No hay dispositivos físicos registrados en este inventario.",
     "kpi": {
-      "available": "Disponibles para reutilización",
+      "available": "Dispositivos en inventario físico",
       "pending": "Matchings pendientes de decisión",
       "accepted": "Reutilizaciones aceptadas",
       "materialRecovery": "Para fundición o piezas"

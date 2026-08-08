@@ -88,9 +88,6 @@ function WelcomeSection({ nomeExibicao }: { nomeExibicao: string }) {
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">{t("home.welcome.subtitle")}</p>
       </div>
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <Shield className="w-4 h-4 text-accent" aria-hidden="true" />
-      </div>
     </div>
   );
 }

@@ -1340,7 +1340,7 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
 
   const proposed = data.outgoing.filter((item) => item.status === "PROPOSTO");
   const accepted = data.outgoing.filter((item) => ["ACEITO", "EM_TRANSITO", "CONCLUIDO"].includes(item.status));
-  const available = data.inventory.filter((item) => item.status === "DISPONIVEL" && item.apto_reuso && item.destino_reaproveitamento === "CLINICO").length;
+  const physicalStock = data.inventory.filter((item) => ["DISPONIVEL", "RESERVADO", "EM_TRANSFERENCIA"].includes(item.status)).length;
   const materialRecovery = data.inventory.filter((item) => item.status === "DISPONIVEL" && ["FUNDICAO", "PECAS_COMPONENTES"].includes(item.destino_reaproveitamento)).length;
   const unsafeSelected = ["DANIFICADO", "VENCIDO"].includes(selectedCondition);
 
@@ -1356,7 +1356,7 @@ function MatchingPage({ refreshKey, onChanged }: { refreshKey: number; onChanged
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: t("matching.kpi.available"), value: available, icon: Package, tone: "bg-blue-50 text-blue-700" },
+          { label: t("matching.kpi.available"), value: physicalStock, icon: Package, tone: "bg-blue-50 text-blue-700" },
           { label: t("matching.kpi.pending"), value: proposed.length, icon: Zap, tone: "bg-amber-50 text-amber-700" },
           { label: t("matching.kpi.accepted"), value: accepted.length, icon: PackageCheck, tone: "bg-emerald-50 text-emerald-700" },
           { label: t("matching.kpi.materialRecovery"), value: materialRecovery, icon: RefreshCw, tone: "bg-violet-50 text-violet-700" },

@@ -1569,7 +1569,7 @@
     "emptyIncoming": "No matches destined for this center.",
     "emptyInventory": "No physical devices registered in this inventory.",
     "kpi": {
-      "available": "Available for reuse",
+      "available": "Devices in physical stock",
       "pending": "Matches awaiting decision",
       "accepted": "Accepted reuses",
       "materialRecovery": "For material or parts"
