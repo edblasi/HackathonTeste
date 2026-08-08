@@ -178,7 +178,7 @@
       "destinationAddress": "Destination address",
       "trackingCode": "Tracking code",
       "saveReturn": "Register return",
-      "workflowHint": "You can move the workflow forward or backward before delivery. Changes update the patient journey.",
+      "workflowHint": "The workflow can only move forward one step at a time. You cannot go back or skip steps; each advance updates the patient journey and sends a notification.",
       "cancelReason": "Cancellation reason",
       "cancelReasonPlaceholder": "Explain why care was cancelled. This message will be shown to the patient."
     },

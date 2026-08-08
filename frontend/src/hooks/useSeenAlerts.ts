@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const MAX_STORED_ALERTS = 200;
 
@@ -15,6 +15,10 @@ function readStoredIds(storageKey: string): Set<string> {
 
 export function useSeenAlerts(storageKey: string) {
   const [seenIds, setSeenIds] = useState<Set<string>>(() => readStoredIds(storageKey));
+
+  useEffect(() => {
+    setSeenIds(readStoredIds(storageKey));
+  }, [storageKey]);
 
   const markSeen = useCallback((id: string) => {
     setSeenIds((current) => {

@@ -178,7 +178,7 @@
       "destinationAddress": "Dirección de destino",
       "trackingCode": "Código de seguimiento",
       "saveReturn": "Registrar devolución",
-      "workflowHint": "Puedes avanzar o retroceder etapas antes de la entrega. Los cambios actualizan la jornada del paciente.",
+      "workflowHint": "El flujo solo puede avanzar una etapa a la vez. No se puede retroceder ni saltar etapas; cada avance actualiza la jornada y envía una notificación al paciente.",
       "cancelReason": "Motivo de la cancelación",
       "cancelReasonPlaceholder": "Explica por qué se canceló la atención. Este mensaje se mostrará al paciente."
     },

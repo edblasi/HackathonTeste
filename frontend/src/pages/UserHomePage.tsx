@@ -38,6 +38,7 @@ import {
 } from "../hooks/FetchData";
 import type { TranslationKey } from "../i18n/translations";
 import { patientSectionForAlert } from "../lib/alertRouting";
+import { useSeenAlerts } from "../hooks/useSeenAlerts";
 
 const USER_HOME_CARD_IDS = ["request", "timeline", "digitalId", "support"] as const;
 type UserHomeCardId = (typeof USER_HOME_CARD_IDS)[number];
@@ -474,6 +475,7 @@ export function UserHomePage() {
   const hasCreSupport = Boolean(currentDevice?.cnes_cre || pedidoAtivo?.cre_destino_cnes);
   const { data: historico } = useHistoricoSolicitacao(pedidoAtivo?.solicitacao_id ?? null);
   const { data: notificacoes, marcarComoLida } = useNotificacoes();
+  const { isSeen, markSeen } = useSeenAlerts(`umdr:patient:${user?.id ?? "anonymous"}:seen-alerts`);
 
   const handleSignOut = async () => {
     await signOut();
@@ -490,20 +492,24 @@ export function UserHomePage() {
       .join("")
       .toUpperCase() || "?";
 
-  const alertasRecentes = (notificacoes ?? []).slice(0, 5).map((n) => ({
+  const alertasRecentes = (notificacoes ?? []).slice(0, 5).map((n) => {
+    const seenId = `notification-${n.id}`;
+    return {
     id: n.id,
     title: n.titulo,
     description: n.mensagem ?? "",
     time: new Date(n.criado_em).toLocaleString(locale),
-    unread: !n.lida,
+    unread: !n.lida && !isSeen(seenId),
     onClick: () => {
+      markSeen(seenId);
       if (!n.lida) void marcarComoLida(n.id);
       const target = patientSectionForAlert(n.destino_ui);
       if (target === "patient-notifications") window.scrollTo({ top: 0, behavior: "smooth" });
       else if (target === "patient-support-card") { setSupportMode("contact"); setSupportOpen(true); }
       else document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
     },
-  }));
+  };
+  });
 
   const loading = loadingUsuario || loadingPedidos || loadingDevice;
   const cardOptions = [

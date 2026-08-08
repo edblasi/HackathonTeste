@@ -716,34 +716,7 @@ async def patient_profile(identity: Identity = Depends(current_identity)) -> dic
         filters={"paciente_id": f"eq.{identity.paciente_id}"},
         limit=1,
     )
-    if not rows:
-        return None
-    result = rows[0]
-
-    # A view histórica só descobria o centro de reabilitação quando já existia
-    # uma ordem de produção. Depois do SISREG, porém, o vínculo oficial já está em
-    # solicitacao_ortese.cre_destino_cnes. Reidratar aqui evita mostrar “sem CRE”.
-    requests = await db_select(
-        "fila",
-        "solicitacao_ortese",
-        select="id,cre_destino_cnes,data_solicitacao",
-        filters={"paciente_id": f"eq.{identity.paciente_id}"},
-        order="data_solicitacao.desc",
-        limit=20,
-    )
-    linked = next((item for item in requests if item.get("cre_destino_cnes")), None)
-    if linked:
-        cnes = str(linked.get("cre_destino_cnes") or "").strip()
-        units = await db_select(
-            "dominio",
-            "estabelecimento_cnes",
-            select="codigo_cnes,nome_fantasia,razao_social",
-            filters={"codigo_cnes": f"eq.{cnes}"},
-            limit=1,
-        )
-        result["centro_reabilitacao"] = (units[0].get("nome_fantasia") or units[0].get("razao_social") or cnes) if units else cnes
-        result["cre_destino_cnes"] = cnes
-    return result
+    return rows[0] if rows else None
 
 
 @app.get("/api/patient/orders")
@@ -751,70 +724,12 @@ async def patient_orders(identity: Identity = Depends(current_identity)) -> list
     require_roles(identity, "PACIENTE")
     if not identity.paciente_id:
         return []
-    rows = await db_select(
+    return await db_select(
         "fila",
         "vw_pedido_atual",
         filters={"paciente_id": f"eq.{identity.paciente_id}"},
         order="data_solicitacao.desc",
     )
-
-    # A VIEW pode estar em uma versão anterior à migration do SISREG. Por isso,
-    # o vínculo com o CRE e o status oficial sempre são reidratados a partir da
-    # tabela fonte fila.solicitacao_ortese, que é a fonte de verdade.
-    request_ids = [int(row["solicitacao_id"]) for row in rows if row.get("solicitacao_id") is not None]
-    source_requests: dict[int, dict[str, Any]] = {}
-    if request_ids:
-        request_rows = await db_select(
-            "fila",
-            "solicitacao_ortese",
-            select="id,status,cre_destino_cnes,sisreg_numero_autorizacao,sisreg_autorizado_em,data_ultima_atualizacao",
-            filters={"id": f"in.({','.join(str(item) for item in request_ids)})"},
-            limit=max(len(request_ids), 1),
-        )
-        source_requests = {int(item["id"]): item for item in request_rows if item.get("id") is not None}
-
-    cre_names: dict[str, str] = {}
-    for row in rows:
-        request_id = int(row.get("solicitacao_id") or 0)
-        source = source_requests.get(request_id, {})
-        if source:
-            row["status_solicitacao"] = source.get("status") or row.get("status_solicitacao")
-            row["cre_destino_cnes"] = source.get("cre_destino_cnes")
-            row["sisreg_numero_autorizacao"] = source.get("sisreg_numero_autorizacao")
-            row["sisreg_autorizado_em"] = source.get("sisreg_autorizado_em")
-
-        cnes = str(row.get("cre_destino_cnes") or "").strip()
-        if cnes:
-            if cnes not in cre_names:
-                units = await db_select(
-                    "dominio",
-                    "estabelecimento_cnes",
-                    select="codigo_cnes,nome_fantasia,razao_social",
-                    filters={"codigo_cnes": f"eq.{cnes}"},
-                    limit=1,
-                )
-                cre_names[cnes] = (
-                    (units[0].get("nome_fantasia") or units[0].get("razao_social") or cnes)
-                    if units else cnes
-                )
-            row["cre_destino_nome"] = cre_names[cnes]
-        else:
-            row["cre_destino_nome"] = None
-
-        # A timeline do paciente precisa saber em que ponto da etapa clínica ele está.
-        # Mantemos isso no backend para não criar polling nem expor tabelas internas ao frontend.
-        triages = await db_select(
-            "fila",
-            "triagem_clinica",
-            select="id,status,data_hora,solicitacao_id",
-            filters={"solicitacao_id": f"eq.{request_id}"},
-            order="data_hora.desc",
-            limit=1,
-        ) if request_id else []
-        latest = triages[0] if triages else None
-        row["triagem_status"] = latest.get("status") if latest else None
-        row["triagem_data_hora"] = latest.get("data_hora") if latest else None
-    return rows
 
 @app.get("/api/patient/orders/{request_id}/history")
 async def patient_order_history(request_id: int, identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
@@ -1328,34 +1243,20 @@ async def cre_kpis(identity: Identity = Depends(current_identity)) -> dict[str, 
     if not identity.cnes_vinculo:
         raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
 
-    requests = await db_select(
-        "fila", "solicitacao_ortese",
-        select="id,status",
-        filters={"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"},
-        limit=5000,
+    cnes = str(identity.cnes_vinculo).strip()
+    rows = await db_select(
+        "fila",
+        "vw_kpi_cre",
+        filters={"cre_destino_cnes": f"eq.{cnes}"},
+        limit=1,
     )
-    request_ids = {int(row["id"]) for row in requests if row.get("id") is not None}
-    queue_rows = await db_select("fila", "fila_espera", select="solicitacao_id,data_saida_fila", filters={"data_saida_fila": "is.null"}, limit=5000)
-    fila_ativa = sum(1 for row in queue_rows if int(row.get("solicitacao_id") or 0) in request_ids)
-
-    workshops = await db_select("producao", "oficina_ortopedica", select="id", filters={"cnes": f"eq.{identity.cnes_vinculo}", "ativo": "eq.true"}, limit=50)
-    workshop_ids = {int(row["id"]) for row in workshops if row.get("id") is not None}
-    stock_rows = await db_select("producao", "material_estoque", select="id,oficina_id", limit=5000)
-    estoque_proteses = sum(1 for row in stock_rows if int(row.get("oficina_id") or 0) in workshop_ids)
-    shipment_rows = await db_select("producao", "remessa_logistica_reversa", select="oficina_id,status", limit=5000)
-    em_logistica_reversa = sum(1 for row in shipment_rows if int(row.get("oficina_id") or 0) in workshop_ids and row.get("status") != "ENTREGUE")
-
-    orders = await db_select("producao", "ordem_producao", select="solicitacao_id,data_abertura", limit=5000)
-    current_month = datetime.now().strftime("%Y-%m")
-    matchings_mes = sum(
-        1 for row in orders
-        if int(row.get("solicitacao_id") or 0) in request_ids and str(row.get("data_abertura") or "")[:7] == current_month
-    )
+    if not rows:
+        return {"fila_ativa": 0, "estoque_proteses": 0, "em_logistica_reversa": 0, "matchings_mes": 0}
     return {
-        "fila_ativa": fila_ativa,
-        "estoque_proteses": estoque_proteses,
-        "em_logistica_reversa": em_logistica_reversa,
-        "matchings_mes": matchings_mes,
+        "fila_ativa": int(rows[0].get("fila_ativa") or 0),
+        "estoque_proteses": int(rows[0].get("estoque_proteses") or 0),
+        "em_logistica_reversa": int(rows[0].get("em_logistica_reversa") or 0),
+        "matchings_mes": int(rows[0].get("matchings_mes") or 0),
     }
 
 
@@ -1381,40 +1282,19 @@ async def cre_flow(identity: Identity = Depends(current_identity)) -> list[dict[
 @app.get("/api/cre/patients")
 async def cre_patients(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    rows = await db_select("fila", "vw_pacientes_aguardando", order="dias_espera_efetivos.desc", limit=5000)
-    if identity.papel != "FISCAL_CRE":
-        return rows
-    if not identity.cnes_vinculo:
-        raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+    filters: dict[str, Any] | None = None
+    if identity.papel == "FISCAL_CRE":
+        if not identity.cnes_vinculo:
+            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+        filters = {"cre_destino_cnes": f"eq.{str(identity.cnes_vinculo).strip()}"}
 
-    # Não filtramos a VIEW por cre_destino_cnes: instalações que executaram uma
-    # migration antiga podem ter a view sem essa coluna. A fonte de verdade do
-    # vínculo SISREG -> CRE é sempre fila.solicitacao_ortese.
-    linked = await db_select(
-        "fila", "solicitacao_ortese",
-        select="id,cre_destino_cnes,status",
-        filters={"cre_destino_cnes": f"eq.{identity.cnes_vinculo}"},
+    return await db_select(
+        "fila",
+        "vw_pacientes_cre",
+        filters=filters,
+        order="data_solicitacao.desc",
         limit=5000,
     )
-    linked_ids = {int(row["id"]) for row in linked if row.get("id") is not None}
-    result = [row for row in rows if int(row.get("solicitacao_id") or 0) in linked_ids]
-    triages = await db_select(
-        "fila", "triagem_clinica",
-        select="id,solicitacao_id,status,data_hora",
-        order="data_hora.desc",
-        limit=5000,
-    )
-    latest_triage_by_request: dict[int, dict[str, Any]] = {}
-    for triage in triages:
-        request_id = int(triage.get("solicitacao_id") or 0)
-        if request_id in linked_ids and request_id not in latest_triage_by_request:
-            latest_triage_by_request[request_id] = triage
-    for row in result:
-        row["cre_destino_cnes"] = identity.cnes_vinculo
-        latest = latest_triage_by_request.get(int(row.get("solicitacao_id") or 0))
-        row["triagem_status"] = latest.get("status") if latest else None
-        row["triagem_data_hora"] = latest.get("data_hora") if latest else None
-    return result
 
 
 @app.get("/api/cre/lots")
@@ -1426,64 +1306,19 @@ async def cre_lots(identity: Identity = Depends(current_identity)) -> list[dict[
 @app.get("/api/cre/triages")
 async def cre_triages(identity: Identity = Depends(current_identity)) -> list[dict[str, Any]]:
     await cre_identity(identity)
-    rows = await db_select("fila", "vw_triagens", order="data_hora.desc", limit=5000)
+    filters: dict[str, Any] | None = None
+    if identity.papel == "FISCAL_CRE":
+        if not identity.cnes_vinculo:
+            raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
+        filters = {"cre_destino_cnes": f"eq.{str(identity.cnes_vinculo).strip()}"}
 
-    triage_links = await db_select(
+    return await db_select(
         "fila",
-        "triagem_clinica",
-        select="id,solicitacao_id,paciente_id,procedimento_sigtap_proposto,status",
+        "vw_triagens",
+        filters=filters,
         order="data_hora.desc",
-        limit=5000,
+        limit=200,
     )
-    link_by_id = {int(item["id"]): item for item in triage_links if item.get("id") is not None}
-    request_ids = {int(item.get("solicitacao_id") or 0) for item in triage_links if item.get("solicitacao_id")}
-
-    requests: list[dict[str, Any]] = []
-    if request_ids:
-        requests = await db_select(
-            "fila",
-            "solicitacao_ortese",
-            select="id,cre_destino_cnes,status,procedimento_sigtap",
-            filters={"id": f"in.({','.join(str(item) for item in sorted(request_ids))})"},
-            limit=max(len(request_ids), 1),
-        )
-    request_by_id = {int(item["id"]): item for item in requests if item.get("id") is not None}
-
-    orders: list[dict[str, Any]] = []
-    if request_ids:
-        orders = await db_select(
-            "producao",
-            "ordem_producao",
-            select="id,solicitacao_id,status,data_abertura,data_conclusao",
-            filters={"solicitacao_id": f"in.({','.join(str(item) for item in sorted(request_ids))})"},
-            limit=max(len(request_ids), 1),
-        )
-    order_by_request = {int(item["solicitacao_id"]): item for item in orders if item.get("solicitacao_id") is not None}
-
-    result: list[dict[str, Any]] = []
-    for row in rows:
-        triage_id = int(row.get("triagem_id") or 0)
-        link = link_by_id.get(triage_id)
-        if not link:
-            continue
-        request_id = int(link.get("solicitacao_id") or 0)
-        request_row = request_by_id.get(request_id, {})
-        if identity.papel == "FISCAL_CRE":
-            if not identity.cnes_vinculo:
-                raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
-            if str(request_row.get("cre_destino_cnes") or "").strip() != str(identity.cnes_vinculo).strip():
-                continue
-        order = order_by_request.get(request_id)
-        row["paciente_id"] = link.get("paciente_id")
-        row["solicitacao_id"] = request_id or None
-        row["procedimento_sigtap_proposto"] = link.get("procedimento_sigtap_proposto")
-        row["workflow_status"] = _triage_workflow_status(
-            str(link.get("status") or row.get("status") or "PENDENTE"),
-            str(request_row.get("status") or "EM_FILA"),
-            str(order.get("status")) if order else None,
-        )
-        result.append(row)
-    return result[:200]
 
 
 @app.get("/api/cre/shipments")
@@ -2108,16 +1943,22 @@ async def authorize_sisreg(payload: SisregAuthorize, identity: Identity = Depend
     await ensure_record_exists("dominio", "estabelecimento_cnes", "codigo_cnes", payload.cre_destino_cnes, "O CRE selecionado não existe ou está inativo.", extra_filters={"ativo": "eq.true"})
 
     authorization = payload.numero_autorizacao or f"SISREG-DEMO-{payload.solicitacao_id}-{datetime.now().strftime('%Y%m%d')}"
-    update_body: dict[str, Any] = {
-        "status": "EM_FILA",
+    authorization_body: dict[str, Any] = {
+        "status": "AUTORIZADA",
         "cre_destino_cnes": payload.cre_destino_cnes,
         "sisreg_numero_autorizacao": authorization,
         "sisreg_autorizado_em": datetime.now().isoformat(),
         "data_ultima_atualizacao": datetime.now().isoformat(),
     }
     if payload.distancia_estimada_cre_km is not None:
-        update_body["distancia_estimada_cre_km"] = payload.distancia_estimada_cre_km
-    updated = (await db_update("fila", "solicitacao_ortese", {"id": f"eq.{payload.solicitacao_id}"}, update_body))[0]
+        authorization_body["distancia_estimada_cre_km"] = payload.distancia_estimada_cre_km
+    await db_update("fila", "solicitacao_ortese", {"id": f"eq.{payload.solicitacao_id}"}, authorization_body)
+    updated = (await db_update(
+        "fila",
+        "solicitacao_ortese",
+        {"id": f"eq.{payload.solicitacao_id}"},
+        {"status": "EM_FILA", "data_ultima_atualizacao": datetime.now().isoformat()},
+    ))[0]
     await db_insert("fila", "historico_status_solicitacao", [
         {
             "solicitacao_id": payload.solicitacao_id,
@@ -2229,7 +2070,7 @@ async def create_ong_partner(payload: OngPartnerCreate, identity: Identity = Dep
 class TriageCreate(BaseModel):
     paciente_id: int = Field(ge=1)
     procedimento_sigtap_proposto: str | None = None
-    status: Literal["PENDENTE", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA"] = "PENDENTE"
+    status: Literal["PENDENTE"] = "PENDENTE"
     observacao_clinica: str | None = None
 
     @field_validator("procedimento_sigtap_proposto", mode="before")
@@ -2259,7 +2100,7 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
         raise HTTPException(status_code=422, detail="O usuário CRE não possui CNES vinculado.")
     request_filters: dict[str, Any] = {"paciente_id": f"eq.{payload.paciente_id}"}
     if identity.papel == "FISCAL_CRE":
-        request_filters["cre_destino_cnes"] = f"eq.{identity.cnes_vinculo}"
+        request_filters["cre_destino_cnes"] = f"eq.{str(identity.cnes_vinculo).strip()}"
     active_requests = await db_select(
         "fila",
         "solicitacao_ortese",
@@ -2281,10 +2122,9 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
         order="data_hora.desc",
         limit=20,
     )
-    active_triage = next((row for row in existing_triages if row.get("status") in {"PENDENTE", "EM_ANDAMENTO"}), None)
-    if active_triage:
-        raise HTTPException(status_code=409, detail="Já existe uma triagem pendente ou em andamento para esta solicitação.")
-    procedure = payload.procedimento_sigtap_proposto or (current_request or {}).get("procedimento_sigtap")
+    if existing_triages:
+        raise HTTPException(status_code=409, detail="Esta solicitação já possui uma triagem registrada. Abra a triagem existente para continuar o atendimento.")
+    procedure = payload.procedimento_sigtap_proposto or current_request.get("procedimento_sigtap")
     if procedure:
         await ensure_record_exists(
             "dominio",
@@ -2299,15 +2139,19 @@ async def create_triage(payload: TriageCreate, identity: Identity = Depends(curr
         "profissional_id": identity.profissional_saude_id,
         "solicitacao_id": current_request["id"],
         "procedimento_sigtap_proposto": procedure or None,
-        "status": payload.status,
+        "status": "PENDENTE",
         "observacao_clinica": payload.observacao_clinica or None,
     })
-    # Marca a convocação sem retirar o paciente da fila; ele só sai quando o
-    # fluxo realmente avançar para produção/cancelamento.
     await db_update(
         "fila", "fila_espera",
         {"solicitacao_id": f"eq.{current_request['id']}"},
         {"data_convocacao": datetime.now().isoformat()},
+    )
+    await _notify_patient_workflow(
+        payload.paciente_id,
+        "Triagem registrada pelo CRE",
+        "Sua triagem foi registrada e está pendente. A equipe do CRE dará continuidade ao atendimento pela ordem das etapas.",
+        int(current_request["id"]),
     )
     return rows[0]
 
@@ -2344,53 +2188,10 @@ class RequestCreate(BaseModel):
 @app.post("/api/cre/requests", status_code=201)
 async def create_request(payload: RequestCreate, identity: Identity = Depends(current_identity)) -> dict[str, Any]:
     require_roles(identity, "FISCAL_CRE", "GESTOR")
-    if not identity.profissional_saude_id or not identity.cnes_vinculo:
-        raise HTTPException(status_code=422, detail="O usuário precisa estar vinculado a um profissional e a uma unidade CNES.")
-    await ensure_record_exists(
-        "fila",
-        "paciente",
-        "id",
-        payload.paciente_id,
-        "O paciente informado não existe.",
+    raise HTTPException(
+        status_code=409,
+        detail="O CRE não cria solicitações diretamente. Cadastre o paciente pela origem assistencial e faça o encaminhamento pelo fluxo SISREG.",
     )
-    await ensure_record_exists(
-        "dominio",
-        "sigtap_procedimento",
-        "codigo",
-        payload.procedimento_sigtap,
-        "O procedimento SIGTAP informado não existe ou está inativo.",
-        extra_filters={"ativo": "eq.true"},
-    )
-    await ensure_record_exists(
-        "dominio",
-        "cid10",
-        "codigo",
-        payload.cid10_codigo,
-        "O diagnóstico CID-10 informado não existe no catálogo carregado.",
-    )
-    requests = await db_insert("fila", "solicitacao_ortese", {
-        "paciente_id": payload.paciente_id,
-        "procedimento_sigtap": payload.procedimento_sigtap,
-        "cid10_codigo": payload.cid10_codigo,
-        "profissional_solicitante_id": identity.profissional_saude_id,
-        "estabelecimento_solicitante_cnes": identity.cnes_vinculo,
-        "justificativa_clinica": payload.justificativa_clinica,
-        "lado_acometido": payload.lado_acometido or None,
-        "prioridade_clinica": payload.prioridade_clinica,
-        "distancia_estimada_cre_km": payload.distancia_estimada_cre_km,
-        "status": "EM_FILA",
-    })
-    request_row = requests[0]
-    await db_insert("fila", "fila_espera", {"solicitacao_id": request_row["id"]})
-    await db_insert("fila", "historico_status_solicitacao", {
-        "solicitacao_id": request_row["id"],
-        "status_anterior": None,
-        "status_novo": "EM_FILA",
-        "usuario_responsavel": identity.auth_user_id,
-        "observacao": "Solicitação cadastrada pelo portal UMDR.",
-    })
-    return request_row
-
 
 
 class TriagePatch(BaseModel):
@@ -2414,6 +2215,39 @@ class TriagePatch(BaseModel):
         return clean_text(value, field="Observação", required=False, max_length=1000)
 
 
+TRIAGE_WORKFLOW_SEQUENCE = (
+    "PENDENTE",
+    "EM_ANDAMENTO",
+    "CONCLUIDA",
+    "EM_PRODUCAO",
+    "PRONTA_PARA_ENTREGA",
+    "ENTREGUE",
+)
+
+WORKFLOW_PATIENT_MESSAGES: dict[str, tuple[str, str]] = {
+    "EM_ANDAMENTO": (
+        "Triagem iniciada",
+        "Sua triagem no CRE está em andamento. A equipe iniciou a avaliação clínica do seu atendimento.",
+    ),
+    "CONCLUIDA": (
+        "Triagem concluída",
+        "Sua triagem clínica foi concluída. A próxima etapa do atendimento é o início da produção do dispositivo.",
+    ),
+    "EM_PRODUCAO": (
+        "Dispositivo em produção",
+        "O CRE iniciou a produção do seu dispositivo. Você será avisado quando ele estiver pronto para retirada.",
+    ),
+    "PRONTA_PARA_ENTREGA": (
+        "Dispositivo pronto para entrega",
+        "Seu dispositivo está pronto e aguarda recolhimento no CRE responsável.",
+    ),
+    "ENTREGUE": (
+        "Dispositivo entregue",
+        "A entrega do seu dispositivo foi registrada pelo CRE.",
+    ),
+}
+
+
 def _triage_workflow_status(triage_status: str, request_status: str, production_status: str | None) -> str:
     if triage_status == "CANCELADA" or request_status == "CANCELADA" or production_status == "CANCELADA":
         return "CANCELADA"
@@ -2428,6 +2262,24 @@ def _triage_workflow_status(triage_status: str, request_status: str, production_
     if triage_status == "EM_ANDAMENTO":
         return "EM_ANDAMENTO"
     return "PENDENTE"
+
+
+def _validate_workflow_transition(current: str, target: str) -> None:
+    if target == current:
+        return
+    if current in {"ENTREGUE", "CANCELADA"}:
+        raise HTTPException(status_code=409, detail="Este atendimento já está encerrado e o status não pode mais ser alterado.")
+    if target == "CANCELADA":
+        return
+    if current not in TRIAGE_WORKFLOW_SEQUENCE:
+        raise HTTPException(status_code=409, detail="O status atual do atendimento é inválido para progressão automática.")
+    current_index = TRIAGE_WORKFLOW_SEQUENCE.index(current)
+    expected = TRIAGE_WORKFLOW_SEQUENCE[current_index + 1]
+    if target != expected:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Transição inválida: o atendimento está em {current} e só pode avançar para {expected}. Não é permitido voltar ou pular etapas.",
+        )
 
 
 async def _production_order_for_request(
@@ -2537,10 +2389,23 @@ async def update_triage(triage_id: int, payload: TriagePatch, identity: Identity
             "O procedimento SIGTAP informado não existe ou está inativo.", extra_filters={"ativo": "eq.true"},
         )
 
-    workflow = payload.workflow_status
-    direct_status = payload.status
-    if not workflow and not direct_status and payload.observacao_clinica is None and payload.procedimento_sigtap_proposto is None:
+    requested_workflow = payload.workflow_status or payload.status
+    if not requested_workflow and payload.observacao_clinica is None and payload.procedimento_sigtap_proposto is None:
         raise HTTPException(status_code=422, detail="Informe ao menos uma alteração para a triagem.")
+
+    order_rows = await db_select(
+        "producao", "ordem_producao",
+        select="id,solicitacao_id,status,data_abertura,data_conclusao",
+        filters={"solicitacao_id": f"eq.{request_id}"}, limit=1,
+    )
+    existing_order = order_rows[0] if order_rows else None
+    previous_workflow = _triage_workflow_status(
+        str(triage.get("status") or "PENDENTE"),
+        str(request_row.get("status") or "EM_FILA"),
+        str(existing_order.get("status")) if existing_order else None,
+    )
+    workflow = str(requested_workflow) if requested_workflow else previous_workflow
+    _validate_workflow_transition(previous_workflow, workflow)
 
     triage_changes: dict[str, Any] = {}
     if payload.observacao_clinica is not None:
@@ -2548,153 +2413,105 @@ async def update_triage(triage_id: int, payload: TriagePatch, identity: Identity
     if payload.procedimento_sigtap_proposto is not None:
         triage_changes["procedimento_sigtap_proposto"] = payload.procedimento_sigtap_proposto
 
-    if workflow:
-        order_rows = await db_select(
-            "producao", "ordem_producao",
-            select="id,solicitacao_id,status,data_abertura,data_conclusao",
-            filters={"solicitacao_id": f"eq.{request_id}"}, limit=1,
-        )
-        existing_order = order_rows[0] if order_rows else None
-        previous_workflow = _triage_workflow_status(
-            str(triage.get("status") or "PENDENTE"),
-            str(request_row.get("status") or "EM_FILA"),
-            str(existing_order.get("status")) if existing_order else None,
-        )
+    patient_notification: tuple[str, str, bool] | None = None
+    state_changed = workflow != previous_workflow
 
-        # Depois de uma entrega física registrada, o histórico não deve ser apagado
-        # silenciosamente. Os demais estados podem voltar para trás normalmente.
-        if previous_workflow == "ENTREGUE" and workflow != "ENTREGUE":
-            raise HTTPException(status_code=409, detail="A entrega já foi registrada. Para corrigir esse caso, registre uma ocorrência em vez de retroceder o atendimento.")
+    if state_changed and workflow == "CANCELADA":
+        reason = (payload.motivo_cancelamento or "").strip()
+        if len(reason) < 5:
+            raise HTTPException(status_code=422, detail="Informe uma justificativa clara para cancelar o atendimento.")
+        triage_changes["status"] = "CANCELADA"
+        previous_request_status = str(request_row.get("status") or "EM_FILA")
+        await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
+            "status": "CANCELADA",
+            "data_ultima_atualizacao": datetime.now().isoformat(),
+        })
+        if existing_order:
+            await db_update("producao", "ordem_producao", {"id": f"eq.{existing_order['id']}"}, {"status": "CANCELADA"})
+        await db_update("fila", "fila_espera", {"solicitacao_id": f"eq.{request_id}"}, {
+            "data_saida_fila": datetime.now().isoformat(),
+            "motivo_saida": "OUTRO",
+        })
+        await db_insert("fila", "historico_status_solicitacao", {
+            "solicitacao_id": request_id,
+            "status_anterior": previous_request_status,
+            "status_novo": "CANCELADA",
+            "usuario_responsavel": identity.auth_user_id,
+            "observacao": reason,
+        })
+        patient_notification = ("Atendimento cancelado", f"O CRE cancelou esta solicitação. Motivo: {reason}", True)
 
-        if workflow == "CANCELADA":
-            reason = (payload.motivo_cancelamento or "").strip()
-            if len(reason) < 5:
-                raise HTTPException(status_code=422, detail="Informe uma justificativa clara para cancelar o atendimento.")
-            triage_changes["status"] = "CANCELADA"
-            previous_request_status = str(request_row.get("status") or "EM_FILA")
-            await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
-                "status": "CANCELADA",
-                "data_ultima_atualizacao": datetime.now().isoformat(),
+    elif state_changed and workflow in {"EM_ANDAMENTO", "CONCLUIDA"}:
+        triage_changes["status"] = workflow
+        title, message = WORKFLOW_PATIENT_MESSAGES[workflow]
+        patient_notification = (title, message, False)
+
+    elif state_changed and workflow in {"EM_PRODUCAO", "PRONTA_PARA_ENTREGA", "ENTREGUE"}:
+        if not request_cnes:
+            raise HTTPException(status_code=409, detail="A solicitação ainda não possui CRE de destino.")
+        order = await _production_order_for_request(request_row, request_cnes, identity.profissional_saude_id)
+        triage_changes["status"] = "CONCLUIDA"
+
+        if workflow == "EM_PRODUCAO":
+            await db_update("producao", "ordem_producao", {"id": f"eq.{order['id']}"}, {
+                "status": "EM_PRODUCAO",
+                "data_conclusao": None,
             })
-            if existing_order:
-                await db_update("producao", "ordem_producao", {"id": f"eq.{existing_order['id']}"}, {"status": "CANCELADA"})
-            await db_update("fila", "fila_espera", {"solicitacao_id": f"eq.{request_id}"}, {
-                "data_saida_fila": datetime.now().isoformat(),
-                "motivo_saida": "OUTRO",
+            await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
+                "status": "EM_PRODUCAO",
+                "data_ultima_atualizacao": datetime.now().isoformat(),
             })
             await db_insert("fila", "historico_status_solicitacao", {
                 "solicitacao_id": request_id,
-                "status_anterior": previous_request_status,
-                "status_novo": "CANCELADA",
+                "status_anterior": request_row.get("status"),
+                "status_novo": "EM_PRODUCAO",
                 "usuario_responsavel": identity.auth_user_id,
-                "observacao": reason,
+                "observacao": "Produção iniciada pelo CRE.",
             })
-            await _notify_patient_workflow(
-                int(request_row["paciente_id"]),
-                "Atendimento cancelado",
-                f"O CRE cancelou esta solicitação. Motivo: {reason}",
-                int(request_id),
-                urgent=True,
-            )
-        elif workflow in {"PENDENTE", "EM_ANDAMENTO", "CONCLUIDA"}:
-            triage_changes["status"] = workflow
-            if str(request_row.get("status")) != "EM_FILA":
-                await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
-                    "status": "EM_FILA",
-                    "data_ultima_atualizacao": datetime.now().isoformat(),
-                })
-            if existing_order and existing_order.get("status") != "ENTREGUE":
-                await db_update("producao", "ordem_producao", {"id": f"eq.{existing_order['id']}"}, {
-                    "status": "AGUARDANDO_MEDIDAS",
-                    "data_conclusao": None,
-                })
             await db_update("fila", "fila_espera", {"solicitacao_id": f"eq.{request_id}"}, {
-                "data_saida_fila": None,
-                "motivo_saida": None,
+                "data_saida_fila": datetime.now().isoformat(),
+                "motivo_saida": "ENCAMINHADO_PRODUCAO",
             })
-        else:
-            if not request_cnes:
-                raise HTTPException(status_code=409, detail="A solicitação ainda não possui CRE de destino.")
-            order = await _production_order_for_request(request_row, request_cnes, identity.profissional_saude_id)
-            triage_changes["status"] = "CONCLUIDA"
-
-            if workflow == "EM_PRODUCAO":
-                await db_update("producao", "ordem_producao", {"id": f"eq.{order['id']}"}, {
-                    "status": "EM_PRODUCAO",
-                    "data_conclusao": None,
+        elif workflow == "PRONTA_PARA_ENTREGA":
+            await db_update("producao", "ordem_producao", {"id": f"eq.{order['id']}"}, {
+                "status": "PRONTA_PARA_ENTREGA",
+                "data_conclusao": datetime.now().isoformat(),
+            })
+            await db_insert("fila", "historico_status_solicitacao", {
+                "solicitacao_id": request_id,
+                "status_anterior": "EM_PRODUCAO",
+                "status_novo": "PRONTA_PARA_ENTREGA",
+                "usuario_responsavel": identity.auth_user_id,
+                "observacao": "Dispositivo pronto e aguardando recolhimento no CRE.",
+            })
+        elif workflow == "ENTREGUE":
+            await db_update("producao", "ordem_producao", {"id": f"eq.{order['id']}"}, {
+                "status": "ENTREGUE",
+                "data_conclusao": datetime.now().isoformat(),
+            })
+            await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
+                "status": "ENTREGUE",
+                "data_ultima_atualizacao": datetime.now().isoformat(),
+            })
+            deliveries = await db_select(
+                "producao", "entrega_ortese", select="id",
+                filters={"ordem_producao_id": f"eq.{order['id']}"}, limit=1,
+            )
+            if not deliveries:
+                await db_insert("producao", "entrega_ortese", {
+                    "ordem_producao_id": order["id"],
+                    "profissional_entrega_id": identity.profissional_saude_id,
+                    "orientacoes_fornecidas": "Entrega registrada pelo portal do CRE.",
                 })
-                if str(request_row.get("status")) != "EM_PRODUCAO":
-                    await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
-                        "status": "EM_PRODUCAO",
-                        "data_ultima_atualizacao": datetime.now().isoformat(),
-                    })
-                    await db_insert("fila", "historico_status_solicitacao", {
-                        "solicitacao_id": request_id,
-                        "status_anterior": request_row.get("status"),
-                        "status_novo": "EM_PRODUCAO",
-                        "usuario_responsavel": identity.auth_user_id,
-                        "observacao": "Produção iniciada pelo CRE.",
-                    })
-                await db_update("fila", "fila_espera", {"solicitacao_id": f"eq.{request_id}"}, {
-                    "data_saida_fila": datetime.now().isoformat(),
-                    "motivo_saida": "ENCAMINHADO_PRODUCAO",
-                })
-            elif workflow == "PRONTA_PARA_ENTREGA":
-                await db_update("producao", "ordem_producao", {"id": f"eq.{order['id']}"}, {
-                    "status": "PRONTA_PARA_ENTREGA",
-                    "data_conclusao": datetime.now().isoformat(),
-                })
-                if str(request_row.get("status")) != "EM_PRODUCAO":
-                    await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
-                        "status": "EM_PRODUCAO",
-                        "data_ultima_atualizacao": datetime.now().isoformat(),
-                    })
-                await db_insert("fila", "historico_status_solicitacao", {
-                    "solicitacao_id": request_id,
-                    "status_anterior": "EM_PRODUCAO",
-                    "status_novo": "PRONTA_PARA_ENTREGA",
-                    "usuario_responsavel": identity.auth_user_id,
-                    "observacao": "Dispositivo pronto e aguardando recolhimento no CRE.",
-                })
-                await _notify_patient_workflow(
-                    int(request_row["paciente_id"]),
-                    "Dispositivo pronto para entrega",
-                    "Seu dispositivo está pronto e aguarda recolhimento no CRE responsável.",
-                    int(request_id),
-                )
-            elif workflow == "ENTREGUE":
-                await db_update("producao", "ordem_producao", {"id": f"eq.{order['id']}"}, {
-                    "status": "ENTREGUE",
-                    "data_conclusao": datetime.now().isoformat(),
-                })
-                await db_update("fila", "solicitacao_ortese", {"id": f"eq.{request_id}"}, {
-                    "status": "ENTREGUE",
-                    "data_ultima_atualizacao": datetime.now().isoformat(),
-                })
-                deliveries = await db_select("producao", "entrega_ortese", select="id", filters={"ordem_producao_id": f"eq.{order['id']}"}, limit=1)
-                if not deliveries:
-                    await db_insert("producao", "entrega_ortese", {
-                        "ordem_producao_id": order["id"],
-                        "profissional_entrega_id": identity.profissional_saude_id,
-                        "orientacoes_fornecidas": "Entrega registrada pelo portal do CRE.",
-                    })
-                await db_insert("fila", "historico_status_solicitacao", {
-                    "solicitacao_id": request_id,
-                    "status_anterior": request_row.get("status"),
-                    "status_novo": "ENTREGUE",
-                    "usuario_responsavel": identity.auth_user_id,
-                    "observacao": "Dispositivo entregue ao paciente.",
-                })
-                await _notify_patient_workflow(
-                    int(request_row["paciente_id"]),
-                    "Dispositivo entregue",
-                    "A entrega do seu dispositivo foi registrada pelo CRE.",
-                    int(request_id),
-                )
-    elif direct_status:
-        if direct_status == "CANCELADA":
-            raise HTTPException(status_code=422, detail="Use o status de fluxo Cancelado e informe uma justificativa.")
-        triage_changes["status"] = direct_status
+            await db_insert("fila", "historico_status_solicitacao", {
+                "solicitacao_id": request_id,
+                "status_anterior": "EM_PRODUCAO",
+                "status_novo": "ENTREGUE",
+                "usuario_responsavel": identity.auth_user_id,
+                "observacao": "Dispositivo entregue ao paciente.",
+            })
+        title, message = WORKFLOW_PATIENT_MESSAGES[workflow]
+        patient_notification = (title, message, False)
 
     if triage_changes:
         rows = await db_update("fila", "triagem_clinica", {"id": f"eq.{triage_id}"}, triage_changes)
@@ -2702,6 +2519,12 @@ async def update_triage(triage_id: int, payload: TriagePatch, identity: Identity
             raise HTTPException(status_code=404, detail="Triagem não encontrada.")
     else:
         rows = triage_rows
+
+    if patient_notification:
+        title, message, urgent = patient_notification
+        await _notify_patient_workflow(
+            int(request_row["paciente_id"]), title, message, int(request_id), urgent=urgent,
+        )
 
     current_order = await db_select(
         "producao", "ordem_producao", select="id,status",

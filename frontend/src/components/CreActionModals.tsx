@@ -9,6 +9,36 @@ import { patientOperationalLabel } from "../lib/patientPrivacy";
 
 const inputClass = "mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
+const TRIAGE_WORKFLOW_SEQUENCE: TriageWorkflowStatus[] = [
+  "PENDENTE",
+  "EM_ANDAMENTO",
+  "CONCLUIDA",
+  "EM_PRODUCAO",
+  "PRONTA_PARA_ENTREGA",
+  "ENTREGUE",
+];
+
+function availableWorkflowStatuses(current: TriageWorkflowStatus): TriageWorkflowStatus[] {
+  if (current === "ENTREGUE" || current === "CANCELADA") return [current];
+  const index = TRIAGE_WORKFLOW_SEQUENCE.indexOf(current);
+  if (index < 0) return [current];
+  const next = TRIAGE_WORKFLOW_SEQUENCE[index + 1];
+  return next ? [current, next, "CANCELADA"] : [current];
+}
+
+function workflowLabel(status: TriageWorkflowStatus, tr: (key: string) => string): string {
+  const labels: Record<TriageWorkflowStatus, string> = {
+    PENDENTE: tr("triage.status.pending"),
+    EM_ANDAMENTO: tr("triage.status.progress"),
+    CONCLUIDA: tr("triage.status.done"),
+    EM_PRODUCAO: tr("triage.status.production"),
+    PRONTA_PARA_ENTREGA: tr("triage.status.ready"),
+    ENTREGUE: tr("triage.status.delivered"),
+    CANCELADA: tr("triage.status.cancelled"),
+  };
+  return labels[status];
+}
+
 interface TriageModalProps {
   open: boolean;
   onClose: () => void;
@@ -25,13 +55,13 @@ export function TriageModal({ open, onClose, onSaved, initialPatientId = null, t
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [workflowStatus, setWorkflowStatus] = useState<TriageWorkflowStatus>(triage?.workflow_status ?? triage?.status ?? (initialPatientId ? "EM_ANDAMENTO" : "PENDENTE"));
+  const [workflowStatus, setWorkflowStatus] = useState<TriageWorkflowStatus>(triage?.workflow_status ?? triage?.status ?? "PENDENTE");
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     setMessage(null);
-    setWorkflowStatus(triage?.workflow_status ?? triage?.status ?? (initialPatientId ? "EM_ANDAMENTO" : "PENDENTE"));
+    setWorkflowStatus(triage?.workflow_status ?? triage?.status ?? "PENDENTE");
     Promise.all([
       apiGet<AdminCatalogs>("/api/admin/catalogs"),
       apiGet<PacienteAguardando[]>("/api/cre/patients"),
@@ -78,6 +108,14 @@ export function TriageModal({ open, onClose, onSaved, initialPatientId = null, t
 
   const selectedPatient = triage?.paciente_id ?? initialPatientId ?? undefined;
   const selectedProcedure = triage?.procedimento_sigtap_proposto ?? "";
+  const workflowOptions = triage ? availableWorkflowStatuses(triage.workflow_status ?? triage.status) : ["PENDENTE" as TriageWorkflowStatus];
+  const eligiblePatients = Array.from(
+    new Map(
+      crePatients
+        .filter((patient) => ["AUTORIZADA", "EM_FILA"].includes(patient.status) && !patient.triagem_status)
+        .map((patient) => [patient.paciente_id, patient]),
+    ).values(),
+  );
 
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/45 p-4" onClick={onClose}>
@@ -87,24 +125,19 @@ export function TriageModal({ open, onClose, onSaved, initialPatientId = null, t
           <form onSubmit={submit}>
             <div className="space-y-4 p-5">
               {message && <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-semibold ${message.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{message.ok && <CheckCircle2 size={15} />}{message.text}</div>}
-              <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.patient")}<select name="paciente_id" required defaultValue={selectedPatient ?? ""} disabled={Boolean(triage)} className={inputClass}><option value="">{tr("cre.actions.select")}</option>{crePatients.map((patient) => <option key={patient.paciente_id} value={patient.paciente_id}>{patientOperationalLabel(patient.nome_completo, patient.dispositivo)}</option>)}</select></label>
+              <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.patient")}<select name="paciente_id" required defaultValue={selectedPatient ?? ""} disabled={Boolean(triage)} className={inputClass}><option value="">{tr("cre.actions.select")}</option>{eligiblePatients.map((patient) => <option key={patient.paciente_id} value={patient.paciente_id}>{patientOperationalLabel(patient.nome_completo, patient.dispositivo)}</option>)}</select></label>
               <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.procedure")}<select name="procedimento_sigtap_proposto" defaultValue={selectedProcedure} className={inputClass}><option value="">{tr("cre.actions.select")}</option>{(catalogs?.procedures ?? []).map((procedure) => <option key={procedure.codigo} value={procedure.codigo}>{procedure.codigo} · {procedure.nome_procedimento}</option>)}</select></label>
               <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.status")}{triage ? (
                 <select name="workflow_status" value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value as TriageWorkflowStatus)} className={inputClass}>
-                  <option value="PENDENTE">{tr("triage.status.pending")}</option>
-                  <option value="EM_ANDAMENTO">{tr("triage.status.progress")}</option>
-                  <option value="CONCLUIDA">{tr("triage.status.done")}</option>
-                  <option value="EM_PRODUCAO">{tr("triage.status.production")}</option>
-                  <option value="PRONTA_PARA_ENTREGA">{tr("triage.status.ready")}</option>
-                  <option value="ENTREGUE">{tr("triage.status.delivered")}</option>
-                  <option value="CANCELADA">{tr("triage.status.cancelled")}</option>
+                  {workflowOptions.map((status) => <option key={status} value={status}>{workflowLabel(status, tr)}</option>)}
                 </select>
               ) : (
-                <select name="status" value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value as TriageWorkflowStatus)} className={inputClass}>
-                  <option value="PENDENTE">{tr("triage.status.pending")}</option>
-                  <option value="EM_ANDAMENTO">{tr("triage.status.progress")}</option>
-                  <option value="CONCLUIDA">{tr("triage.status.done")}</option>
-                </select>
+                <>
+                  <input type="hidden" name="status" value="PENDENTE" />
+                  <select value="PENDENTE" disabled className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`}>
+                    <option value="PENDENTE">{tr("triage.status.pending")}</option>
+                  </select>
+                </>
               )}</label>
               {triage && <p className="-mt-2 text-[11px] leading-relaxed text-slate-400">{tr("cre.actions.workflowHint")}</p>}
               {triage && workflowStatus === "CANCELADA" && <label className="block text-xs font-semibold text-red-700">{tr("cre.actions.cancelReason")}<textarea name="motivo_cancelamento" required minLength={5} rows={3} className={`${inputClass} border-red-200 focus:border-red-500 focus:ring-red-100`} placeholder={tr("cre.actions.cancelReasonPlaceholder")} /></label>}
