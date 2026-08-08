@@ -69,6 +69,7 @@ import { apiPost } from "../lib/api";
 import { managerPageForAlert } from "../lib/alertRouting";
 import { useApiData } from "../lib/useApiData";
 import { useNotificacoes } from "../hooks/FetchData";
+import { useSeenAlerts } from "../hooks/useSeenAlerts";
 import type {
   AccessMatrixResponse,
   AdminCatalogs,
@@ -332,6 +333,7 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
   const [alertsOpen, setAlertsOpen] = useState(false);
   const { user } = useAuth();
   const { data: personalNotifications, marcarComoLida } = useNotificacoes();
+  const { isSeen, markSeen } = useSeenAlerts(`umdr:manager:${user?.id ?? "anonymous"}:seen-alerts`);
   const healthData = data.health.map((row) => ({ ...row, mes: monthLabel(row.month, locale) }));
   const inventoryData = data.regional.map((row) => ({ ...row, regiao: regionLabel(row.region, t) }));
   const accessData = data.access_distribution.map((row, index) => ({
@@ -341,28 +343,35 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
   }));
   const alerts = data.alerts.slice(0, 4);
   const bellAlerts = [
-    ...(personalNotifications ?? []).slice(0, 5).map((item) => ({
-      id: `notification-${item.id}`,
-      label: item.titulo,
-      message: item.mensagem ?? "",
-      time: formatDateTime(item.criado_em, locale),
-      target: managerPageForAlert(item.destino_ui, "notification") as Page,
-      severity: item.tipo === "URGENTE" || item.tipo === "ALERTA" ? "critical" : "info",
-      notificationId: item.id,
-    })),
+    ...(personalNotifications ?? []).slice(0, 5).map((item) => {
+      const id = `notification-${item.id}`;
+      return {
+        id,
+        label: item.titulo,
+        message: item.mensagem ?? "",
+        time: formatDateTime(item.criado_em, locale),
+        target: managerPageForAlert(item.destino_ui, "notification") as Page,
+        severity: item.tipo === "URGENTE" || item.tipo === "ALERTA" ? "critical" : "info",
+        notificationId: item.id,
+        unread: !item.lida && !isSeen(id),
+      };
+    }),
     ...alerts.map((alert, index) => {
       const described = describeAlert(alert, t, locale);
+      const id = `system-${alert.kind}-${text(alert.code ?? alert.name ?? index)}-${text(alert.date ?? "")}`;
       return {
-        id: `system-${alert.kind}-${index}`,
+        id,
         label: described.label,
         message: described.message,
         time: described.time,
         target: managerPageForAlert(alert.target, alert.kind) as Page,
         severity: alert.severity,
         notificationId: null as number | null,
+        unread: !isSeen(id),
       };
     }),
   ].slice(0, 7);
+  const unreadBellAlerts = bellAlerts.filter((alert) => alert.unread).length;
   const kpiCards: KpiCardData[] = [
     {
       id: "conformity",
@@ -463,11 +472,11 @@ function PaginaInicio({ data, onRefresh, onNavigate }: { data: ManagerDashboardD
         </button>
         <div className="relative">
           <button type="button" onClick={() => setAlertsOpen((value) => !value)} className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-card border border-border rounded-lg px-3 py-2 hover:border-[#1565C0] transition-colors" aria-expanded={alertsOpen}>
-            <Bell size={13} />{t("manager.standard.actions.alertCount", { count: bellAlerts.length })}
+            <Bell size={13} />{t("manager.standard.actions.alertCount", { count: unreadBellAlerts })}
           </button>
           {alertsOpen && <div className="absolute right-0 top-11 z-[90] w-96 overflow-hidden rounded-xl border border-border bg-white shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3"><div><p className="text-sm font-semibold text-foreground">{t("shell.navbar.recentAlerts")}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{t("shell.navbar.recentAlertsHint")}</p></div><button type="button" onClick={() => setAlertsOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={15} /></button></div>
-            {bellAlerts.length ? <div className="max-h-80 divide-y divide-border overflow-y-auto">{bellAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { if (alert.notificationId) void marcarComoLida(alert.notificationId); setAlertsOpen(false); onNavigate(alert.target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-muted/50"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} /><span className="min-w-0"><span className="block text-xs font-semibold text-foreground">{alert.label}</span><span className="mt-0.5 block text-[11px] text-muted-foreground line-clamp-2">{alert.message}</span><span className="mt-1 block text-[10px] text-muted-foreground/80">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("shell.navbar.noRecentAlerts")}</p>}
+            {bellAlerts.length ? <div className="max-h-80 divide-y divide-border overflow-y-auto">{bellAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { markSeen(alert.id); if (alert.notificationId) void marcarComoLida(alert.notificationId); setAlertsOpen(false); onNavigate(alert.target); }} className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 ${alert.unread ? "bg-white" : "bg-slate-50/70"}`}><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${!alert.unread ? "bg-slate-300" : alert.severity === "critical" ? "bg-red-500" : alert.severity === "warning" ? "bg-amber-500" : "bg-blue-500"}`} /><span className="min-w-0"><span className={`block text-xs font-semibold ${alert.unread ? "text-foreground" : "text-muted-foreground"}`}>{alert.label}</span><span className={`mt-0.5 block text-[11px] line-clamp-2 ${alert.unread ? "text-muted-foreground" : "text-slate-400"}`}>{alert.message}</span><span className="mt-1 block text-[10px] text-muted-foreground/80">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-muted-foreground">{t("shell.navbar.noRecentAlerts")}</p>}
           </div>}
         </div>
         <button onClick={exportDashboard} className="flex items-center gap-2 text-xs font-medium text-white bg-[#1565C0] rounded-lg px-4 py-2 hover:bg-[#1976D2] transition-colors">

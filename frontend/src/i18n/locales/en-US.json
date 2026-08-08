@@ -1487,7 +1487,9 @@
       "recall": "Recall issued successfully."
     },
     "error": {
-      "generic": "Could not complete the operation."
+      "generic": "Could not complete the operation.",
+      "alert": "The alert could not be sent: {reason}",
+      "recall": "The recall could not be issued: {reason}"
     },
     "alertForm": {
       "title": "New alert",

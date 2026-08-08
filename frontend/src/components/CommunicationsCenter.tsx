@@ -68,9 +68,10 @@ export function CommunicationsCenter({ role }: CommunicationsCenterProps) {
 
   const submitAlert = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setBusy(true);
     setMessage(null);
-    const form = new FormData(event.currentTarget);
     try {
       const response = await apiPost<{ recipients: number }>("/api/communications/alerts", {
         titulo: form.get("titulo"),
@@ -79,10 +80,11 @@ export function CommunicationsCenter({ role }: CommunicationsCenterProps) {
         audiencia: form.get("audiencia"),
         target: form.get("target"),
       });
+      formElement.reset();
       setMessage({ ok: true, text: tr("communications.success.alert").replace("{count}", String(response.recipients)) });
-      event.currentTarget.reset();
     } catch (error) {
-      setMessage({ ok: false, text: error instanceof Error ? error.message : tr("communications.error.generic") });
+      const reason = error instanceof Error ? error.message : tr("communications.error.generic");
+      setMessage({ ok: false, text: tr("communications.error.alert").replace("{reason}", reason) });
     } finally {
       setBusy(false);
     }
@@ -90,9 +92,10 @@ export function CommunicationsCenter({ role }: CommunicationsCenterProps) {
 
   const submitRecall = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setBusy(true);
     setMessage(null);
-    const form = new FormData(event.currentTarget);
     try {
       await apiPost("/api/communications/recalls", {
         codigo_lote: form.get("codigo_lote"),
@@ -103,11 +106,12 @@ export function CommunicationsCenter({ role }: CommunicationsCenterProps) {
         status: "ABERTO",
         orgao_notificador: form.get("orgao_notificador") || null,
       });
+      formElement.reset();
       setMessage({ ok: true, text: tr("communications.success.recall") });
-      event.currentTarget.reset();
-      recalls.reload();
+      void recalls.reload();
     } catch (error) {
-      setMessage({ ok: false, text: error instanceof Error ? error.message : tr("communications.error.generic") });
+      const reason = error instanceof Error ? error.message : tr("communications.error.generic");
+      setMessage({ ok: false, text: tr("communications.error.recall").replace("{reason}", reason) });
     } finally {
       setBusy(false);
     }

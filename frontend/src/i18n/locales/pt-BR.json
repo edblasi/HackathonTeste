@@ -1487,7 +1487,9 @@
       "recall": "Recall emitido com sucesso."
     },
     "error": {
-      "generic": "Não foi possível concluir a operação."
+      "generic": "Não foi possível concluir a operação.",
+      "alert": "Não foi possível enviar o alerta: {reason}",
+      "recall": "Não foi possível emitir o recall: {reason}"
     },
     "alertForm": {
       "title": "Novo alerta",

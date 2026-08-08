@@ -11,6 +11,7 @@ import { ShipmentModal, TriageModal } from "../components/CreActionModals";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { crePageForAlert } from "../lib/alertRouting";
 import { patientFirstName } from "../lib/patientPrivacy";
+import { useSeenAlerts } from "../hooks/useSeenAlerts";
 import {
   useKpiDashboard,
   useAlertasCriticos,
@@ -379,15 +380,27 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
   const { t, locale } = useLang();
   const [profileOpen, setProfileOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const { user } = useAuth();
   const { data: usuario } = useUsuarioAtual();
   const { data: criticalAlerts } = useAlertasCriticos();
   const { data: recalls } = useRecalls();
   const { data: notifications, marcarComoLida } = useNotificacoes();
+  const { isSeen, markSeen } = useSeenAlerts(`umdr:cre:${user?.id ?? "anonymous"}:seen-alerts`);
   const recentAlerts = [
-    ...(notifications ?? []).map((item) => ({ id: `notification-${item.id}`, title: item.titulo, description: item.mensagem ?? "", time: new Date(item.criado_em).toLocaleString(locale), target: crePageForAlert(item.destino_ui, "notification") as Page, notificationId: item.id })),
-    ...(criticalAlerts ?? []).map((item, index) => ({ id: `critical-${index}`, title: t("alerts.title"), description: item.mensagem, time: new Date(item.gerado_em).toLocaleString(locale), target: crePageForAlert(item.target, item.tipo) as Page, notificationId: null as number | null })),
-    ...(recalls ?? []).filter((item) => !["ENCERRADO", "CANCELADO"].includes(item.status)).map((item) => ({ id: `recall-${item.id}`, title: t("recalls.title"), description: `${item.codigo_lote} — ${item.nome_produto}`, time: item.data_abertura ? new Date(`${item.data_abertura}T00:00:00`).toLocaleDateString(locale) : "", target: "comunicacoes" as Page, notificationId: null as number | null })),
+    ...(notifications ?? []).map((item) => {
+      const id = `notification-${item.id}`;
+      return { id, title: item.titulo, description: item.mensagem ?? "", time: new Date(item.criado_em).toLocaleString(locale), target: crePageForAlert(item.destino_ui, "notification") as Page, notificationId: item.id, unread: !item.lida && !isSeen(id) };
+    }),
+    ...(criticalAlerts ?? []).map((item, index) => {
+      const id = `critical-${item.tipo}-${item.gerado_em}-${index}`;
+      return { id, title: t("alerts.title"), description: item.mensagem, time: new Date(item.gerado_em).toLocaleString(locale), target: crePageForAlert(item.target, item.tipo) as Page, notificationId: null as number | null, unread: !isSeen(id) };
+    }),
+    ...(recalls ?? []).filter((item) => !["ENCERRADO", "CANCELADO"].includes(item.status)).map((item) => {
+      const id = `recall-${item.id}`;
+      return { id, title: t("recalls.title"), description: `${item.codigo_lote} — ${item.nome_produto}`, time: item.data_abertura ? new Date(`${item.data_abertura}T00:00:00`).toLocaleDateString(locale) : "", target: "comunicacoes" as Page, notificationId: null as number | null, unread: !isSeen(id) };
+    }),
   ].slice(0, 7);
+  const hasUnreadAlerts = recentAlerts.some((alert) => alert.unread);
 
   const iniciais =
     (usuario?.nome_exibicao ?? "")
@@ -420,11 +433,11 @@ function Topbar({ page, onNavigate, onOpenSettings }: { page: Page; onNavigate: 
         <div className="relative">
           <button type="button" onClick={() => { setAlertsOpen((value) => !value); setProfileOpen(false); }} className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors" aria-expanded={alertsOpen}>
             <Bell className="w-4 h-4 text-slate-500" />
-            {recentAlerts.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />}
+            {hasUnreadAlerts && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />}
           </button>
           {alertsOpen && <div className="absolute right-0 top-10 z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-bold text-slate-800">{t("shell.navbar.recentAlerts")}</p><p className="text-[11px] text-slate-400">{t("shell.navbar.recentAlertsHint")}</p></div><button type="button" onClick={() => setAlertsOpen(false)} className="text-slate-400 hover:text-slate-700"><X className="w-4 h-4" /></button></div>
-            {recentAlerts.length ? <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{recentAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { if (alert.notificationId) void marcarComoLida(alert.notificationId); setAlertsOpen(false); onNavigate(alert.target); }} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-red-500" /><span className="min-w-0"><span className="block text-xs font-bold text-slate-800">{alert.title}</span><span className="mt-0.5 block text-[11px] text-slate-500 line-clamp-2">{alert.description}</span><span className="mt-1 block text-[10px] text-slate-400">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-400">{t("shell.navbar.noRecentAlerts")}</p>}
+            {recentAlerts.length ? <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto">{recentAlerts.map((alert) => <button key={alert.id} type="button" onClick={() => { markSeen(alert.id); if (alert.notificationId) void marcarComoLida(alert.notificationId); setAlertsOpen(false); onNavigate(alert.target); }} className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${alert.unread ? "bg-white" : "bg-slate-50/70"}`}><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${alert.unread ? "bg-red-500" : "bg-slate-300"}`} /><span className="min-w-0"><span className={`block text-xs font-bold ${alert.unread ? "text-slate-800" : "text-slate-500"}`}>{alert.title}</span><span className={`mt-0.5 block text-[11px] line-clamp-2 ${alert.unread ? "text-slate-500" : "text-slate-400"}`}>{alert.description}</span><span className="mt-1 block text-[10px] text-slate-400">{alert.time}</span></span></button>)}</div> : <p className="px-4 py-6 text-center text-xs text-slate-400">{t("shell.navbar.noRecentAlerts")}</p>}
           </div>}
         </div>
         <div className="relative">
