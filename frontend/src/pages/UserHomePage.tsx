@@ -177,69 +177,67 @@ function TimelineCard({ pedido, historico }: { pedido: PedidoAtual; historico: H
   type JourneyState = "completed" | "current" | "future";
 
   const historyDate = (status: string) => historico.find((item) => item.status_novo === status)?.data_alteracao ?? null;
+  const cancelled = pedido.status_solicitacao === "CANCELADA" || pedido.triagem_status === "CANCELADA" || pedido.status_producao === "CANCELADA";
+  const cancellation = [...historico].reverse().find((item) => item.status_novo === "CANCELADA");
   const delivered = pedido.status_solicitacao === "ENTREGUE" || pedido.status_producao === "ENTREGUE" || Boolean(pedido.data_entrega);
+  const creLinked = Boolean(pedido.cre_destino_cnes);
   const hasTriage = Boolean(pedido.triagem_status || pedido.triagem_data_hora);
-  const triageComplete = pedido.triagem_status === "CONCLUIDA" || Boolean(pedido.status_producao) || ["EM_PRODUCAO", "ENTREGUE"].includes(pedido.status_solicitacao);
-  const productionStarted = Boolean(pedido.status_producao || pedido.producao_data_abertura) || ["EM_PRODUCAO", "ENTREGUE"].includes(pedido.status_solicitacao);
-  const productionComplete = delivered || ["CONTROLE_QUALIDADE", "PRONTA_PARA_ENTREGA", "ENTREGUE"].includes(pedido.status_producao ?? "");
-  const qualityComplete = delivered || ["PRONTA_PARA_ENTREGA", "ENTREGUE"].includes(pedido.status_producao ?? "");
+  const activeProductionStatuses = ["EM_PRODUCAO", "CONTROLE_QUALIDADE", "PRONTA_PARA_ENTREGA", "ENTREGUE"];
+  const productionStarted = activeProductionStatuses.includes(pedido.status_producao ?? "") || ["EM_PRODUCAO", "ENTREGUE"].includes(pedido.status_solicitacao);
+  const triageComplete = pedido.triagem_status === "CONCLUIDA" || productionStarted || delivered;
+  const readyForPickup = pedido.status_producao === "PRONTA_PARA_ENTREGA";
+  const productionComplete = delivered || readyForPickup;
 
-  const baseSteps: Array<{ key: string; label: string; completed: boolean; current: boolean; date: string | null }> = [
+  const baseSteps: Array<{ key: string; label: string; completed: boolean; current: boolean; date: string | null; currentText?: string }> = [
     { key: "received", label: t("home.timeline.stages.received"), completed: true, current: false, date: pedido.data_solicitacao },
     {
       key: "sisreg",
       label: t("home.timeline.stages.sisreg"),
       completed: Boolean(pedido.sisreg_autorizado_em) || pedido.status_solicitacao !== "AGUARDANDO_AUTORIZACAO",
-      current: pedido.status_solicitacao === "AGUARDANDO_AUTORIZACAO",
+      current: !cancelled && pedido.status_solicitacao === "AGUARDANDO_AUTORIZACAO",
       date: pedido.sisreg_autorizado_em ?? historyDate("AUTORIZADA"),
     },
     {
       key: "cre",
       label: t("home.timeline.stages.cre"),
-      completed: Boolean(pedido.cre_destino_cnes),
-      current: Boolean(pedido.sisreg_autorizado_em) && !pedido.cre_destino_cnes,
-      date: pedido.sisreg_autorizado_em ?? historyDate("AUTORIZADA"),
+      completed: creLinked,
+      current: !cancelled && Boolean(pedido.sisreg_autorizado_em) && !creLinked,
+      date: creLinked ? (pedido.sisreg_autorizado_em ?? historyDate("AUTORIZADA")) : null,
     },
     {
       key: "queue",
       label: t("home.timeline.stages.queue"),
       completed: hasTriage || triageComplete || productionStarted || delivered,
-      current: pedido.status_solicitacao === "EM_FILA" && !hasTriage,
+      current: !cancelled && creLinked && pedido.status_solicitacao === "EM_FILA" && !hasTriage,
       date: historyDate("EM_FILA"),
     },
     {
       key: "triage",
       label: t("home.timeline.stages.triage"),
       completed: triageComplete,
-      current: hasTriage && !triageComplete && pedido.triagem_status !== "CANCELADA",
+      current: !cancelled && hasTriage && !triageComplete,
       date: pedido.triagem_data_hora ?? null,
     },
     {
       key: "production",
-      label: t("home.timeline.stages.production"),
+      label: t("home.timeline.stages.productionShort"),
       completed: productionComplete,
-      current: productionStarted && !productionComplete,
+      current: !cancelled && (productionStarted && !productionComplete || triageComplete && !productionStarted),
       date: pedido.producao_data_abertura ?? historyDate("EM_PRODUCAO"),
     },
     {
-      key: "quality",
-      label: t("home.timeline.stages.quality"),
-      completed: qualityComplete,
-      current: pedido.status_producao === "CONTROLE_QUALIDADE",
-      date: null,
-    },
-    {
       key: "delivery",
-      label: t("home.timeline.stages.delivery"),
+      label: t("home.timeline.stages.deliveryShort"),
       completed: delivered,
-      current: !delivered && pedido.status_producao === "PRONTA_PARA_ENTREGA",
-      date: pedido.data_entrega ?? null,
+      current: !cancelled && readyForPickup,
+      date: pedido.data_entrega ?? historyDate("ENTREGUE"),
+      currentText: readyForPickup ? t("home.timeline.readyForPickup") : undefined,
     },
   ];
 
-  // Se nenhuma regra específica marcou uma etapa atual, a primeira etapa futura
-  // vira a etapa aguardada. Isso mantém sempre uma única bolinha amarela.
-  let currentAssigned = baseSteps.some((step) => step.current);
+  // Se não houver uma regra específica e o caso estiver ativo, a primeira etapa
+  // futura é marcada como a etapa que o paciente está aguardando.
+  let currentAssigned = cancelled || baseSteps.some((step) => step.current);
   const steps = baseSteps.map((step) => {
     let state: JourneyState = step.completed ? "completed" : step.current ? "current" : "future";
     if (!currentAssigned && state === "future") {
@@ -263,6 +261,18 @@ function TimelineCard({ pedido, historico }: { pedido: PedidoAtual; historico: H
           <h2 className="text-base font-bold text-foreground">{t("home.timeline.title")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t("home.timeline.updated")}</p>
         </div>
+
+        {cancelled && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-bold text-red-800">{t("home.timeline.cancelledTitle")}</p>
+                <p className="mt-1 text-sm text-red-700">{cancellation?.observacao || t("home.timeline.cancelledFallback")}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="relative">
           <ol className="space-y-0">
@@ -288,7 +298,7 @@ function TimelineCard({ pedido, historico }: { pedido: PedidoAtual; historico: H
                   {step.date ? (
                     <p className="mt-1 text-xs font-mono text-muted-foreground">{new Date(step.date).toLocaleString(locale)}</p>
                   ) : step.state === "current" ? (
-                    <p className="mt-1 text-xs text-amber-700">{t("home.timeline.waiting")}</p>
+                    <p className="mt-1 text-xs text-amber-700">{step.currentText ?? t("home.timeline.waiting")}</p>
                   ) : step.state === "future" ? (
                     <p className="mt-1 text-xs text-slate-400">{t("home.timeline.future")}</p>
                   ) : null}

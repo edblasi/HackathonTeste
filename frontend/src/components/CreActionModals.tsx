@@ -2,9 +2,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2, ClipboardPlus, PackagePlus, X } from "lucide-react";
 import { apiGet, apiPatch, apiPost } from "../lib/api";
 import type { AdminCatalogs } from "../types/api";
-import type { PacienteAguardando, Triagem } from "../hooks/FetchData";
+import type { PacienteAguardando, Triagem, TriageWorkflowStatus } from "../hooks/FetchData";
 import { useLang } from "../i18n/LanguageContext";
 import type { TranslationKey } from "../i18n/translations";
+import { patientOperationalLabel } from "../lib/patientPrivacy";
 
 const inputClass = "mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
@@ -24,11 +25,13 @@ export function TriageModal({ open, onClose, onSaved, initialPatientId = null, t
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [workflowStatus, setWorkflowStatus] = useState<TriageWorkflowStatus>(triage?.workflow_status ?? triage?.status ?? (initialPatientId ? "EM_ANDAMENTO" : "PENDENTE"));
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     setMessage(null);
+    setWorkflowStatus(triage?.workflow_status ?? triage?.status ?? (initialPatientId ? "EM_ANDAMENTO" : "PENDENTE"));
     Promise.all([
       apiGet<AdminCatalogs>("/api/admin/catalogs"),
       apiGet<PacienteAguardando[]>("/api/cre/patients"),
@@ -46,20 +49,22 @@ export function TriageModal({ open, onClose, onSaved, initialPatientId = null, t
     setSaving(true);
     setMessage(null);
     try {
-      const body = {
-        paciente_id: Number(form.get("paciente_id")),
-        procedimento_sigtap_proposto: String(form.get("procedimento_sigtap_proposto") || "") || null,
-        status: String(form.get("status")),
-        observacao_clinica: String(form.get("observacao_clinica") || "") || null,
-      };
+      const procedure = String(form.get("procedimento_sigtap_proposto") || "") || null;
+      const notes = String(form.get("observacao_clinica") || "") || null;
       if (triage) {
         await apiPatch(`/api/cre/triages/${triage.triagem_id}`, {
-          procedimento_sigtap_proposto: body.procedimento_sigtap_proposto,
-          status: body.status,
-          observacao_clinica: body.observacao_clinica,
+          procedimento_sigtap_proposto: procedure,
+          workflow_status: String(form.get("workflow_status")),
+          motivo_cancelamento: String(form.get("motivo_cancelamento") || "") || null,
+          observacao_clinica: notes,
         });
       } else {
-        await apiPost("/api/cre/triages", body);
+        await apiPost("/api/cre/triages", {
+          paciente_id: Number(form.get("paciente_id")),
+          procedimento_sigtap_proposto: procedure,
+          status: String(form.get("status")),
+          observacao_clinica: notes,
+        });
       }
       setMessage({ ok: true, text: triage ? tr("cre.actions.triageUpdated") : tr("cre.actions.triageCreated") });
       onSaved();
@@ -82,9 +87,27 @@ export function TriageModal({ open, onClose, onSaved, initialPatientId = null, t
           <form onSubmit={submit}>
             <div className="space-y-4 p-5">
               {message && <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-semibold ${message.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{message.ok && <CheckCircle2 size={15} />}{message.text}</div>}
-              <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.patient")}<select name="paciente_id" required defaultValue={selectedPatient ?? ""} disabled={Boolean(triage)} className={inputClass}><option value="">{tr("cre.actions.select")}</option>{crePatients.map((patient) => <option key={patient.paciente_id} value={patient.paciente_id}>{patient.nome_completo} · #{patient.solicitacao_id}</option>)}</select></label>
+              <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.patient")}<select name="paciente_id" required defaultValue={selectedPatient ?? ""} disabled={Boolean(triage)} className={inputClass}><option value="">{tr("cre.actions.select")}</option>{crePatients.map((patient) => <option key={patient.paciente_id} value={patient.paciente_id}>{patientOperationalLabel(patient.nome_completo, patient.dispositivo)}</option>)}</select></label>
               <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.procedure")}<select name="procedimento_sigtap_proposto" defaultValue={selectedProcedure} className={inputClass}><option value="">{tr("cre.actions.select")}</option>{(catalogs?.procedures ?? []).map((procedure) => <option key={procedure.codigo} value={procedure.codigo}>{procedure.codigo} · {procedure.nome_procedimento}</option>)}</select></label>
-              <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.status")}<select name="status" defaultValue={triage?.status ?? (initialPatientId ? "EM_ANDAMENTO" : "PENDENTE")} className={inputClass}><option value="PENDENTE">{tr("triage.status.pending")}</option><option value="EM_ANDAMENTO">{tr("triage.status.progress")}</option><option value="CONCLUIDA">{tr("triage.status.done")}</option><option value="CANCELADA">{tr("triage.status.cancelled")}</option></select></label>
+              <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.status")}{triage ? (
+                <select name="workflow_status" value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value as TriageWorkflowStatus)} className={inputClass}>
+                  <option value="PENDENTE">{tr("triage.status.pending")}</option>
+                  <option value="EM_ANDAMENTO">{tr("triage.status.progress")}</option>
+                  <option value="CONCLUIDA">{tr("triage.status.done")}</option>
+                  <option value="EM_PRODUCAO">{tr("triage.status.production")}</option>
+                  <option value="PRONTA_PARA_ENTREGA">{tr("triage.status.ready")}</option>
+                  <option value="ENTREGUE">{tr("triage.status.delivered")}</option>
+                  <option value="CANCELADA">{tr("triage.status.cancelled")}</option>
+                </select>
+              ) : (
+                <select name="status" value={workflowStatus} onChange={(event) => setWorkflowStatus(event.target.value as TriageWorkflowStatus)} className={inputClass}>
+                  <option value="PENDENTE">{tr("triage.status.pending")}</option>
+                  <option value="EM_ANDAMENTO">{tr("triage.status.progress")}</option>
+                  <option value="CONCLUIDA">{tr("triage.status.done")}</option>
+                </select>
+              )}</label>
+              {triage && <p className="-mt-2 text-[11px] leading-relaxed text-slate-400">{tr("cre.actions.workflowHint")}</p>}
+              {triage && workflowStatus === "CANCELADA" && <label className="block text-xs font-semibold text-red-700">{tr("cre.actions.cancelReason")}<textarea name="motivo_cancelamento" required minLength={5} rows={3} className={`${inputClass} border-red-200 focus:border-red-500 focus:ring-red-100`} placeholder={tr("cre.actions.cancelReasonPlaceholder")} /></label>}
               <label className="block text-xs font-semibold text-slate-600">{tr("cre.actions.notes")}<textarea name="observacao_clinica" defaultValue={triage?.observacao_clinica ?? ""} rows={5} className={`${inputClass} resize-y`} /></label>
             </div>
             <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4"><button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">{tr("cre.actions.cancel")}</button><button disabled={saving} className="rounded-lg bg-blue-700 px-5 py-2 text-xs font-bold text-white hover:bg-blue-800 disabled:opacity-50">{saving ? tr("cre.actions.saving") : tr("cre.actions.saveTriage")}</button></div>

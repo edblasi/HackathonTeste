@@ -177,7 +177,10 @@
       "destinationManufacturer": "Destination manufacturer",
       "destinationAddress": "Destination address",
       "trackingCode": "Tracking code",
-      "saveReturn": "Register return"
+      "saveReturn": "Register return",
+      "workflowHint": "You can move the workflow forward or backward before delivery. Changes update the patient journey.",
+      "cancelReason": "Cancellation reason",
+      "cancelReasonPlaceholder": "Explain why care was cancelled. This message will be shown to the patient."
     },
     "support": {
       "openCases": "Open support cases",
@@ -335,10 +338,16 @@
       "print": "Print"
     },
     "status": {
-      "pending": "Pending",
-      "progress": "In Progress",
-      "done": "Completed",
-      "cancelled": "Cancelled"
+      "pending": "Triage pending",
+      "progress": "Triage in progress",
+      "done": "Triage completed",
+      "cancelled": "Cancelled",
+      "production": "In production",
+      "ready": "Ready for delivery",
+      "delivered": "Delivered"
+    },
+    "print": {
+      "title": "Triage receipt"
     }
   },
   "reports": {
@@ -490,10 +499,12 @@
         "cre": "CRE assignment",
         "queue": "Triage queue",
         "triage": "Clinical triage",
-        "production": "Device production",
-        "quality": "Quality control",
-        "delivery": "Delivery to patient"
-      }
+        "productionShort": "Production",
+        "deliveryShort": "Delivery"
+      },
+      "readyForPickup": "Your device is ready and waiting to be picked up at the CRE.",
+      "cancelledTitle": "Care request cancelled",
+      "cancelledFallback": "The CRE cancelled this request. Check your notifications or contact your care team for more information."
     },
     "id": {
       "title": "Prosthesis Digital Identity",

@@ -268,6 +268,8 @@ export interface LoteRecente {
   status: "OK" | "ESTOQUE_BAIXO" | "VENCIDO";
 }
 
+export type TriageWorkflowStatus = "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "EM_PRODUCAO" | "PRONTA_PARA_ENTREGA" | "ENTREGUE" | "CANCELADA";
+
 export interface Triagem {
   triagem_id: number;
   paciente: string;
@@ -278,6 +280,8 @@ export interface Triagem {
   observacao_clinica: string | null;
   paciente_id: number;
   procedimento_sigtap_proposto: string | null;
+  solicitacao_id?: number | null;
+  workflow_status?: TriageWorkflowStatus;
 }
 
 export interface RemessaLogistica {

@@ -177,7 +177,10 @@
       "destinationManufacturer": "Fabricante de destino",
       "destinationAddress": "Endereço de destino",
       "trackingCode": "Código de rastreio",
-      "saveReturn": "Registrar devolução"
+      "saveReturn": "Registrar devolução",
+      "workflowHint": "Você pode avançar ou voltar etapas antes da entrega. As alterações atualizam a jornada exibida ao paciente.",
+      "cancelReason": "Justificativa do cancelamento",
+      "cancelReasonPlaceholder": "Explique por que o atendimento foi cancelado. Esta mensagem será exibida ao paciente."
     },
     "support": {
       "openCases": "Atendimentos em aberto",
@@ -335,10 +338,16 @@
       "print": "Imprimir"
     },
     "status": {
-      "pending": "Pendente",
-      "progress": "Em Andamento",
-      "done": "Concluída",
-      "cancelled": "Cancelada"
+      "pending": "Triagem pendente",
+      "progress": "Triagem em andamento",
+      "done": "Triagem concluída",
+      "cancelled": "Cancelado",
+      "production": "Em produção",
+      "ready": "Pronto para entrega",
+      "delivered": "Entregue"
+    },
+    "print": {
+      "title": "Comprovante de triagem"
     }
   },
   "reports": {
@@ -490,10 +499,12 @@
         "cre": "Vinculação ao CRE",
         "queue": "Fila para triagem",
         "triage": "Triagem clínica",
-        "production": "Produção do dispositivo",
-        "quality": "Controle de qualidade",
-        "delivery": "Entrega ao paciente"
-      }
+        "productionShort": "Produção",
+        "deliveryShort": "Entrega"
+      },
+      "readyForPickup": "Seu dispositivo aguarda recolhimento no CRE.",
+      "cancelledTitle": "Atendimento cancelado",
+      "cancelledFallback": "O CRE cancelou esta solicitação. Consulte as notificações ou entre em contato com sua equipe de saúde para mais informações."
     },
     "id": {
       "title": "Identidade Digital da Prótese",

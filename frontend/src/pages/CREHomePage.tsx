@@ -10,6 +10,7 @@ import { CreSupportInbox } from "../components/CreSupportInbox";
 import { ShipmentModal, TriageModal } from "../components/CreActionModals";
 import { DashboardCustomizer, useDashboardCardPreferences } from "../components/DashboardCustomizer";
 import { crePageForAlert } from "../lib/alertRouting";
+import { patientFirstName } from "../lib/patientPrivacy";
 import {
   useKpiDashboard,
   useAlertasCriticos,
@@ -23,6 +24,7 @@ import {
   useRelatorioMensal,
   useNotificacoes,
   type Triagem,
+  type TriageWorkflowStatus,
   type PacienteAguardando,
 } from "../hooks/FetchData";
 import {
@@ -852,7 +854,7 @@ function PatientRecordsModal({ patients, onClose, onStartTriage }: { patients: P
             <tbody className="divide-y divide-slate-100">
               {patients.map((patient) => (
                 <tr key={patient.solicitacao_id} className="hover:bg-slate-50">
-                  <td className="px-5 py-3"><p className="font-semibold text-slate-800">{patient.nome_completo}</p><p className="text-[11px] text-slate-400">ID {patient.paciente_id}</p></td>
+                  <td className="px-5 py-3"><p className="font-semibold text-slate-800">{patientFirstName(patient.nome_completo)}</p><p className="text-[11px] text-slate-400">{patient.dispositivo}</p></td>
                   <td className="px-5 py-3 font-mono text-xs text-slate-600">#{patient.solicitacao_id}<br/><span className="font-sans text-[11px] text-slate-400">{new Date(patient.data_solicitacao).toLocaleDateString(locale)}</span></td>
                   <td className="px-5 py-3 text-xs text-slate-700">{patient.dispositivo}</td>
                   <td className="px-5 py-3 text-xs font-semibold text-slate-600">{patient.prioridade_clinica}</td>
@@ -948,11 +950,11 @@ function PatientsTable({ onStartTriage, refreshKey }: { onStartTriage: (patientI
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">
-                      {p.paciente_mascarado.slice(0, 1)}
+                      {patientFirstName(p.nome_completo).slice(0, 1)}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800 font-mono">
-                        {p.paciente_mascarado}
+                        {patientFirstName(p.nome_completo)}
                       </p>
                       {p.prioridade_clinica === "URGENTE" && (
                         <span className="text-[10px] font-semibold text-orange-600 flex items-center gap-1">
@@ -1393,21 +1395,33 @@ function LogisticaReversa({ onNewReturn, refreshKey }: { onNewReturn: () => void
 // PAGE: TRIAGENS
 // ═══════════════════════════════════════════════════════════════
 
-function TriagemBadge({ status }: { status: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA" }) {
+function TriagemBadge({ status }: { status: TriageWorkflowStatus }) {
   const { t } = useLang();
-  const map: Record<string, string> = {
+  const map: Record<TriageWorkflowStatus, string> = {
     PENDENTE: "bg-amber-50 text-amber-700 border-amber-200",
     EM_ANDAMENTO: "bg-blue-50 text-blue-700 border-blue-200",
     CONCLUIDA: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    EM_PRODUCAO: "bg-violet-50 text-violet-700 border-violet-200",
+    PRONTA_PARA_ENTREGA: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    ENTREGUE: "bg-emerald-100 text-emerald-800 border-emerald-300",
     CANCELADA: "bg-red-50 text-red-700 border-red-200",
   };
-  const dot: Record<string, string> = {
-    PENDENTE: "bg-amber-500", EM_ANDAMENTO: "bg-blue-500 animate-pulse", CONCLUIDA: "bg-emerald-500", CANCELADA: "bg-red-500",
+  const dot: Record<TriageWorkflowStatus, string> = {
+    PENDENTE: "bg-amber-500",
+    EM_ANDAMENTO: "bg-blue-500 animate-pulse",
+    CONCLUIDA: "bg-emerald-500",
+    EM_PRODUCAO: "bg-violet-500 animate-pulse",
+    PRONTA_PARA_ENTREGA: "bg-cyan-500",
+    ENTREGUE: "bg-emerald-600",
+    CANCELADA: "bg-red-500",
   };
-  const label: Record<string, string> = {
+  const label: Record<TriageWorkflowStatus, string> = {
     PENDENTE: t("triage.status.pending"),
     EM_ANDAMENTO: t("triage.status.progress"),
     CONCLUIDA: t("triage.status.done"),
+    EM_PRODUCAO: t("triage.status.production"),
+    PRONTA_PARA_ENTREGA: t("triage.status.ready"),
+    ENTREGUE: t("triage.status.delivered"),
     CANCELADA: t("triage.status.cancelled"),
   };
   return (
@@ -1418,21 +1432,62 @@ function TriagemBadge({ status }: { status: "PENDENTE" | "EM_ANDAMENTO" | "CONCL
   );
 }
 
+function escapePrintHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char] ?? char));
+}
+
+function printTriageReceipt(triage: Triagem, locale: string, labels: { title: string; patient: string; request: string; professional: string; device: string; date: string; status: string; notes: string }) {
+  const popup = window.open("", "_blank", "width=820,height=900");
+  if (!popup) return;
+  const status = triage.workflow_status ?? triage.status;
+  const values = {
+    patient: patientFirstName(triage.paciente),
+    request: triage.solicitacao_id ? `#${triage.solicitacao_id}` : "—",
+    professional: triage.profissional,
+    device: triage.dispositivo ?? "—",
+    date: new Date(triage.data_hora).toLocaleString(locale),
+    status,
+    notes: triage.observacao_clinica ?? "—",
+  };
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapePrintHtml(labels.title)}</title><style>
+    body{font-family:Arial,sans-serif;color:#0f172a;margin:40px} .head{border-bottom:3px solid #1d4ed8;padding-bottom:18px;margin-bottom:24px}
+    h1{font-size:22px;margin:0 0 6px} .muted{color:#64748b;font-size:12px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+    .field{border:1px solid #e2e8f0;border-radius:10px;padding:12px}.label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em}.value{font-size:14px;font-weight:600;margin-top:5px}
+    .notes{margin-top:12px}.footer{margin-top:36px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b}@media print{body{margin:22mm}.no-print{display:none}}
+  </style></head><body><div class="head"><h1>${escapePrintHtml(labels.title)}</h1><div class="muted">CRE · comprovante gerado pelo sistema</div></div>
+  <div class="grid">
+    <div class="field"><div class="label">${escapePrintHtml(labels.patient)}</div><div class="value">${escapePrintHtml(values.patient)}</div></div>
+    <div class="field"><div class="label">${escapePrintHtml(labels.request)}</div><div class="value">${escapePrintHtml(values.request)}</div></div>
+    <div class="field"><div class="label">${escapePrintHtml(labels.professional)}</div><div class="value">${escapePrintHtml(values.professional)}</div></div>
+    <div class="field"><div class="label">${escapePrintHtml(labels.device)}</div><div class="value">${escapePrintHtml(values.device)}</div></div>
+    <div class="field"><div class="label">${escapePrintHtml(labels.date)}</div><div class="value">${escapePrintHtml(values.date)}</div></div>
+    <div class="field"><div class="label">${escapePrintHtml(labels.status)}</div><div class="value">${escapePrintHtml(values.status)}</div></div>
+  </div><div class="field notes"><div class="label">${escapePrintHtml(labels.notes)}</div><div class="value">${escapePrintHtml(values.notes)}</div></div>
+  <div class="footer">Documento demonstrativo de registro de triagem. A via clínica oficial deve seguir os fluxos institucionais aplicáveis.</div>
+  <script>window.onload=()=>{window.print();}</script></body></html>`);
+  popup.document.close();
+}
+
+
 function Triagens({ onNewTriage, onEditTriage, refreshKey }: { onNewTriage: () => void; onEditTriage: (triage: Triagem) => void; refreshKey: number }) {
   const { t, locale } = useLang();
   const { data: triagensReais, loading } = useTriagens(refreshKey);
   const triagens = triagensReais ?? [];
   const [selected, setSelected] = useState<Triagem | null>(null);
-  const [filterStatus, setFilterStatus] = useState<Triagem["status"] | "TODAS">("TODAS");
+  const [filterStatus, setFilterStatus] = useState<TriageWorkflowStatus | "TODAS">("TODAS");
 
-  const statusOpts: { key: Triagem["status"] | "TODAS"; label: string }[] = [
+  const statusOpts: { key: TriageWorkflowStatus | "TODAS"; label: string }[] = [
     { key: "TODAS", label: t("triage.filter.all") },
     { key: "PENDENTE", label: t("triage.status.pending") },
     { key: "EM_ANDAMENTO", label: t("triage.status.progress") },
     { key: "CONCLUIDA", label: t("triage.status.done") },
+    { key: "EM_PRODUCAO", label: t("triage.status.production") },
+    { key: "PRONTA_PARA_ENTREGA", label: t("triage.status.ready") },
+    { key: "ENTREGUE", label: t("triage.status.delivered") },
     { key: "CANCELADA", label: t("triage.status.cancelled") },
   ];
-  const filtered = filterStatus === "TODAS" ? triagens : triagens.filter(tr => tr.status === filterStatus);
+  const workflowOf = (tr: Triagem): TriageWorkflowStatus => tr.workflow_status ?? tr.status;
+  const filtered = filterStatus === "TODAS" ? triagens : triagens.filter(tr => workflowOf(tr) === filterStatus);
 
   const seteDiasAtras = new Date();
   seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
@@ -1508,14 +1563,14 @@ function Triagens({ onNewTriage, onEditTriage, refreshKey }: { onNewTriage: () =
                   >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">{avatarOf(tr.paciente)}</div>
-                        <span className="font-mono text-xs font-bold text-slate-800">{tr.paciente}</span>
+                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 shrink-0">{avatarOf(patientFirstName(tr.paciente))}</div>
+                        <span className="text-xs font-bold text-slate-800">{patientFirstName(tr.paciente)}</span>
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">{tr.profissional}</td>
                     <td className="px-5 py-3.5 text-xs text-slate-600">{tr.dispositivo ?? "—"}</td>
                     <td className="px-5 py-3.5 text-xs text-slate-500 font-mono">{new Date(tr.data_hora).toLocaleString(locale)}</td>
-                    <td className="px-5 py-3.5"><TriagemBadge status={tr.status} /></td>
+                    <td className="px-5 py-3.5"><TriagemBadge status={workflowOf(tr)} /></td>
                     <td className="px-5 py-3.5">
                       <ChevronRight className={`w-4 h-4 transition-colors ${selected?.triagem_id === tr.triagem_id ? "text-blue-600" : "text-slate-300"}`} />
                     </td>
@@ -1544,10 +1599,10 @@ function Triagens({ onNewTriage, onEditTriage, refreshKey }: { onNewTriage: () =
               </div>
               <div className="px-5 py-5 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-lg font-bold text-slate-600">{avatarOf(selected.paciente)}</div>
+                  <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center text-lg font-bold text-slate-600">{avatarOf(patientFirstName(selected.paciente))}</div>
                   <div>
-                    <p className="text-sm font-bold text-slate-900 font-mono">{selected.paciente}</p>
-                    <TriagemBadge status={selected.status} />
+                    <p className="text-sm font-bold text-slate-900">{patientFirstName(selected.paciente)}</p>
+                    <TriagemBadge status={workflowOf(selected)} />
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -1573,7 +1628,7 @@ function Triagens({ onNewTriage, onEditTriage, refreshKey }: { onNewTriage: () =
                 </div>
                 <div className="flex gap-2 pt-1">
                   <button type="button" onClick={() => onEditTriage(selected)} className="flex-1 py-2 text-xs font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors">{t("triage.detail.edit")}</button>
-                  <button type="button" onClick={() => window.print()} className="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">{t("triage.detail.print")}</button>
+                  <button type="button" onClick={() => printTriageReceipt(selected, locale, { title: t("triage.print.title"), patient: t("triage.col.patient"), request: t("patients.records.request"), professional: t("triage.detail.professional"), device: t("triage.detail.device"), date: t("triage.detail.date"), status: t("triage.col.status"), notes: t("triage.detail.obs") })} className="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">{t("triage.detail.print")}</button>
                 </div>
               </div>
             </>
@@ -1776,8 +1831,8 @@ function Relatorios({ onNavigate }: { onNavigate: (page: Page) => void }) {
             { kind: "audit", icon: Shield, title: t("reports.rep.audit"), sub: t("reports.rep.auditSub"), color: "text-slate-600", bg: "bg-slate-100" },
           ].map(({ kind, icon: Icon, title, sub, color, bg }) => (
             <button type="button" onClick={() => {
-              if (kind === "patients") downloadCreCsv("umdr-cre-pacientes.csv", (pacientesRelatorio ?? []).map((item) => ({ paciente: item.nome_completo, dispositivo: item.dispositivo, prioridade: item.prioridade_clinica, status: item.status, dias_espera: item.dias_espera_efetivos })));
-              else if (kind === "triages") downloadCreCsv("umdr-cre-triagens.csv", (triagensRelatorio ?? []).map((item) => ({ paciente: item.paciente, profissional: item.profissional, dispositivo: item.dispositivo ?? "", data: item.data_hora, status: item.status, observacao: item.observacao_clinica ?? "" })));
+              if (kind === "patients") downloadCreCsv("umdr-cre-pacientes.csv", (pacientesRelatorio ?? []).map((item) => ({ paciente: patientFirstName(item.nome_completo), dispositivo: item.dispositivo, prioridade: item.prioridade_clinica, status: item.status, dias_espera: item.dias_espera_efetivos })));
+              else if (kind === "triages") downloadCreCsv("umdr-cre-triagens.csv", (triagensRelatorio ?? []).map((item) => ({ paciente: patientFirstName(item.paciente), profissional: item.profissional, dispositivo: item.dispositivo ?? "", data: item.data_hora, status: item.status, observacao: item.observacao_clinica ?? "" })));
               else if (kind === "logistics") downloadCreCsv("umdr-cre-logistica.csv", (remessasRelatorio ?? []).map((item) => ({ id: item.remessa_id, origem: item.origem, destino: item.fabricante_destino, dispositivo: item.tipo_dispositivo, quantidade: item.quantidade, status: item.status, rastreio: item.codigo_rastreio ?? "" })));
               else if (kind === "stock") downloadCreCsv("umdr-cre-estoque.csv", (lotesReais ?? []).map((item) => ({ lote: item.lote_fabricante ?? item.lote_id, item: item.tipo_item, oficina: item.oficina, quantidade: item.quantidade, validade: item.data_validade ?? "", status: item.status })));
               else if (kind === "kpi") downloadCreCsv("umdr-cre-kpis.csv", [{ fila_ativa: kpiRelatorio?.fila_ativa ?? 0, estoque_proteses: kpiRelatorio?.estoque_proteses ?? 0, logistica_reversa: kpiRelatorio?.em_logistica_reversa ?? 0, matchings_mes: kpiRelatorio?.matchings_mes ?? 0 }]);
